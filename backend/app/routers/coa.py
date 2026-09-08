@@ -59,9 +59,9 @@ async def list_schemes(
         "items": [
             {
                 "id": r[0], "scheme_code": r[1], "scheme_name": r[2], "description": r[3],
-                "status": r[4], "node_count": r[6] or r[8], "real_node_count": r[8],
-                "created_at": r[7].isoformat() if r[7] else None,
-                "updated_at": r[8 + 1] and r[8 + 1].isoformat() if False else (r[8].isoformat() if r[8] else None),
+                "status": r[4], "node_count": r[5] or r[8], "real_node_count": r[8],
+                "created_at": r[6].isoformat() if r[6] else None,
+                "updated_at": r[7].isoformat() if r[7] else None,
             } for r in rows
         ]
     }
