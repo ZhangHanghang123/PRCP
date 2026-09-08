@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Row, Col, Form, Input, Select, Button, Table, Space, Tag,
-  Modal, message, Spin, Empty, Tabs, DatePicker, Popconfirm, Statistic, Alert, InputNumber,
+  Modal, message, Spin, Empty, Tabs, DatePicker, Popconfirm, Statistic, Alert, InputNumber, Tree,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
@@ -43,6 +43,83 @@ const KPI: React.FC = () => {
   // 重算
   const [recalcKpiId, setRecalcKpiId] = useState<number | null>(null)
   const [recalcDate, setRecalcDate] = useState<Dayjs>(dayjs('2026-08-31'))
+
+  // 监听定义表单的 formula 字段，用于双框联动
+  const formulaText = Form.useWatch('formula', defForm) || ''
+
+  // ========= 报表表项 → 树形结构 =========
+  const buildTree = (items: any[]): any[] => {
+    if (!items.length) return []
+    // 按 item_code 建索引
+    const byCode = new Map<string, any>()
+    for (const it of items) {
+      byCode.set(it.item_code, {
+        key: `node_${it.id}`,
+        title: (
+          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
+            <Tag color={it.level === 1 ? 'blue' : it.level === 2 ? 'cyan' : it.level === 3 ? 'geekblue' : 'green'} style={{ marginRight: 4 }}>
+              L{it.level}
+            </Tag>
+            <strong>{it.item_code}</strong> · {it.item_name}
+          </span>
+        ),
+        level: it.level,
+        raw: it,
+        children: [] as any[],
+        isLeaf: false,
+      })
+    }
+    // 判断叶子：有更深层级以本 code 为前缀的项就不是叶子
+    const isLeaf = (code: string) => {
+      for (const k of byCode.keys()) {
+        if (k.length > code.length && k.startsWith(code)) return false
+      }
+      return true
+    }
+    // 组装父子（按 item_code 前缀：L2 的前 3 位是 L1，L3 前 6 位是 L2 ...）
+    const roots: any[] = []
+    for (const it of items) {
+      const node = byCode.get(it.item_code)!
+      node.isLeaf = isLeaf(it.item_code)
+      if (it.level === 1) {
+        roots.push(node)
+      } else {
+        const parentCode = it.item_code.slice(0, (it.level - 1) * 3)
+        const parent = byCode.get(parentCode)
+        if (parent) parent.children.push(node)
+        else roots.push(node)  // fallback
+      }
+    }
+    // 空 children 设为 undefined，Tree 不显示展开箭头
+    const clean = (nodes: any[]) => {
+      for (const n of nodes) {
+        if (!n.children || n.children.length === 0) n.children = undefined
+        else clean(n.children)
+      }
+    }
+    clean(roots)
+    return roots
+  }
+
+  // 公式：item_<ID> → 报表项中文名（只读预览）
+  const translateFormula = (formula: string, items: any[]): string => {
+    if (!formula || !items.length) return formula || ''
+    // 按 id 倒序，避免 item_12 误替换 item_1 的部分
+    const sorted = [...items].sort((a, b) => b.id - a.id)
+    let result = formula
+    for (const it of sorted) {
+      const code = `item_${it.id}`
+      const name = it.item_name || code
+      result = result.split(code).join(name)
+    }
+    return result
+  }
+
+  const rptTreeData = useMemo(() => buildTree(rptItems), [rptItems])
+  const formulaNameView = useMemo(
+    () => translateFormula(formulaText, rptItems),
+    [formulaText, rptItems]
+  )
 
   // 加载方案
   const loadSchemes = async () => {
@@ -181,11 +258,8 @@ const KPI: React.FC = () => {
 
   // 在公式中插入报表表项引用
   const insertItemIntoFormula = (item: any) => {
-    // 用 kpi 编码（item_code）作为变量名，但需要避免与已有标识符冲突
-    // 这里用 item.item_code 作为变量，但 item_code 可能重复 → 改为 item.id
     const v = defForm.getFieldValue('formula') || ''
-    // 用 item.id 作为变量引用
-    defForm.setFieldsValue({ formula: v + ` item_${item.id}` })
+    defForm.setFieldsValue({ formula: v ? `${v} item_${item.id}` : `item_${item.id}` })
   }
 
   // ========= 值 CRUD =========
@@ -419,9 +493,9 @@ const KPI: React.FC = () => {
               ]} />
             </Form.Item></Col>
           </Row>
-          <Form.Item name="formula" label="计算公式" rules={[{ required: true }]}
-            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。点击下方表项可插入引用（变量名 = item_<ID>）">
-            <Input.TextArea rows={3} placeholder="例如：(item_101 - item_102) / item_103 * 100" onChange={(e) => onFormulaChange(e.target.value)} />
+          <Form.Item name="formula" label="计算公式（码值，可编辑）" rules={[{ required: true }]}
+            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = item_<ID>">
+            <Input.TextArea rows={3} placeholder="例如：item_248 - item_249" onChange={(e) => onFormulaChange(e.target.value)} />
           </Form.Item>
           {formulaValid && (
             formulaValid.ok
@@ -429,21 +503,39 @@ const KPI: React.FC = () => {
               : <Alert type="error" message={formulaValid.error} showIcon style={{ marginBottom: 12 }} />
           )}
 
-          {/* 报表表项引用面板 */}
-          {rptItems.length > 0 && (
+          {/* 名称预览框（只读，把 item_<ID> 翻译成中文名） */}
+          <Form.Item label="公式名称视图（只读预览）">
+            <Input.TextArea
+              rows={2}
+              readOnly
+              value={formulaNameView}
+              placeholder={rptItems.length ? '编辑上方公式时，此处实时显示中文名' : '请先选择所属报表'}
+              style={{ background: '#f5f5f5', fontFamily: 'monospace', fontSize: 12 }}
+            />
+          </Form.Item>
+
+          {/* 报表结构树（按 L1→L2→L3→L4 层级） */}
+          {rptTreeData.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ color: '#666', marginBottom: 6, fontSize: 13 }}>
-                📌 点击报表表项插入到公式：
+                📌 点击报表结构树的叶子节点插入引用：
               </div>
-              <div style={{ maxHeight: 200, overflow: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4, background: '#fafafa' }}>
-                <Space wrap size={[4, 4]}>
-                  {rptItems.map((it) => (
-                    <Tag key={it.id} color={it.level === 1 ? 'blue' : 'cyan'} style={{ cursor: 'pointer' }}
-                      onClick={() => insertItemIntoFormula(it)}>
-                      L{it.level} {it.item_code} · {it.item_name}
-                    </Tag>
-                  ))}
-                </Space>
+              <div style={{ maxHeight: 300, overflow: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4, background: '#fafafa' }}>
+                <Tree
+                  treeData={rptTreeData}
+                  defaultExpandAll
+                  showLine
+                  blockNode
+                  selectable
+                  onSelect={(_, info: any) => {
+                    const node = info.node
+                    if (node.isLeaf) {
+                      insertItemIntoFormula(node.raw)
+                    } else {
+                      message.info('请选择叶子节点（具体报表项）')
+                    }
+                  }}
+                />
               </div>
             </div>
           )}
