@@ -8,6 +8,7 @@ import Groups from './pages/Groups'
 import Positions from './pages/Positions'
 import Rules from './pages/Rules'
 import Tasks from './pages/Tasks'
+import MetricItems from './pages/MetricItems'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -30,6 +31,7 @@ const App: React.FC = () => (
         <Route path="positions" element={<Positions />} />
         <Route path="rules" element={<Rules />} />
         <Route path="tasks" element={<Tasks />} />
+        <Route path="metric-items" element={<MetricItems />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

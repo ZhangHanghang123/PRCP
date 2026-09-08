@@ -61,3 +61,9 @@ export const tasksApi = {
   run: (id: number) => http.post(`/tasks/${id}/run`).then((r) => r.data),
   log: (id: number) => http.get(`/tasks/${id}/log`).then((r) => r.data),
 }
+export const metricItemsApi = {
+  categories: () => http.get('/metric-items/categories').then((r) => r.data),
+  list: (params: any = {}) => http.get('/metric-items', { params }).then((r) => r.data),
+  tree: (category: string) => http.get('/metric-items/tree', { params: { category } }).then((r) => r.data),
+  importFromXlsx: () => http.post('/metric-items/import-from-xlsx').then((r) => r.data),
+}

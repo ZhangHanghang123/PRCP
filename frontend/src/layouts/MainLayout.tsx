@@ -6,6 +6,7 @@ import {
   BankOutlined,
   ApartmentOutlined,
   ExperimentOutlined,
+  DatabaseOutlined,
   UserOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
@@ -21,6 +22,7 @@ const MainLayout: React.FC = () => {
 
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/metric-items', icon: <DatabaseOutlined />, label: '指标项管理' },
     { key: '/groups', icon: <TeamOutlined />, label: '资金组管理' },
     { key: '/positions', icon: <BankOutlined />, label: '头寸管理' },
     { key: '/rules', icon: <ApartmentOutlined />, label: '组算规则' },
