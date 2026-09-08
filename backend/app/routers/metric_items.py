@@ -96,7 +96,9 @@ async def tree(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """返回树形结构（带 children 数组，前端可直接渲染 Tree 组件）"""
+    """返回树形结构（带 children 数组，前端可直接渲染 Tree 组件）
+    用 (parent_code, name) 联合作为父节点 key，避免 (cat, code) 重复时错位
+    """
     rows = db.execute(
         text("""
             SELECT id, code, name, level, parent_code, path, is_leaf
@@ -107,13 +109,13 @@ async def tree(
         {"c": category},
     ).fetchall()
 
-    # 物化路径解析：path=/FINANCIAL/001/001001/001001001/
-    # 直接用 (cat, code, name) 三元组作为节点 key（与导入时一致，避免 code 重复节点错位）
-    nodes = {}
+    # 用 (parent_code, name) 联合作为索引建树
+    # 同 cat 下 parent_code + name 唯一确定父节点（处理 (cat, code) 重复的边界）
+    nodes_by_pn: dict = {}  # (parent_code, name) -> node
     for r in rows:
-        key = (r[1], r[2], r[3])  # (code, name) — 加上 level 父节点判别
-        nodes[key] = {
-            "key": f"{r[1]}|{r[2]}",  # 用于前端 Tree 的 key（code+name 唯一）
+        key = (r[4] or "", r[2])
+        nodes_by_pn[key] = {
+            "key": f"{r[1]}|{r[2]}",
             "title": r[2],
             "code": r[1],
             "level": r[3],
@@ -123,25 +125,38 @@ async def tree(
             "children": [],
         }
 
-    # 组装树
+    # 组装树：每个节点找其父（parent_code + parent 的 name）
+    # 由于父节点的 name 不直接知道，我们用以下规则：
+    #   - level=1 节点：parent_code 为空，视为根
+    #   - level>1 节点：在 DB 中查 parent_code 对应的节点（可能多个，code 重复时按 sibling 关系选）
+    # 实际实现：从 nodes_by_pn 反查 — 同 cat + parent_code = 当前节点的 parent_code 的所有节点，按 sort_order 取最近的"前一个"
+    # 但我们没存 sort_order 在这里。简化：直接用 path 前缀匹配 — 父节点的 path 必是子节点 path 的前缀
     roots = []
-    for key, node in nodes.items():
-        code, name = node["code"], node["title"]
-        level = node["level"]
-        # 找父：同 cat 下 level-1 且 name 前缀
-        parent = None
-        if level > 1:
-            for k2, n2 in nodes.items():
-                if n2["level"] == level - 1 and code.startswith(n2["code"]):
-                    # 启发式：level-1 的 code 应该是本 code 的前缀
-                    parent = n2
-                    break
-        if parent is None:
-            roots.append(node)
-        else:
-            parent["children"].append(node)
+    by_path: dict = {n["path"]: n for n in nodes_by_pn.values()}
 
-    return {"category": category, "items": roots, "total": len(nodes)}
+    for n in nodes_by_pn.values():
+        if n["level"] == 1 or not n["parent_code"]:
+            roots.append(n)
+            continue
+        # 找父节点：path 是 n.path 前缀、且以 n.parent_code 结尾
+        # 父节点 path 形如 ".../parent_code/"，本节点 path 形如 ".../parent_code/this_code/"
+        parent_code = n["parent_code"]
+        child_path = n["path"]
+        # 去掉末尾 "/<this_code>/" → 父 path
+        suffix = f"/{parent_code}/"
+        if child_path.endswith(suffix):
+            parent_path = child_path[: -len(f"{n['code']}/")]
+        else:
+            # fallback: 父 path 末段是 parent_code/
+            parent_path = child_path.rsplit(f"/{n['code']}/", 1)[0] + "/"
+        parent = by_path.get(parent_path)
+        if parent:
+            parent["children"].append(n)
+        else:
+            # 兜底：找不到父就当根
+            roots.append(n)
+
+    return {"category": category, "items": roots, "total": len(nodes_by_pn)}
 
 
 @router.post("/import-from-xlsx")
