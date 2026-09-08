@@ -7,6 +7,10 @@ import {
   ApartmentOutlined,
   ExperimentOutlined,
   DatabaseOutlined,
+  PartitionOutlined,
+  FileDoneOutlined,
+  LineChartOutlined,
+  FunctionOutlined,
   UserOutlined,
   LogoutOutlined,
 } from '@ant-design/icons'
@@ -22,7 +26,11 @@ const MainLayout: React.FC = () => {
 
   const menuItems = [
     { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/coa', icon: <PartitionOutlined />, label: '账户册维护' },
+    { key: '/reports', icon: <FileDoneOutlined />, label: '报表表项管理' },
+    { key: '/balance', icon: <LineChartOutlined />, label: '资产负债表' },
     { key: '/metric-items', icon: <DatabaseOutlined />, label: '指标项管理' },
+    { key: '/kpi', icon: <FunctionOutlined />, label: '指标管理' },
     { key: '/groups', icon: <TeamOutlined />, label: '资金组管理' },
     { key: '/positions', icon: <BankOutlined />, label: '头寸管理' },
     { key: '/rules', icon: <ApartmentOutlined />, label: '组算规则' },

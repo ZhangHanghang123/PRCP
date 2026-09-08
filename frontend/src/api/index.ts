@@ -67,3 +67,53 @@ export const metricItemsApi = {
   tree: (category: string) => http.get('/metric-items/tree', { params: { category } }).then((r) => r.data),
   importFromXlsx: () => http.post('/metric-items/import-from-xlsx').then((r) => r.data),
 }
+
+// 账户册
+export const coaApi = {
+  listSchemes: (params: any = {}) => http.get('/coa/schemes', { params }).then((r) => r.data),
+  createScheme: (data: any) => http.post('/coa/schemes', data).then((r) => r.data),
+  updateScheme: (id: number, data: any) => http.put(`/coa/schemes/${id}`, data).then((r) => r.data),
+  deleteScheme: (id: number) => http.delete(`/coa/schemes/${id}`).then((r) => r.data),
+  listNodes: (schemeId: number) => http.get('/coa/nodes', { params: { scheme_id: schemeId } }).then((r) => r.data),
+  treeNodes: (schemeId: number) => http.get('/coa/nodes/tree', { params: { scheme_id: schemeId } }).then((r) => r.data),
+  createNode: (data: any) => http.post('/coa/nodes', data).then((r) => r.data),
+  updateNode: (id: number, data: any) => http.put(`/coa/nodes/${id}`, data).then((r) => r.data),
+  deleteNode: (id: number) => http.delete(`/coa/nodes/${id}`).then((r) => r.data),
+}
+
+// 报表
+export const reportsApi = {
+  list: (params: any = {}) => http.get('/reports/', { params }).then((r) => r.data),
+  create: (data: any) => http.post('/reports/', data).then((r) => r.data),
+  update: (id: number, data: any) => http.put(`/reports/${id}`, data).then((r) => r.data),
+  delete: (id: number) => http.delete(`/reports/${id}`).then((r) => r.data),
+  listItems: (reportId: number) => http.get('/reports/items', { params: { report_id: reportId } }).then((r) => r.data),
+  treeItems: (reportId: number) => http.get('/reports/items/tree', { params: { report_id: reportId } }).then((r) => r.data),
+  createItem: (data: any) => http.post('/reports/items', data).then((r) => r.data),
+  updateItem: (id: number, data: any) => http.put(`/reports/items/${id}`, data).then((r) => r.data),
+  deleteItem: (id: number) => http.delete(`/reports/items/${id}`).then((r) => r.data),
+  batchItems: (reportId: number, payload: any) => http.post('/reports/items/batch', payload, { params: { report_id: reportId } }).then((r) => r.data),
+}
+
+// 资产负债表
+export const balanceApi = {
+  list: (params: any = {}) => http.get('/balance/', { params }).then((r) => r.data),
+  upsert: (data: any) => http.post('/balance/', data).then((r) => r.data),
+  delete: (id: number) => http.delete(`/balance/${id}`).then((r) => r.data),
+  gapSummary: (dataDate: string) => http.get('/balance/gap-summary', { params: { data_date: dataDate } }).then((r) => r.data),
+}
+
+// 指标
+export const kpiApi = {
+  listDefs: (params: any = {}) => http.get('/kpi/definitions', { params }).then((r) => r.data),
+  createDef: (data: any) => http.post('/kpi/definitions', data).then((r) => r.data),
+  updateDef: (id: number, data: any) => http.put(`/kpi/definitions/${id}`, data).then((r) => r.data),
+  deleteDef: (id: number) => http.delete(`/kpi/definitions/${id}`).then((r) => r.data),
+  listValues: (params: any = {}) => http.get('/kpi/values', { params }).then((r) => r.data),
+  upsertValue: (data: any) => http.post('/kpi/values', data).then((r) => r.data),
+  deleteValue: (id: number) => http.delete(`/kpi/values/${id}`).then((r) => r.data),
+  formulaEval: (formula: string, ctx: any = {}) => http.post('/kpi/formula/eval', { formula, ctx }).then((r) => r.data),
+  formulaValidate: (formula: string) => http.post('/kpi/formula/validate', { formula }).then((r) => r.data),
+  recalc: (kpiId: number, dataDate: string, ctx: any = {}) =>
+    http.post('/kpi/recalc', ctx, { params: { kpi_id: kpiId, data_date: dataDate } }).then((r) => r.data),
+}

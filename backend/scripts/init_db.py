@@ -171,6 +171,179 @@ DDLS = [
       INDEX idx_cat_level (category, level)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='6 类指标项定义'
     """,
+    # ===== 账户册维护 =====
+    """
+    CREATE TABLE IF NOT EXISTS prcp_coa_scheme (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      scheme_code     VARCHAR(32) NOT NULL UNIQUE,
+      scheme_name     VARCHAR(64) NOT NULL,
+      description     TEXT,
+      status          VARCHAR(16) DEFAULT 'ACTIVE',
+      node_count      INT DEFAULT 0,
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_code (scheme_code),
+      INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='账户册方案'
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS prcp_coa_node (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      scheme_id       BIGINT NOT NULL,
+      node_code       VARCHAR(32) NOT NULL,
+      node_name       VARCHAR(64) NOT NULL,
+      parent_id       BIGINT,
+      node_level      INT DEFAULT 1,
+      node_type       VARCHAR(16),
+      path            VARCHAR(255),
+      sort_order      INT DEFAULT 0,
+      status          VARCHAR(16) DEFAULT 'ACTIVE',
+      description     TEXT,
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_scheme_code (scheme_id, node_code),
+      INDEX idx_parent (parent_id),
+      INDEX idx_scheme (scheme_id),
+      INDEX idx_path (path)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='账户册节点（树形）'
+    """,
+    # ===== 报表表项管理 =====
+    """
+    CREATE TABLE IF NOT EXISTS prcp_rpt_report (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      report_code     VARCHAR(32) NOT NULL UNIQUE,
+      report_name     VARCHAR(64) NOT NULL,
+      report_type     VARCHAR(16) NOT NULL,
+      scheme_id       BIGINT NOT NULL,
+      description     TEXT,
+      item_count      INT DEFAULT 0,
+      status          VARCHAR(16) DEFAULT 'ACTIVE',
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_type (report_type),
+      INDEX idx_scheme (scheme_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报表定义（6 类）'
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS prcp_rpt_item (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      report_id       BIGINT NOT NULL,
+      item_code       VARCHAR(32) NOT NULL,
+      item_name       VARCHAR(64) NOT NULL,
+      parent_id       BIGINT,
+      item_level      INT DEFAULT 1,
+      data_type       VARCHAR(16) DEFAULT 'DECIMAL',
+      formula         TEXT,
+      coa_node_ids    JSON,
+      path            VARCHAR(255),
+      sort_order      INT DEFAULT 0,
+      status          VARCHAR(16) DEFAULT 'ACTIVE',
+      description     TEXT,
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_report_code (report_id, item_code),
+      INDEX idx_parent (parent_id),
+      INDEX idx_report (report_id),
+      INDEX idx_path (path)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='报表表项（树形）'
+    """,
+    # ===== 资产负债表 =====
+    """
+    CREATE TABLE IF NOT EXISTS prcp_data_balance (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      coa_node_id     BIGINT NOT NULL,
+      data_date       DATE NOT NULL,
+      current_amount  DECIMAL(20,4) DEFAULT 0,
+      m1_gap          DECIMAL(20,4) DEFAULT 0,
+      m2_gap          DECIMAL(20,4) DEFAULT 0,
+      m3_gap          DECIMAL(20,4) DEFAULT 0,
+      m4_gap          DECIMAL(20,4) DEFAULT 0,
+      m5_gap          DECIMAL(20,4) DEFAULT 0,
+      m6_gap          DECIMAL(20,4) DEFAULT 0,
+      m7_gap          DECIMAL(20,4) DEFAULT 0,
+      m8_gap          DECIMAL(20,4) DEFAULT 0,
+      m9_gap          DECIMAL(20,4) DEFAULT 0,
+      m10_gap         DECIMAL(20,4) DEFAULT 0,
+      m11_gap         DECIMAL(20,4) DEFAULT 0,
+      m12_gap         DECIMAL(20,4) DEFAULT 0,
+      m13_gap         DECIMAL(20,4) DEFAULT 0,
+      m14_gap         DECIMAL(20,4) DEFAULT 0,
+      m15_gap         DECIMAL(20,4) DEFAULT 0,
+      m16_gap         DECIMAL(20,4) DEFAULT 0,
+      m17_gap         DECIMAL(20,4) DEFAULT 0,
+      m18_gap         DECIMAL(20,4) DEFAULT 0,
+      m19_gap         DECIMAL(20,4) DEFAULT 0,
+      m20_gap         DECIMAL(20,4) DEFAULT 0,
+      m21_gap         DECIMAL(20,4) DEFAULT 0,
+      m22_gap         DECIMAL(20,4) DEFAULT 0,
+      m23_gap         DECIMAL(20,4) DEFAULT 0,
+      m24_gap         DECIMAL(20,4) DEFAULT 0,
+      calc_note       TEXT,
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_node_date (coa_node_id, data_date),
+      INDEX idx_date (data_date),
+      INDEX idx_node (coa_node_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资产负债表（24 月缺口）'
+    """,
+    # ===== 指标管理 =====
+    """
+    CREATE TABLE IF NOT EXISTS prcp_kpi_definition (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      kpi_code        VARCHAR(32) NOT NULL UNIQUE,
+      kpi_name        VARCHAR(64) NOT NULL,
+      rpt_id          BIGINT NOT NULL,
+      formula         TEXT NOT NULL,
+      calc_unit       VARCHAR(16) DEFAULT 'PERCENT',
+      formula_desc    TEXT,
+      threshold_min   DECIMAL(20,6),
+      threshold_max   DECIMAL(20,6),
+      status          VARCHAR(16) DEFAULT 'ACTIVE',
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_rpt (rpt_id),
+      INDEX idx_code (kpi_code)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标定义（含公式）'
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS prcp_kpi_value (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      kpi_id          BIGINT NOT NULL,
+      data_date       DATE NOT NULL,
+      version         VARCHAR(32) NOT NULL DEFAULT 'V1.0',
+      current_value   DECIMAL(20,6),
+      prev_value      DECIMAL(20,6),
+      prev_year_value DECIMAL(20,6),
+      calc_source     VARCHAR(16) DEFAULT 'MANUAL',
+      calc_log        LONGTEXT,
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_kpi_date_ver (kpi_id, data_date, version),
+      INDEX idx_date (data_date),
+      INDEX idx_version (version)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标值（按日期+版本）'
+    """,
 ]
 
 with engine.begin() as conn:
