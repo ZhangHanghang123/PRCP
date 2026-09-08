@@ -71,14 +71,13 @@ async def list_schemes(
 async def create_scheme(p: SchemeIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
     try:
-        with db.begin():
-            rid = db.execute(
-                text("""INSERT INTO prcp_coa_scheme
-                    (scheme_code, scheme_name, description, status, created_by, updated_by)
-                    VALUES (:c, :n, :d, :s, :u, :u)"""),
-                {"c": p.scheme_code, "n": p.scheme_name, "d": p.description,
-                 "s": p.status, "u": uid},
-            ).lastrowid
+        rid = db.execute(
+            text("""INSERT INTO prcp_coa_scheme
+                (scheme_code, scheme_name, description, status, created_by, updated_by)
+                VALUES (:c, :n, :d, :s, :u, :u)"""),
+            {"c": p.scheme_code, "n": p.scheme_name, "d": p.description,
+             "s": p.status, "u": uid},
+        ).lastrowid
     except Exception as e:
         raise HTTPException(400, f"创建失败：方案编码可能重复 ({e})")
     return {"id": rid, "scheme_code": p.scheme_code, "scheme_name": p.scheme_name}
@@ -87,14 +86,13 @@ async def create_scheme(p: SchemeIn, db: Session = Depends(get_db), user=Depends
 @router.put("/schemes/{sid}")
 async def update_scheme(sid: int, p: SchemeIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        result = db.execute(
-            text("""UPDATE prcp_coa_scheme
-                SET scheme_code=:c, scheme_name=:n, description=:d, status=:s, updated_by=:u
-                WHERE id=:id AND is_deleted=0"""),
-            {"c": p.scheme_code, "n": p.scheme_name, "d": p.description,
-             "s": p.status, "u": uid, "id": sid},
-        )
+    result = db.execute(
+        text("""UPDATE prcp_coa_scheme
+            SET scheme_code=:c, scheme_name=:n, description=:d, status=:s, updated_by=:u
+            WHERE id=:id AND is_deleted=0"""),
+        {"c": p.scheme_code, "n": p.scheme_name, "d": p.description,
+         "s": p.status, "u": uid, "id": sid},
+    )
     if result.rowcount == 0:
         raise HTTPException(404, "方案不存在")
     return {"ok": True}
@@ -104,15 +102,14 @@ async def update_scheme(sid: int, p: SchemeIn, db: Session = Depends(get_db), us
 async def delete_scheme(sid: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """软删方案 + 其下所有节点"""
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        n = db.execute(
-            text("UPDATE prcp_coa_node SET is_deleted=1, updated_by=:u WHERE scheme_id=:id AND is_deleted=0"),
-            {"u": uid, "id": sid},
-        ).rowcount
-        r = db.execute(
-            text("UPDATE prcp_coa_scheme SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
-            {"u": uid, "id": sid},
-        ).rowcount
+    n = db.execute(
+        text("UPDATE prcp_coa_node SET is_deleted=1, updated_by=:u WHERE scheme_id=:id AND is_deleted=0"),
+        {"u": uid, "id": sid},
+    ).rowcount
+    r = db.execute(
+        text("UPDATE prcp_coa_scheme SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
+        {"u": uid, "id": sid},
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "方案不存在")
     return {"ok": True, "deleted_nodes": n}
@@ -206,24 +203,23 @@ async def create_node(p: NodeIn, db: Session = Depends(get_db), user=Depends(get
         level = 1
 
     try:
-        with db.begin():
-            nid = db.execute(
-                text("""INSERT INTO prcp_coa_node
-                    (scheme_id, node_code, node_name, parent_id, node_level, node_type,
-                     path, sort_order, status, description, created_by, updated_by)
-                    VALUES (:s, :c, :n, :p, :l, :t, :path, :so, :st, :d, :u, :u)"""),
-                {
-                    "s": p.scheme_id, "c": p.node_code, "n": p.node_name,
-                    "p": p.parent_id, "l": level, "t": p.node_type,
-                    "path": path, "so": p.sort_order, "st": p.status,
-                    "d": p.description, "u": uid,
-                },
-            ).lastrowid
-            # 更新方案的 node_count
-            db.execute(
-                text("UPDATE prcp_coa_scheme SET node_count=node_count+1 WHERE id=:s"),
-                {"s": p.scheme_id},
-            )
+        nid = db.execute(
+            text("""INSERT INTO prcp_coa_node
+                (scheme_id, node_code, node_name, parent_id, node_level, node_type,
+                 path, sort_order, status, description, created_by, updated_by)
+                VALUES (:s, :c, :n, :p, :l, :t, :path, :so, :st, :d, :u, :u)"""),
+            {
+                "s": p.scheme_id, "c": p.node_code, "n": p.node_name,
+                "p": p.parent_id, "l": level, "t": p.node_type,
+                "path": path, "so": p.sort_order, "st": p.status,
+                "d": p.description, "u": uid,
+            },
+        ).lastrowid
+        # 更新方案的 node_count
+        db.execute(
+            text("UPDATE prcp_coa_scheme SET node_count=node_count+1 WHERE id=:s"),
+            {"s": p.scheme_id},
+        )
     except Exception as e:
         raise HTTPException(400, f"创建失败：节点编码可能重复 ({e})")
     return {"id": nid, "path": path, "level": level}
@@ -254,18 +250,17 @@ async def update_node(nid: int, p: NodeIn, db: Session = Depends(get_db), user=D
         if new_parent and new_parent[0].startswith(cur[3]):
             raise HTTPException(400, "不能把父节点设为自己或子孙节点")
 
-    with db.begin():
-        db.execute(
-            text("""UPDATE prcp_coa_node SET
-                node_code=:c, node_name=:n, parent_id=:p, node_type=:t,
-                sort_order=:so, status=:st, description=:d, updated_by=:u
-                WHERE id=:id"""),
-            {
-                "c": p.node_code, "n": p.node_name, "p": p.parent_id, "t": p.node_type,
-                "so": p.sort_order, "st": p.status, "d": p.description,
-                "u": uid, "id": nid,
-            },
-        )
+    db.execute(
+        text("""UPDATE prcp_coa_node SET
+            node_code=:c, node_name=:n, parent_id=:p, node_type=:t,
+            sort_order=:so, status=:st, description=:d, updated_by=:u
+            WHERE id=:id"""),
+        {
+            "c": p.node_code, "n": p.node_name, "p": p.parent_id, "t": p.node_type,
+            "so": p.sort_order, "st": p.status, "d": p.description,
+            "u": uid, "id": nid,
+        },
+    )
     return {"ok": True}
 
 
@@ -280,13 +275,12 @@ async def delete_node(nid: int, db: Session = Depends(get_db), user=Depends(get_
     if not cur:
         raise HTTPException(404, "节点不存在")
     scheme_id, path = cur
-    with db.begin():
-        n = db.execute(
-            text("UPDATE prcp_coa_node SET is_deleted=1, updated_by=:u WHERE path LIKE :p AND is_deleted=0"),
-            {"u": uid, "p": f"{path}%"},
-        ).rowcount
-        db.execute(
-            text("UPDATE prcp_coa_scheme SET node_count=GREATEST(0, node_count-:n) WHERE id=:s"),
-            {"n": n, "s": scheme_id},
-        )
+    n = db.execute(
+        text("UPDATE prcp_coa_node SET is_deleted=1, updated_by=:u WHERE path LIKE :p AND is_deleted=0"),
+        {"u": uid, "p": f"{path}%"},
+    ).rowcount
+    db.execute(
+        text("UPDATE prcp_coa_scheme SET node_count=GREATEST(0, node_count-:n) WHERE id=:s"),
+        {"n": n, "s": scheme_id},
+    )
     return {"ok": True, "deleted": n}

@@ -84,19 +84,18 @@ async def create_def(p: KpiDefIn, db: Session = Depends(get_db), user=Depends(ge
     if not v["ok"]:
         raise HTTPException(400, f"公式语法错误: {v['error']}")
     try:
-        with db.begin():
-            rid = db.execute(
-                text("""INSERT INTO prcp_kpi_definition
-                    (kpi_code, kpi_name, rpt_id, formula, calc_unit, formula_desc,
-                     threshold_min, threshold_max, status, created_by, updated_by)
-                    VALUES (:c, :n, :r, :f, :u, :d, :min, :max, :s, :by, :by)"""),
-                {
-                    "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
-                    "f": p.formula, "u": p.calc_unit, "d": p.formula_desc,
-                    "min": p.threshold_min, "max": p.threshold_max,
-                    "s": p.status, "by": uid,
-                },
-            ).lastrowid
+        rid = db.execute(
+            text("""INSERT INTO prcp_kpi_definition
+                (kpi_code, kpi_name, rpt_id, formula, calc_unit, formula_desc,
+                 threshold_min, threshold_max, status, created_by, updated_by)
+                VALUES (:c, :n, :r, :f, :u, :d, :min, :max, :s, :by, :by)"""),
+            {
+                "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
+                "f": p.formula, "u": p.calc_unit, "d": p.formula_desc,
+                "min": p.threshold_min, "max": p.threshold_max,
+                "s": p.status, "by": uid,
+            },
+        ).lastrowid
     except Exception as e:
         raise HTTPException(400, f"创建失败：kpi_code 可能重复 ({e})")
     return {"id": rid, "kpi_code": p.kpi_code}
@@ -108,20 +107,19 @@ async def update_def(kid: int, p: KpiDefIn, db: Session = Depends(get_db), user=
     v = validate(p.formula)
     if not v["ok"]:
         raise HTTPException(400, f"公式语法错误: {v['error']}")
-    with db.begin():
-        r = db.execute(
-            text("""UPDATE prcp_kpi_definition SET
-                kpi_code=:c, kpi_name=:n, rpt_id=:r, formula=:f, calc_unit=:u,
-                formula_desc=:d, threshold_min=:min, threshold_max=:max,
-                status=:s, updated_by=:by
-                WHERE id=:id AND is_deleted=0"""),
-            {
-                "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
-                "f": p.formula, "u": p.calc_unit, "d": p.formula_desc,
-                "min": p.threshold_min, "max": p.threshold_max,
-                "s": p.status, "by": uid, "id": kid,
-            },
-        ).rowcount
+    r = db.execute(
+        text("""UPDATE prcp_kpi_definition SET
+            kpi_code=:c, kpi_name=:n, rpt_id=:r, formula=:f, calc_unit=:u,
+            formula_desc=:d, threshold_min=:min, threshold_max=:max,
+            status=:s, updated_by=:by
+            WHERE id=:id AND is_deleted=0"""),
+        {
+            "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
+            "f": p.formula, "u": p.calc_unit, "d": p.formula_desc,
+            "min": p.threshold_min, "max": p.threshold_max,
+            "s": p.status, "by": uid, "id": kid,
+        },
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "指标不存在")
     return {"ok": True}
@@ -130,11 +128,10 @@ async def update_def(kid: int, p: KpiDefIn, db: Session = Depends(get_db), user=
 @router.delete("/definitions/{kid}")
 async def delete_def(kid: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        r = db.execute(
-            text("UPDATE prcp_kpi_definition SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
-            {"u": uid, "id": kid},
-        ).rowcount
+    r = db.execute(
+        text("UPDATE prcp_kpi_definition SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
+        {"u": uid, "id": kid},
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "指标不存在")
     return {"ok": True}
@@ -211,46 +208,44 @@ async def list_values(
 @router.post("/values")
 async def upsert_value(p: KpiValueIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        existing = db.execute(
-            text("""SELECT id FROM prcp_kpi_value
-                WHERE kpi_id=:k AND data_date=:d AND version=:v AND is_deleted=0"""),
-            {"k": p.kpi_id, "d": p.data_date, "v": p.version},
-        ).first()
-        if existing:
-            db.execute(
-                text("""UPDATE prcp_kpi_value SET
-                    current_value=:c, prev_value=:p, prev_year_value=:py,
-                    calc_source=:cs, calc_log=:cl, updated_by=:u
-                    WHERE id=:id"""),
-                {
-                    "c": p.current_value, "p": p.prev_value, "py": p.prev_year_value,
-                    "cs": p.calc_source, "cl": p.calc_log, "u": uid, "id": existing[0],
-                },
-            )
-            return {"id": existing[0], "action": "updated"}
-        rid = db.execute(
-            text("""INSERT INTO prcp_kpi_value
-                (kpi_id, data_date, version, current_value, prev_value, prev_year_value,
-                 calc_source, calc_log, created_by, updated_by)
-                VALUES (:k, :d, :v, :c, :p, :py, :cs, :cl, :u, :u)"""),
+    existing = db.execute(
+        text("""SELECT id FROM prcp_kpi_value
+            WHERE kpi_id=:k AND data_date=:d AND version=:v AND is_deleted=0"""),
+        {"k": p.kpi_id, "d": p.data_date, "v": p.version},
+    ).first()
+    if existing:
+        db.execute(
+            text("""UPDATE prcp_kpi_value SET
+                current_value=:c, prev_value=:p, prev_year_value=:py,
+                calc_source=:cs, calc_log=:cl, updated_by=:u
+                WHERE id=:id"""),
             {
-                "k": p.kpi_id, "d": p.data_date, "v": p.version,
                 "c": p.current_value, "p": p.prev_value, "py": p.prev_year_value,
-                "cs": p.calc_source, "cl": p.calc_log, "u": uid,
+                "cs": p.calc_source, "cl": p.calc_log, "u": uid, "id": existing[0],
             },
-        ).lastrowid
+        )
+        return {"id": existing[0], "action": "updated"}
+    rid = db.execute(
+        text("""INSERT INTO prcp_kpi_value
+            (kpi_id, data_date, version, current_value, prev_value, prev_year_value,
+             calc_source, calc_log, created_by, updated_by)
+            VALUES (:k, :d, :v, :c, :p, :py, :cs, :cl, :u, :u)"""),
+        {
+            "k": p.kpi_id, "d": p.data_date, "v": p.version,
+            "c": p.current_value, "p": p.prev_value, "py": p.prev_year_value,
+            "cs": p.calc_source, "cl": p.calc_log, "u": uid,
+        },
+    ).lastrowid
     return {"id": rid, "action": "created"}
 
 
 @router.delete("/values/{vid}")
 async def delete_value(vid: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        r = db.execute(
-            text("UPDATE prcp_kpi_value SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
-            {"u": uid, "id": vid},
-        ).rowcount
+    r = db.execute(
+        text("UPDATE prcp_kpi_value SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
+        {"u": uid, "id": vid},
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "指标值不存在")
     return {"ok": True}
@@ -304,24 +299,23 @@ async def recalc_kpi(
         raise HTTPException(400, f"公式求值失败: {e}")
     # 写入（V1.0）
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        existing = db.execute(
-            text("SELECT id FROM prcp_kpi_value WHERE kpi_id=:k AND data_date=:d AND version='V1.0' AND is_deleted=0"),
-            {"k": kpi_id, "d": data_date},
-        ).first()
-        log = f"ctx={ctx}"
-        if existing:
-            db.execute(
-                text("""UPDATE prcp_kpi_value SET
-                    current_value=:c, calc_source='MODEL', calc_log=:cl, updated_by=:u
-                    WHERE id=:id"""),
-                {"c": result, "cl": log[:5000], "u": uid, "id": existing[0]},
-            )
-            return {"id": existing[0], "value": result, "action": "updated", "ctx": ctx}
-        rid = db.execute(
-            text("""INSERT INTO prcp_kpi_value
-                (kpi_id, data_date, version, current_value, calc_source, calc_log, created_by, updated_by)
-                VALUES (:k, :d, 'V1.0', :c, 'MODEL', :cl, :u, :u)"""),
-            {"k": kpi_id, "d": data_date, "c": result, "cl": log[:5000], "u": uid},
-        ).lastrowid
+    existing = db.execute(
+        text("SELECT id FROM prcp_kpi_value WHERE kpi_id=:k AND data_date=:d AND version='V1.0' AND is_deleted=0"),
+        {"k": kpi_id, "d": data_date},
+    ).first()
+    log = f"ctx={ctx}"
+    if existing:
+        db.execute(
+            text("""UPDATE prcp_kpi_value SET
+                current_value=:c, calc_source='MODEL', calc_log=:cl, updated_by=:u
+                WHERE id=:id"""),
+            {"c": result, "cl": log[:5000], "u": uid, "id": existing[0]},
+        )
+        return {"id": existing[0], "value": result, "action": "updated", "ctx": ctx}
+    rid = db.execute(
+        text("""INSERT INTO prcp_kpi_value
+            (kpi_id, data_date, version, current_value, calc_source, calc_log, created_by, updated_by)
+            VALUES (:k, :d, 'V1.0', :c, 'MODEL', :cl, :u, :u)"""),
+        {"k": kpi_id, "d": data_date, "c": result, "cl": log[:5000], "u": uid},
+    ).lastrowid
     return {"id": rid, "value": result, "action": "created", "ctx": ctx}

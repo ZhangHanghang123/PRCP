@@ -85,44 +85,42 @@ async def upsert_balance(p: BalanceIn, db: Session = Depends(get_db), user=Depen
     gap_insert_cols = ",".join(GAP_COLS)
     gap_insert_vals = ",".join(f":{c}" for c in GAP_COLS)
 
-    with db.begin():
-        existing = db.execute(
-            text("SELECT id FROM prcp_data_balance WHERE coa_node_id=:n AND data_date=:d AND is_deleted=0"),
-            {"n": p.coa_node_id, "d": p.data_date},
-        ).first()
-        if existing:
-            params = {c: gap_values[i] for i, c in enumerate(GAP_COLS)}
-            params.update({"amt": p.current_amount, "note": p.calc_note, "u": uid, "id": existing[0]})
-            db.execute(
-                text(f"""UPDATE prcp_data_balance SET
-                    current_amount=:amt, {gap_set}, calc_note=:note, updated_by=:u
-                    WHERE id=:id"""),
-                params,
-            )
-            return {"id": existing[0], "action": "updated"}
-        else:
-            params = {c: gap_values[i] for i, c in enumerate(GAP_COLS)}
-            params.update({
-                "n": p.coa_node_id, "d": p.data_date,
-                "amt": p.current_amount, "note": p.calc_note, "u": uid,
-            })
-            rid = db.execute(
-                text(f"""INSERT INTO prcp_data_balance
-                    (coa_node_id, data_date, current_amount, {gap_insert_cols}, calc_note, created_by, updated_by)
-                    VALUES (:n, :d, :amt, {gap_insert_vals}, :note, :u, :u)"""),
-                params,
-            ).lastrowid
-            return {"id": rid, "action": "created"}
+    existing = db.execute(
+        text("SELECT id FROM prcp_data_balance WHERE coa_node_id=:n AND data_date=:d AND is_deleted=0"),
+        {"n": p.coa_node_id, "d": p.data_date},
+    ).first()
+    if existing:
+        params = {c: gap_values[i] for i, c in enumerate(GAP_COLS)}
+        params.update({"amt": p.current_amount, "note": p.calc_note, "u": uid, "id": existing[0]})
+        db.execute(
+            text(f"""UPDATE prcp_data_balance SET
+                current_amount=:amt, {gap_set}, calc_note=:note, updated_by=:u
+                WHERE id=:id"""),
+            params,
+        )
+        return {"id": existing[0], "action": "updated"}
+    else:
+        params = {c: gap_values[i] for i, c in enumerate(GAP_COLS)}
+        params.update({
+            "n": p.coa_node_id, "d": p.data_date,
+            "amt": p.current_amount, "note": p.calc_note, "u": uid,
+        })
+        rid = db.execute(
+            text(f"""INSERT INTO prcp_data_balance
+                (coa_node_id, data_date, current_amount, {gap_insert_cols}, calc_note, created_by, updated_by)
+                VALUES (:n, :d, :amt, {gap_insert_vals}, :note, :u, :u)"""),
+            params,
+        ).lastrowid
+        return {"id": rid, "action": "created"}
 
 
 @router.delete("/{bid}")
 async def delete_balance(bid: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        r = db.execute(
-            text("UPDATE prcp_data_balance SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
-            {"u": uid, "id": bid},
-        ).rowcount
+    r = db.execute(
+        text("UPDATE prcp_data_balance SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
+        {"u": uid, "id": bid},
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "记录不存在")
     return {"ok": True}

@@ -79,14 +79,13 @@ async def list_reports(
 async def create_report(p: ReportIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
     try:
-        with db.begin():
-            rid = db.execute(
-                text("""INSERT INTO prcp_rpt_report
-                    (report_code, report_name, report_type, scheme_id, description, status, created_by, updated_by)
-                    VALUES (:c, :n, :t, :s, :d, :st, :u, :u)"""),
-                {"c": p.report_code, "n": p.report_name, "t": p.report_type,
-                 "s": p.scheme_id, "d": p.description, "st": p.status, "u": uid},
-            ).lastrowid
+        rid = db.execute(
+            text("""INSERT INTO prcp_rpt_report
+                (report_code, report_name, report_type, scheme_id, description, status, created_by, updated_by)
+                VALUES (:c, :n, :t, :s, :d, :st, :u, :u)"""),
+            {"c": p.report_code, "n": p.report_name, "t": p.report_type,
+             "s": p.scheme_id, "d": p.description, "st": p.status, "u": uid},
+        ).lastrowid
     except Exception as e:
         raise HTTPException(400, f"创建失败：报表编码可能重复 ({e})")
     return {"id": rid, "report_code": p.report_code}
@@ -95,16 +94,15 @@ async def create_report(p: ReportIn, db: Session = Depends(get_db), user=Depends
 @router.put("/{rid}")
 async def update_report(rid: int, p: ReportIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        r = db.execute(
-            text("""UPDATE prcp_rpt_report SET
-                report_code=:c, report_name=:n, report_type=:t, scheme_id=:s,
-                description=:d, status=:st, updated_by=:u
-                WHERE id=:id AND is_deleted=0"""),
-            {"c": p.report_code, "n": p.report_name, "t": p.report_type,
-             "s": p.scheme_id, "d": p.description, "st": p.status,
-             "u": uid, "id": rid},
-        ).rowcount
+    r = db.execute(
+        text("""UPDATE prcp_rpt_report SET
+            report_code=:c, report_name=:n, report_type=:t, scheme_id=:s,
+            description=:d, status=:st, updated_by=:u
+            WHERE id=:id AND is_deleted=0"""),
+        {"c": p.report_code, "n": p.report_name, "t": p.report_type,
+         "s": p.scheme_id, "d": p.description, "st": p.status,
+         "u": uid, "id": rid},
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "报表不存在")
     return {"ok": True}
@@ -114,15 +112,14 @@ async def update_report(rid: int, p: ReportIn, db: Session = Depends(get_db), us
 async def delete_report(rid: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
     """软删报表 + 其所有表项"""
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    with db.begin():
-        n = db.execute(
-            text("UPDATE prcp_rpt_item SET is_deleted=1, updated_by=:u WHERE report_id=:id AND is_deleted=0"),
-            {"u": uid, "id": rid},
-        ).rowcount
-        r = db.execute(
-            text("UPDATE prcp_rpt_report SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
-            {"u": uid, "id": rid},
-        ).rowcount
+    n = db.execute(
+        text("UPDATE prcp_rpt_item SET is_deleted=1, updated_by=:u WHERE report_id=:id AND is_deleted=0"),
+        {"u": uid, "id": rid},
+    ).rowcount
+    r = db.execute(
+        text("UPDATE prcp_rpt_report SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
+        {"u": uid, "id": rid},
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "报表不存在")
     return {"ok": True, "deleted_items": n}
@@ -221,23 +218,22 @@ async def create_item(p: ItemIn, db: Session = Depends(get_db), user=Depends(get
         level = 1
     coa_json = json.dumps(p.coa_node_ids or [])
     try:
-        with db.begin():
-            nid = db.execute(
-                text("""INSERT INTO prcp_rpt_item
-                    (report_id, item_code, item_name, parent_id, item_level, data_type,
-                     formula, coa_node_ids, path, sort_order, status, description, created_by, updated_by)
-                    VALUES (:r, :c, :n, :p, :l, :t, :f, :coa, :path, :so, :st, :d, :u, :u)"""),
-                {
-                    "r": p.report_id, "c": p.item_code, "n": p.item_name,
-                    "p": p.parent_id, "l": level, "t": p.data_type,
-                    "f": p.formula, "coa": coa_json, "path": path,
-                    "so": p.sort_order, "st": p.status, "d": p.description, "u": uid,
-                },
-            ).lastrowid
-            db.execute(
-                text("UPDATE prcp_rpt_report SET item_count=item_count+1 WHERE id=:r"),
-                {"r": p.report_id},
-            )
+        nid = db.execute(
+            text("""INSERT INTO prcp_rpt_item
+                (report_id, item_code, item_name, parent_id, item_level, data_type,
+                 formula, coa_node_ids, path, sort_order, status, description, created_by, updated_by)
+                VALUES (:r, :c, :n, :p, :l, :t, :f, :coa, :path, :so, :st, :d, :u, :u)"""),
+            {
+                "r": p.report_id, "c": p.item_code, "n": p.item_name,
+                "p": p.parent_id, "l": level, "t": p.data_type,
+                "f": p.formula, "coa": coa_json, "path": path,
+                "so": p.sort_order, "st": p.status, "d": p.description, "u": uid,
+            },
+        ).lastrowid
+        db.execute(
+            text("UPDATE prcp_rpt_report SET item_count=item_count+1 WHERE id=:r"),
+            {"r": p.report_id},
+        )
     except Exception as e:
         raise HTTPException(400, f"创建失败：表项编码可能重复 ({e})")
     return {"id": nid, "path": path, "level": level}
@@ -247,19 +243,18 @@ async def create_item(p: ItemIn, db: Session = Depends(get_db), user=Depends(get
 async def update_item(nid: int, p: ItemIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
     coa_json = json.dumps(p.coa_node_ids or [])
-    with db.begin():
-        r = db.execute(
-            text("""UPDATE prcp_rpt_item SET
-                item_code=:c, item_name=:n, parent_id=:p, data_type=:t,
-                formula=:f, coa_node_ids=:coa, sort_order=:so, status=:st,
-                description=:d, updated_by=:u
-                WHERE id=:id AND is_deleted=0"""),
-            {
-                "c": p.item_code, "n": p.item_name, "p": p.parent_id, "t": p.data_type,
-                "f": p.formula, "coa": coa_json, "so": p.sort_order, "st": p.status,
-                "d": p.description, "u": uid, "id": nid,
-            },
-        ).rowcount
+    r = db.execute(
+        text("""UPDATE prcp_rpt_item SET
+            item_code=:c, item_name=:n, parent_id=:p, data_type=:t,
+            formula=:f, coa_node_ids=:coa, sort_order=:so, status=:st,
+            description=:d, updated_by=:u
+            WHERE id=:id AND is_deleted=0"""),
+        {
+            "c": p.item_code, "n": p.item_name, "p": p.parent_id, "t": p.data_type,
+            "f": p.formula, "coa": coa_json, "so": p.sort_order, "st": p.status,
+            "d": p.description, "u": uid, "id": nid,
+        },
+    ).rowcount
     if r == 0:
         raise HTTPException(404, "表项不存在")
     return {"ok": True}
@@ -276,15 +271,14 @@ async def delete_item(nid: int, db: Session = Depends(get_db), user=Depends(get_
     if not cur:
         raise HTTPException(404, "表项不存在")
     report_id, path = cur
-    with db.begin():
-        n = db.execute(
-            text("UPDATE prcp_rpt_item SET is_deleted=1, updated_by=:u WHERE path LIKE :p AND is_deleted=0"),
-            {"u": uid, "p": f"{path}%"},
-        ).rowcount
-        db.execute(
-            text("UPDATE prcp_rpt_report SET item_count=GREATEST(0, item_count-:n) WHERE id=:r"),
-            {"n": n, "r": report_id},
-        )
+    n = db.execute(
+        text("UPDATE prcp_rpt_item SET is_deleted=1, updated_by=:u WHERE path LIKE :p AND is_deleted=0"),
+        {"u": uid, "p": f"{path}%"},
+    ).rowcount
+    db.execute(
+        text("UPDATE prcp_rpt_report SET item_count=GREATEST(0, item_count-:n) WHERE id=:r"),
+        {"n": n, "r": report_id},
+    )
     return {"ok": True, "deleted": n}
 
 
@@ -301,69 +295,68 @@ async def batch_items(
     """增三改：批量新增 create / 修改 update / 删除 delete_ids"""
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
     created = updated = deleted = 0
-    with db.begin():
-        if create:
-            for it in create:
-                if it.parent_id:
-                    p = db.execute(
-                        text("SELECT path, item_level FROM prcp_rpt_item WHERE id=:id AND is_deleted=0"),
-                        {"id": it.parent_id},
-                    ).first()
-                    if p:
-                        path = f"{p[0]}{it.item_code}/"
-                        level = p[1] + 1
-                    else:
-                        path = f"/{it.item_code}/"
-                        level = 1
+    if create:
+        for it in create:
+            if it.parent_id:
+                p = db.execute(
+                    text("SELECT path, item_level FROM prcp_rpt_item WHERE id=:id AND is_deleted=0"),
+                    {"id": it.parent_id},
+                ).first()
+                if p:
+                    path = f"{p[0]}{it.item_code}/"
+                    level = p[1] + 1
                 else:
                     path = f"/{it.item_code}/"
                     level = 1
-                db.execute(
-                    text("""INSERT INTO prcp_rpt_item
-                        (report_id, item_code, item_name, parent_id, item_level,
-                         data_type, formula, coa_node_ids, path, sort_order, status, description, created_by, updated_by)
-                        VALUES (:r, :c, :n, :p, :l, :t, :f, :coa, :path, :so, :st, :d, :u, :u)"""),
-                    {
-                        "r": report_id, "c": it.item_code, "n": it.item_name,
-                        "p": it.parent_id, "l": level, "t": it.data_type,
-                        "f": it.formula, "coa": json.dumps(it.coa_node_ids or []),
-                        "path": path, "so": it.sort_order, "st": it.status,
-                        "d": it.description, "u": uid,
-                    },
-                )
-                created += 1
-        if update:
-            for d in update:
-                if "id" not in d:
-                    continue
-                fields = {k: v for k, v in d.items() if k != "id"}
-                if "coa_node_ids" in fields:
-                    fields["coa_node_ids"] = json.dumps(fields["coa_node_ids"])
-                fields["updated_by"] = uid
-                set_clause = ", ".join(f"{k}=:{k}" for k in fields)
-                db.execute(
-                    text(f"UPDATE prcp_rpt_item SET {set_clause} WHERE id=:id AND is_deleted=0"),
-                    {**fields, "id": d["id"]},
-                )
-                updated += 1
-        if delete_ids:
-            for did in delete_ids:
-                cur = db.execute(
-                    text("SELECT path FROM prcp_rpt_item WHERE id=:id AND is_deleted=0"),
-                    {"id": did},
-                ).first()
-                if not cur:
-                    continue
-                path = cur[0]
-                n = db.execute(
-                    text("UPDATE prcp_rpt_item SET is_deleted=1, updated_by=:u WHERE path LIKE :p AND is_deleted=0"),
-                    {"u": uid, "p": f"{path}%"},
-                ).rowcount
-                deleted += n
-        # 更新报表 item_count
-        if created or deleted:
+            else:
+                path = f"/{it.item_code}/"
+                level = 1
             db.execute(
-                text("UPDATE prcp_rpt_report SET item_count=item_count+:c-:d WHERE id=:r"),
-                {"c": created, "d": deleted, "r": report_id},
+                text("""INSERT INTO prcp_rpt_item
+                    (report_id, item_code, item_name, parent_id, item_level,
+                     data_type, formula, coa_node_ids, path, sort_order, status, description, created_by, updated_by)
+                    VALUES (:r, :c, :n, :p, :l, :t, :f, :coa, :path, :so, :st, :d, :u, :u)"""),
+                {
+                    "r": report_id, "c": it.item_code, "n": it.item_name,
+                    "p": it.parent_id, "l": level, "t": it.data_type,
+                    "f": it.formula, "coa": json.dumps(it.coa_node_ids or []),
+                    "path": path, "so": it.sort_order, "st": it.status,
+                    "d": it.description, "u": uid,
+                },
             )
+            created += 1
+    if update:
+        for d in update:
+            if "id" not in d:
+                continue
+            fields = {k: v for k, v in d.items() if k != "id"}
+            if "coa_node_ids" in fields:
+                fields["coa_node_ids"] = json.dumps(fields["coa_node_ids"])
+            fields["updated_by"] = uid
+            set_clause = ", ".join(f"{k}=:{k}" for k in fields)
+            db.execute(
+                text(f"UPDATE prcp_rpt_item SET {set_clause} WHERE id=:id AND is_deleted=0"),
+                {**fields, "id": d["id"]},
+            )
+            updated += 1
+    if delete_ids:
+        for did in delete_ids:
+            cur = db.execute(
+                text("SELECT path FROM prcp_rpt_item WHERE id=:id AND is_deleted=0"),
+                {"id": did},
+            ).first()
+            if not cur:
+                continue
+            path = cur[0]
+            n = db.execute(
+                text("UPDATE prcp_rpt_item SET is_deleted=1, updated_by=:u WHERE path LIKE :p AND is_deleted=0"),
+                {"u": uid, "p": f"{path}%"},
+            ).rowcount
+            deleted += n
+    # 更新报表 item_count
+    if created or deleted:
+        db.execute(
+            text("UPDATE prcp_rpt_report SET item_count=item_count+:c-:d WHERE id=:r"),
+            {"c": created, "d": deleted, "r": report_id},
+        )
     return {"ok": True, "created": created, "updated": updated, "deleted": deleted}

@@ -10,7 +10,7 @@ engine = create_engine(
     echo=False,
 )
 
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, expire_on_commit=False)
 Base = declarative_base()
 
 
@@ -18,5 +18,13 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+        # 路由函数正常返回 → 自动 commit（替代 router 内 with db.begin()）
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
+        raise
     finally:
         db.close()
