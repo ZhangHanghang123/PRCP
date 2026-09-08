@@ -281,9 +281,26 @@ DDLS = [
     """,
     # ===== 指标管理 =====
     """
+    CREATE TABLE IF NOT EXISTS prcp_kpi_scheme (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      scheme_code     VARCHAR(32) NOT NULL UNIQUE,
+      scheme_name     VARCHAR(64) NOT NULL,
+      description     TEXT,
+      kpi_count       INT DEFAULT 0,
+      status          VARCHAR(16) DEFAULT 'ACTIVE',
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标方案'
+    """,
+    """
     CREATE TABLE IF NOT EXISTS prcp_kpi_definition (
       id              BIGINT AUTO_INCREMENT PRIMARY KEY,
-      kpi_code        VARCHAR(32) NOT NULL UNIQUE,
+      scheme_id       BIGINT NOT NULL,
+      kpi_code        VARCHAR(32) NOT NULL,
       kpi_name        VARCHAR(64) NOT NULL,
       rpt_id          BIGINT NOT NULL,
       formula         TEXT NOT NULL,
@@ -297,9 +314,10 @@ DDLS = [
       updated_by      BIGINT,
       created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_scheme_code (scheme_id, kpi_code),
       INDEX idx_rpt (rpt_id),
-      INDEX idx_code (kpi_code)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标定义（含公式）'
+      INDEX idx_scheme (scheme_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='指标定义（含公式，引用报表表项）'
     """,
     """
     CREATE TABLE IF NOT EXISTS prcp_kpi_value (

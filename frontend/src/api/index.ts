@@ -98,17 +98,27 @@ export const balanceApi = {
   gapSummary: (dataDate: string) => http.get('/balance/gap-summary', { params: { data_date: dataDate } }).then((r) => r.data),
 }
 
-// 指标
+// 指标（v2：方案 + 定义 + 维护）
 export const kpiApi = {
+  // 方案
+  listSchemes: (params: any = {}) => http.get('/kpi/schemes', { params }).then((r) => r.data),
+  createScheme: (data: any) => http.post('/kpi/schemes', data).then((r) => r.data),
+  updateScheme: (id: number, data: any) => http.put(`/kpi/schemes/${id}`, data).then((r) => r.data),
+  deleteScheme: (id: number) => http.delete(`/kpi/schemes/${id}`).then((r) => r.data),
+  // 报表表项（供定义公式引用）
+  listRptItems: (params: any = {}) => http.get('/kpi/rpt-items', { params }).then((r) => r.data),
+  // 定义
   listDefs: (params: any = {}) => http.get('/kpi/definitions', { params }).then((r) => r.data),
   createDef: (data: any) => http.post('/kpi/definitions', data).then((r) => r.data),
   updateDef: (id: number, data: any) => http.put(`/kpi/definitions/${id}`, data).then((r) => r.data),
   deleteDef: (id: number) => http.delete(`/kpi/definitions/${id}`).then((r) => r.data),
+  // 值
   listValues: (params: any = {}) => http.get('/kpi/values', { params }).then((r) => r.data),
   upsertValue: (data: any) => http.post('/kpi/values', data).then((r) => r.data),
   deleteValue: (id: number) => http.delete(`/kpi/values/${id}`).then((r) => r.data),
+  // 公式引擎
   formulaEval: (formula: string, ctx: any = {}) => http.post('/kpi/formula/eval', { formula, ctx }).then((r) => r.data),
   formulaValidate: (formula: string) => http.post('/kpi/formula/validate', { formula }).then((r) => r.data),
-  recalc: (kpiId: number, dataDate: string, ctx: any = {}) =>
-    http.post('/kpi/recalc', ctx, { params: { kpi_id: kpiId, data_date: dataDate } }).then((r) => r.data),
+  recalc: (kpiId: number, dataDate: string) =>
+    http.post('/kpi/recalc', null, { params: { kpi_id: kpiId, data_date: dataDate } }).then((r) => r.data),
 }
