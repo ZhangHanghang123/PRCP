@@ -149,6 +149,28 @@ DDLS = [
       INDEX idx_task (task_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
+    # 指标项（6 类指标通用表：账务/参数/规模/价格/中收/RWA）
+    """
+    CREATE TABLE IF NOT EXISTS prcp_metric_item (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      category VARCHAR(20) NOT NULL COMMENT 'FINANCIAL/PARAM/SCALE/PRICE/FEE/RWA',
+      code VARCHAR(50) NOT NULL COMMENT '原始指标编码（可能重复）',
+      name VARCHAR(200) NOT NULL COMMENT '指标名称',
+      level INT NOT NULL DEFAULT 1 COMMENT '层级 1-5',
+      parent_code VARCHAR(50) COMMENT '父指标编码',
+      path VARCHAR(500) COMMENT '物化路径 /001/001001/...',
+      is_leaf TINYINT(1) DEFAULT 0 COMMENT '是否叶子节点',
+      sort_order INT DEFAULT 0 COMMENT '同级排序',
+      description TEXT,
+      is_deleted TINYINT(1) DEFAULT 0,
+      created_by BIGINT, updated_by BIGINT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_cat_code (category, code),
+      INDEX idx_cat_parent (category, parent_code),
+      INDEX idx_cat_level (category, level)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='6 类指标项定义'
+    """,
 ]
 
 with engine.begin() as conn:
