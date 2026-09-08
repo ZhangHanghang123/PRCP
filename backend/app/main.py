@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.auth import init_admin
-from app.routers import auth, dashboard, groups, positions, rules, tasks, metric_items
+from app.routers import auth, dashboard, groups, positions, rules, tasks
 from app.routers import coa, reports, balance, kpi
 
 logging.basicConfig(
@@ -59,7 +59,6 @@ app.include_router(groups.router, prefix="/prcp/api")
 app.include_router(positions.router, prefix="/prcp/api")
 app.include_router(rules.router, prefix="/prcp/api")
 app.include_router(tasks.router, prefix="/prcp/api")
-app.include_router(metric_items.router, prefix="/prcp/api")
 app.include_router(coa.router, prefix="/prcp/api")
 app.include_router(reports.router, prefix="/prcp/api")
 app.include_router(balance.router, prefix="/prcp/api")

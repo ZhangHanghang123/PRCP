@@ -129,16 +129,22 @@ async def delete_report(rid: int, db: Session = Depends(get_db), user=Depends(ge
 @router.get("/items")
 async def list_items(
     report_id: int = Query(...),
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
+    where = ["report_id=:r", "is_deleted=0"]
+    params: dict = {"r": report_id}
+    if category:
+        where.append("category=:c")
+        params["c"] = category
     rows = db.execute(
-        text("""SELECT id, report_id, item_code, item_name, parent_id, item_level, data_type,
-                       formula, coa_node_ids, path, sort_order, status, description
+        text(f"""SELECT id, report_id, item_code, item_name, parent_id, item_level, data_type,
+                       formula, coa_node_ids, path, sort_order, status, description, category
                 FROM prcp_rpt_item
-                WHERE report_id=:r AND is_deleted=0
+                WHERE {' AND '.join(where)}
                 ORDER BY path, sort_order"""),
-        {"r": report_id},
+        params,
     ).fetchall()
     items = []
     for r in rows:
@@ -153,6 +159,7 @@ async def list_items(
             "parent_id": r[4], "item_level": r[5], "data_type": r[6],
             "formula": r[7], "coa_node_ids": coa_ids,
             "path": r[9], "sort_order": r[10], "status": r[11], "description": r[12],
+            "category": r[13],
         })
     return {"items": items}
 
@@ -160,16 +167,22 @@ async def list_items(
 @router.get("/items/tree")
 async def tree_items(
     report_id: int = Query(...),
+    category: Optional[str] = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
+    where = ["report_id=:r", "is_deleted=0"]
+    params: dict = {"r": report_id}
+    if category:
+        where.append("category=:c")
+        params["c"] = category
     rows = db.execute(
-        text("""SELECT id, item_code, item_name, parent_id, item_level, data_type,
+        text(f"""SELECT id, item_code, item_name, parent_id, item_level, data_type,
                        formula, coa_node_ids, path, sort_order, status
                 FROM prcp_rpt_item
-                WHERE report_id=:r AND is_deleted=0
+                WHERE {' AND '.join(where)}
                 ORDER BY path, sort_order"""),
-        {"r": report_id},
+        params,
     ).fetchall()
     by_path: dict = {}
     for r in rows:

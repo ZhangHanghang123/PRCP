@@ -8,7 +8,6 @@ import Groups from './pages/Groups'
 import Positions from './pages/Positions'
 import Rules from './pages/Rules'
 import Tasks from './pages/Tasks'
-import MetricItems from './pages/MetricItems'
 import COA from './pages/COA'
 import Reports from './pages/Reports'
 import BalanceSheet from './pages/BalanceSheet'
@@ -35,7 +34,6 @@ const App: React.FC = () => (
         <Route path="positions" element={<Positions />} />
         <Route path="rules" element={<Rules />} />
         <Route path="tasks" element={<Tasks />} />
-        <Route path="metric-items" element={<MetricItems />} />
         <Route path="coa" element={<COA />} />
         <Route path="reports" element={<Reports />} />
         <Route path="balance" element={<BalanceSheet />} />
