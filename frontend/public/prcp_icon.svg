@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#g)"/>
+  <!-- "组" 简化字形 -->
+  <g fill="#fff" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-weight="700" font-size="22" text-anchor="middle">
+    <text x="22" y="40">组</text>
+    <text x="44" y="40">算</text>
+  </g>
+</svg>
