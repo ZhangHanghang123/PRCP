@@ -262,6 +262,15 @@ const KPI: React.FC = () => {
     defForm.setFieldsValue({ formula: v ? `${v} item_${item.id}` : `item_${item.id}` })
   }
 
+  // 在公式中插入符号/函数（append 模式；带右括号时支持光标定位）
+  const insertSymbolIntoFormula = (sym: string, closeSym?: string, isFunc = false) => {
+    const v = defForm.getFieldValue('formula') || ''
+    const next = isFunc ? `${v}${sym}` + (closeSym || '') : `${v}${sym}`
+    defForm.setFieldsValue({ formula: next })
+    // 触发 onChange 校验
+    onFormulaChange(next)
+  }
+
   // ========= 值 CRUD =========
   const onCreateValue = () => {
     setEditingValue(null)
@@ -493,8 +502,42 @@ const KPI: React.FC = () => {
               ]} />
             </Form.Item></Col>
           </Row>
+          {/* 公式工具栏：符号 + 函数一键插入 */}
+          <Form.Item label="公式符号与函数">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 8px', border: '1px solid #f0f0f0', borderRadius: 4, background: '#fafafa' }}>
+              <Button.Group size="small">
+                <Button onClick={() => insertSymbolIntoFormula(' + ')}>+</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' - ')}>−</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' * ')}>×</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' / ')}>÷</Button>
+              </Button.Group>
+              <Button.Group size="small" style={{ marginLeft: 8 }}>
+                <Button onClick={() => insertSymbolIntoFormula('( ')}>(</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' )')}>)</Button>
+                <Button onClick={() => insertSymbolIntoFormula(', ')}>,</Button>
+              </Button.Group>
+              <Button.Group size="small" style={{ marginLeft: 8 }}>
+                <Button onClick={() => insertSymbolIntoFormula('SUM(', ')', true)}>SUM</Button>
+                <Button onClick={() => insertSymbolIntoFormula('AVG(', ')', true)}>AVG</Button>
+                <Button onClick={() => insertSymbolIntoFormula('MAX(', ')', true)}>MAX</Button>
+                <Button onClick={() => insertSymbolIntoFormula('MIN(', ')', true)}>MIN</Button>
+                <Button onClick={() => insertSymbolIntoFormula('COUNT(', ')', true)}>COUNT</Button>
+                <Button onClick={() => insertSymbolIntoFormula('ABS(', ')', true)}>ABS</Button>
+                <Button onClick={() => insertSymbolIntoFormula('ROUND(', ')', true)}>ROUND</Button>
+                <Button onClick={() => insertSymbolIntoFormula('IF(', ',', true)}>IF</Button>
+              </Button.Group>
+              <Button.Group size="small" style={{ marginLeft: 8 }}>
+                <Button onClick={() => insertSymbolIntoFormula(' > ')}>{'>'}</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' < ')}>{'<'}</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' >= ')}>{'>='}</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' <= ')}>{'<='}</Button>
+                <Button onClick={() => insertSymbolIntoFormula(' == ')}>{'=='}</Button>
+              </Button.Group>
+            </div>
+          </Form.Item>
+
           <Form.Item name="formula" label="计算公式（码值，可编辑）" rules={[{ required: true }]}
-            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = item_<ID>">
+            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = item_<ID>。点击上方符号按钮或下方树叶子节点快速插入">
             <Input.TextArea rows={3} placeholder="例如：item_248 - item_249" onChange={(e) => onFormulaChange(e.target.value)} />
           </Form.Item>
           {formulaValid && (
@@ -515,7 +558,7 @@ const KPI: React.FC = () => {
           </Form.Item>
 
           {/* 报表结构树（按 L1→L2→L3→L4 层级） */}
-          {rptTreeData.length > 0 && (
+          {defForm.getFieldValue('rpt_id') && rptTreeData.length > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ color: '#666', marginBottom: 6, fontSize: 13 }}>
                 📌 点击报表结构树的叶子节点插入引用：
@@ -538,6 +581,27 @@ const KPI: React.FC = () => {
                 />
               </div>
             </div>
+          )}
+
+          {/* 报表无表项时的空状态提示 */}
+          {defForm.getFieldValue('rpt_id') && rptItems.length === 0 && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 12 }}
+              message="该报表暂无表项"
+              description={(
+                <div>
+                  <div style={{ marginBottom: 6 }}>所选报表还没有定义任何报表表项，因此无法在公式中引用具体项。</div>
+                  <div>请先到 <strong>报表表项管理</strong> 页面为此报表添加表项（如：总资产、客户贷款、净息差等）。</div>
+                </div>
+              )}
+            />
+          )}
+
+          {!defForm.getFieldValue('rpt_id') && (
+            <Alert type="info" showIcon style={{ marginBottom: 12 }}
+              message="请先在上方选择【所属报表】" description="选定报表后，这里会展示该报表的树形结构，点击叶子节点可一键插入到公式中。" />
           )}
 
           <Row gutter={16}>
