@@ -343,7 +343,7 @@ async def list_values(
         text(f"""SELECT v.id, v.kpi_id, d.kpi_code, d.kpi_name, d.calc_unit,
                        s.scheme_code, s.scheme_name,
                        v.data_date, v.version, v.current_value, v.prev_value, v.prev_year_value,
-                       v.calc_source, v.calc_log, v.created_at
+                       v.calc_source, v.calc_log, v.created_at, v.score
                 FROM prcp_kpi_value v
                 LEFT JOIN prcp_kpi_definition d ON d.id=v.kpi_id
                 LEFT JOIN prcp_kpi_scheme s ON s.id=d.scheme_id
@@ -364,6 +364,7 @@ async def list_values(
             "prev_year_value": float(r[11]) if r[11] is not None else None,
             "calc_source": r[12], "calc_log": r[13],
             "created_at": r[14].isoformat() if r[14] else None,
+            "score": float(r[15]) if r[15] is not None else None,
         } for r in rows
     ]}
 
@@ -679,3 +680,175 @@ async def score_calc(payload: dict, db: Session = Depends(get_db),
     return {"matched": True, "value": value, "score": matched["score"],
             "matched_range": {k: v for k, v in matched.items() if k != "score"},
             "higher_is_better": rule[1]}
+
+
+# ============== 指标维护页专用：数据日期 + 试算分数 ==============
+
+@router.get("/value-dates")
+async def list_value_dates(
+    scheme_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """列出某方案下所有有指标值的数据日期（用于指标维护下拉）"""
+    where = ["v.is_deleted=0"]
+    params: dict = {}
+    if scheme_id:
+        where.append("d.scheme_id=:s")
+        params["s"] = scheme_id
+    rows = db.execute(
+        text(f"""SELECT DISTINCT v.data_date, COUNT(*) as cnt
+                FROM prcp_kpi_value v
+                LEFT JOIN prcp_kpi_definition d ON d.id=v.kpi_id AND d.is_deleted=0
+                WHERE {' AND '.join(where)}
+                ORDER BY v.data_date DESC"""),
+        params,
+    ).fetchall()
+    return {"items": [{
+        "data_date": r[0].isoformat() if r[0] else None,
+        "value_count": int(r[1]),
+    } for r in rows]}
+
+
+def _eval_kpi_value(db, formula, scheme_id, kpi_id, data_date):
+    """在指定日期下，构造 ctx（同方案其它指标当前值）后求指标值"""
+    if not formula:
+        return None
+    ctx = {}
+    others = db.execute(
+        text("""SELECT kpi_code, id FROM prcp_kpi_definition
+            WHERE scheme_id=:s AND is_deleted=0 AND id<>:kid"""),
+        {"s": scheme_id, "kid": kpi_id},
+    ).fetchall()
+    for kc, kid in others:
+        v = db.execute(
+            text("SELECT current_value FROM prcp_kpi_value WHERE kpi_id=:k AND data_date=:d AND is_deleted=0 LIMIT 1"),
+            {"k": kid, "d": data_date},
+        ).first()
+        ctx[kc] = float(v[0]) if v and v[0] is not None else 0.0
+    try:
+        return float(evaluate(formula, ctx))
+    except FormulaError:
+        return None
+
+
+def _calc_score_for_value(db, kpi_id, value):
+    """根据 value 查该指标的默认 score_rule，返回 score；无规则返回 None"""
+    if value is None:
+        return None
+    rule = db.execute(
+        text("""SELECT id FROM prcp_kpi_score_rule
+            WHERE kpi_id=:k AND status='ACTIVE' AND is_deleted=0
+            ORDER BY id DESC LIMIT 1"""),
+        {"k": kpi_id},
+    ).first()
+    if not rule:
+        return None
+    rule_id = rule[0]
+    segs = db.execute(
+        text("""SELECT min_value, max_value, score FROM prcp_kpi_score_segment
+            WHERE rule_id=:r AND is_deleted=0 ORDER BY seg_order"""),
+        {"r": rule_id},
+    ).fetchall()
+    for s in segs:
+        mn, mx, sc = s
+        in_range = True
+        if mn is not None and value < float(mn):
+            in_range = False
+        if mx is not None and value > float(mx):
+            in_range = False
+        if in_range:
+            return float(sc)
+    return None
+
+
+@router.post("/values/calc-score")
+async def calc_score(
+    payload: dict,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """对指定方案+日期下所有指标试算分数，更新到 prcp_kpi_value.score。
+    payload: {scheme_id, data_date, kpi_id? (None=全部)}
+    返回: 每条指标 {kpi_code, kpi_name, current_value, score, rule_id?, matched?}
+           以及所有指标的分数汇总 {total, avg, count, scored_count}
+    """
+    scheme_id = payload.get("scheme_id")
+    data_date = payload.get("data_date")
+    only_kpi_id = payload.get("kpi_id")  # None 表示全部
+    if not scheme_id or not data_date:
+        raise HTTPException(400, "缺少 scheme_id 或 data_date")
+
+    # 取当前方案下的所有指标定义
+    defs = db.execute(
+        text("""SELECT id, kpi_code, kpi_name, formula FROM prcp_kpi_definition
+            WHERE scheme_id=:s AND is_deleted=0""" + (" AND id=:kid" if only_kpi_id else "")),
+        {"s": scheme_id, "kid": only_kpi_id} if only_kpi_id else {"s": scheme_id},
+    ).fetchall()
+
+    results = []
+    total_score = 0.0
+    scored_count = 0
+    uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+
+    for kpi_id, kpi_code, kpi_name, formula in defs:
+        # 1) 拿或算指标值
+        val_row = db.execute(
+            text("""SELECT id, current_value FROM prcp_kpi_value
+                WHERE kpi_id=:k AND data_date=:d AND version='V1.0' AND is_deleted=0 LIMIT 1"""),
+            {"k": kpi_id, "d": data_date},
+        ).first()
+        existing_vid = val_row[0] if val_row else None
+        cur_val = float(val_row[1]) if val_row and val_row[1] is not None else None
+        if cur_val is None and formula:
+            cur_val = _eval_kpi_value(db, formula, scheme_id, kpi_id, data_date)
+
+        # 2) 算分数
+        score = _calc_score_for_value(db, kpi_id, cur_val)
+        rule_id = db.execute(
+            text("""SELECT id FROM prcp_kpi_score_rule
+                WHERE kpi_id=:k AND status='ACTIVE' AND is_deleted=0
+                ORDER BY id DESC LIMIT 1"""),
+            {"k": kpi_id},
+        ).scalar()
+        matched = score is not None
+
+        # 3) 持久化（UPSERT score 到已有 prcp_kpi_value 行）
+        if existing_vid is not None:
+            db.execute(
+                text("""UPDATE prcp_kpi_value SET score=:s, calc_source='MODEL',
+                    updated_by=:u WHERE id=:i"""),
+                {"s": score, "u": uid, "i": existing_vid},
+            )
+        else:
+            # 没有 value 行时也允许创建一行，只填 score（cur_val 可空）
+            db.execute(
+                text("""INSERT INTO prcp_kpi_value
+                    (kpi_id, data_date, version, current_value, calc_source, score, created_by, updated_by)
+                    VALUES (:k, :d, 'V1.0', :c, 'MODEL', :s, :u, :u)"""),
+                {"k": kpi_id, "d": data_date, "c": cur_val, "s": score, "u": uid},
+            )
+
+        results.append({
+            "kpi_id": kpi_id, "kpi_code": kpi_code, "kpi_name": kpi_name,
+            "current_value": cur_val,
+            "score": score, "matched": matched,
+            "rule_id": int(rule_id) if rule_id else None,
+            "action": "updated" if existing_vid else "created",
+        })
+        if score is not None:
+            total_score += score
+            scored_count += 1
+
+    db.commit()
+    return {
+        "scheme_id": scheme_id,
+        "data_date": data_date,
+        "items": results,
+        "summary": {
+            "total": round(total_score, 2),
+            "avg": round(total_score / scored_count, 2) if scored_count else 0,
+            "count": len(results),
+            "scored_count": scored_count,
+        },
+    }

@@ -145,15 +145,77 @@ const KPI: React.FC = () => {
     } finally { setLoading(false) }
   }
 
-  // 加载值（按当前 activeScheme 过滤）
+  // 加载值（按当前 activeScheme + selectedDate 过滤）
   const loadValues = async () => {
+    if (!activeScheme) { setValues([]); return }
     setLoading(true)
     try {
-      const params: any = {}
-      if (activeScheme) params.scheme_id = activeScheme
+      const params: any = { scheme_id: activeScheme }
+      if (selectedDate) params.start_date = selectedDate
       const r = await kpiApi.listValues(params)
-      setValues(r.items || [])
+      let items = r.items || []
+      // 精确按日期过滤（listValues 支持 start_date/end_date）
+      if (selectedDate) items = items.filter((v: any) => v.data_date === selectedDate)
+      setValues(items)
     } finally { setLoading(false) }
+  }
+
+  // 加载数据日期列表
+  const [valueDates, setValueDates] = useState<any[]>([])
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
+  const loadValueDates = async () => {
+    if (!activeScheme) { setValueDates([]); return }
+    try {
+      const r = await kpiApi.listValueDates(activeScheme)
+      setValueDates(r.items || [])
+      // 默认选最新日期
+      if (r.items?.length && !selectedDate) {
+        setSelectedDate(r.items[0].data_date)
+      }
+    } catch { /* ignore */ }
+  }
+
+  // 试算分数
+  const [scoreSummary, setScoreSummary] = useState<any>(null)
+  const [calcLoading, setCalcLoading] = useState(false)
+  const onCalcAll = async () => {
+    if (!activeScheme || !selectedDate) {
+      message.warning('请先选择数据日期')
+      return
+    }
+    setCalcLoading(true)
+    try {
+      const r = await kpiApi.calcScore(activeScheme, selectedDate)
+      setScoreSummary(r.summary)
+      message.success(`试算完成：总分 ${r.summary.total}（${r.summary.scored_count}/${r.summary.count} 个指标已评分）`)
+      loadValues()
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '试算失败')
+    } finally {
+      setCalcLoading(false)
+    }
+  }
+
+  const onCalcOne = async (kpiId: number) => {
+    if (!activeScheme || !selectedDate) {
+      message.warning('请先选择数据日期')
+      return
+    }
+    setCalcLoading(true)
+    try {
+      const r = await kpiApi.calcScore(activeScheme, selectedDate, kpiId)
+      setScoreSummary(r.summary)
+      if (r.items?.[0]?.score != null) {
+        message.success(`${r.items[0].kpi_code} 得分：${r.items[0].score}`)
+      } else {
+        message.warning(`${r.items?.[0]?.kpi_code} 暂无匹配规则或值`)
+      }
+      loadValues()
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '试算失败')
+    } finally {
+      setCalcLoading(false)
+    }
   }
 
   // 加载报表列表（用于定义的"所属报表"下拉）
@@ -164,7 +226,16 @@ const KPI: React.FC = () => {
 
   useEffect(() => { loadSchemes() }, [])
   useEffect(() => { if (tab === 'defs') { loadReports(); loadDefs() } }, [tab, activeScheme, keyword])
-  useEffect(() => { if (tab === 'values') loadValues() }, [tab, activeScheme])
+  useEffect(() => {
+    if (tab === 'values') {
+      loadValueDates()
+      setSelectedDate(null)  // 切到 values Tab 时重置日期，让 loadValueDates 自动选最新
+      setScoreSummary(null)
+    }
+  }, [tab, activeScheme])
+  useEffect(() => {
+    if (tab === 'values' && selectedDate) loadValues()
+  }, [tab, selectedDate])
 
   // 公式实时校验
   const onFormulaChange = async (v: string) => {
@@ -402,16 +473,23 @@ const KPI: React.FC = () => {
     { title: '版本', dataIndex: 'version', width: 80, render: (v) => <Tag>{v}</Tag> },
     { title: '当前值', dataIndex: 'current_value', width: 120,
       render: (v, r) => v != null ? v.toLocaleString(undefined, { maximumFractionDigits: 4 }) + (r.calc_unit === 'PERCENT' ? '%' : '') : '-' },
-    { title: '环比', dataIndex: 'prev_value', width: 100,
-      render: (v) => v != null ? v.toLocaleString() : '-' },
-    { title: '同比', dataIndex: 'prev_year_value', width: 100,
-      render: (v) => v != null ? v.toLocaleString() : '-' },
+    {
+      title: <span style={{ color: '#722ed1' }}>📊 指标分数</span>,
+      dataIndex: 'score', width: 130,
+      render: (s) => s != null
+        ? <Tag color={s >= 90 ? 'green' : s >= 60 ? 'blue' : 'orange'} style={{ fontSize: 14, padding: '2px 10px', fontWeight: 600 }}>
+            {s.toFixed(1)}
+          </Tag>
+        : <span style={{ color: '#ccc' }}>—</span>,
+    },
     { title: '来源', dataIndex: 'calc_source', width: 90,
       render: (s) => <Tag color={s === 'MANUAL' ? 'blue' : s === 'MODEL' ? 'purple' : 'orange'}>{s}</Tag> },
     {
-      title: '操作', width: 130, fixed: 'right' as const,
+      title: '操作', width: 200, fixed: 'right' as const,
       render: (_, r) => (
         <Space size="small">
+          <Button size="small" type="primary" icon={<ThunderboltOutlined />}
+            loading={calcLoading} onClick={() => onCalcOne(r.kpi_id)}>试算</Button>
           <Button size="small" onClick={() => onEditValue(r)}>编辑</Button>
           <Popconfirm title="确认删除？" onConfirm={async () => {
             await kpiApi.deleteValue(r.id); message.success('已删除'); loadValues()
@@ -556,8 +634,44 @@ const KPI: React.FC = () => {
               <div style={{ padding: 16 }}>
                 {activeScheme && currentScheme ? (
                   <>
+                    {/* 顶部：方案 + 数据日期 + 总分汇总 + 批量试算 */}
                     <Space style={{ marginBottom: 12 }} wrap>
                       <Tag color="purple">当前方案：{currentScheme.scheme_code} · {currentScheme.scheme_name}</Tag>
+                      <span style={{ color: '#666' }}>📅 数据日期：</span>
+                      <Select
+                        placeholder="选择数据日期"
+                        style={{ minWidth: 180 }}
+                        value={selectedDate || undefined}
+                        onChange={(d) => { setSelectedDate(d); setScoreSummary(null) }}
+                        allowClear
+                        options={valueDates.map((d: any) => ({
+                          value: d.data_date,
+                          label: `${d.data_date}（${d.value_count} 个值）`,
+                        }))}
+                      />
+                      {selectedDate && (
+                        <Tag color="cyan">{values.length} 行数据</Tag>
+                      )}
+                      <Button type="primary" icon={<ThunderboltOutlined />} loading={calcLoading}
+                        onClick={onCalcAll} disabled={!selectedDate}>
+                        一键试算全部
+                      </Button>
+                      {scoreSummary && (
+                        <>
+                          <Divider type="vertical" />
+                          <span style={{ color: '#666' }}>📈 方案总分汇总：</span>
+                          <Tag color="purple" style={{ fontSize: 14, padding: '4px 12px' }}>
+                            总分 {scoreSummary.total}
+                          </Tag>
+                          <Tag color="blue" style={{ fontSize: 14, padding: '4px 12px' }}>
+                            均分 {scoreSummary.avg}
+                          </Tag>
+                          <Tag color="default" style={{ fontSize: 12 }}>
+                            {scoreSummary.scored_count}/{scoreSummary.count} 已评分
+                          </Tag>
+                        </>
+                      )}
+                      <Divider type="vertical" />
                       <Button type="primary" icon={<PlusOutlined />} onClick={onCreateValue}>新增指标值</Button>
                       <Button icon={<ReloadOutlined />} onClick={loadValues}>刷新</Button>
                     </Space>

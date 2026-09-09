@@ -330,6 +330,7 @@ DDLS = [
       prev_year_value DECIMAL(20,6),
       calc_source     VARCHAR(16) DEFAULT 'MANUAL',
       calc_log        LONGTEXT,
+      score           DECIMAL(8,2) DEFAULT NULL COMMENT '试算分数',
       is_deleted      TINYINT(1) DEFAULT 0,
       created_by      BIGINT,
       updated_by      BIGINT,

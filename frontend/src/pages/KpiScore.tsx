@@ -5,8 +5,7 @@ import {
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
-  CheckCircleOutlined, CloseCircleOutlined, ThunderboltOutlined,
-  CalculatorOutlined, FunctionOutlined,
+  CheckCircleOutlined, ThunderboltOutlined, FunctionOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { kpiApi } from '../api'
@@ -29,10 +28,7 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
   const [ruleForm] = Form.useForm()
   const [segments, setSegments] = useState<any[]>([])
 
-  // 计算器
-  const [calcValue, setCalcValue] = useState<number | null>(null)
-  const [calcResult, setCalcResult] = useState<any>(null)
-
+  // 计算器已迁到"指标维护"页 - 本页只负责规则编辑
   // 加载当前方案的指标定义
   const loadDefs = async () => {
     if (!activeScheme) { setDefs([]); return }
@@ -156,19 +152,7 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
     setSegments(segments.filter((_, i) => i !== idx))
   }
 
-  // 计算器：实时算
-  const onCalc = async (ruleId: number) => {
-    if (calcValue === null || calcValue === undefined) {
-      message.warning('请输入指标值')
-      return
-    }
-    try {
-      const r = await kpiApi.scoreCalc(ruleId, calcValue)
-      setCalcResult(r)
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || '计算失败')
-    }
-  }
+  // 计算器已迁到"指标维护"页 - 本页只负责规则编辑
 
   // ========= 列定义 =========
   const defCols: ColumnsType<any> = [
@@ -196,10 +180,9 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
       render: (s) => <Tag color={s === 'ACTIVE' ? 'green' : 'default'}>{s}</Tag>,
     },
     {
-      title: '操作', width: 220, fixed: 'right' as const,
+      title: '操作', width: 180, fixed: 'right' as const,
       render: (_, r) => (
         <Space size="small">
-          <Button size="small" icon={<CalculatorOutlined />} onClick={() => onCalc(r.id)}>试算</Button>
           <Button size="small" icon={<EditOutlined />} onClick={() => onEditRule(r)}>编辑</Button>
           <Button size="small" danger icon={<DeleteOutlined />} onClick={() => {
             Modal.confirm({
@@ -311,32 +294,18 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
               }
               bodyStyle={{ padding: 16 }}
             >
-              {/* 实时计算器 */}
-              <Card size="small" style={{ marginBottom: 12, background: '#fafafa' }}>
-                <Space wrap>
-                  <span>🧮 试算：</span>
-                  <span>假设指标值 =</span>
-                  <InputNumber
-                    value={calcValue ?? undefined}
-                    onChange={(v) => setCalcValue(v as number)}
-                    placeholder="如 75"
-                    style={{ width: 120 }}
-                  />
-                  <span>得分 =</span>
-                  {calcResult && (
-                    calcResult.matched ? (
-                      <Tag color="green" style={{ fontSize: 14, padding: '4px 12px' }}>
-                        {calcResult.score} 分（{calcResult.matched_range?.segment_desc || '已匹配'}）
-                      </Tag>
-                    ) : (
-                      <Tag color="red">未匹配</Tag>
-                    )
-                  )}
-                  <span style={{ color: '#999', fontSize: 12 }}>
-                    点规则行的【试算】按钮
-                  </span>
-                </Space>
-              </Card>
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginBottom: 12 }}
+                message="试算功能已迁移到【指标维护】页"
+                description={
+                  <div>
+                    在【指标维护】页选择数据日期后，列表会展示对应日期的指标值和分数。
+                    点击行内的【⚡ 试算】按钮或顶部【一键试算全部】即可批量计算分数并保存到本指标。
+                  </div>
+                }
+              />
 
               {/* 规则列表 */}
               <Table

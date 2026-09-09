@@ -116,6 +116,10 @@ export const kpiApi = {
   listValues: (params: any = {}) => http.get('/kpi/values', { params }).then((r) => r.data),
   upsertValue: (data: any) => http.post('/kpi/values', data).then((r) => r.data),
   deleteValue: (id: number) => http.delete(`/kpi/values/${id}`).then((r) => r.data),
+  // 试算分数（指标维护页专用）
+  listValueDates: (scheme_id: number) => http.get('/kpi/value-dates', { params: { scheme_id } }).then((r) => r.data),
+  calcScore: (scheme_id: number, data_date: string, kpi_id?: number) =>
+    http.post('/kpi/values/calc-score', { scheme_id, data_date, kpi_id }).then((r) => r.data),
   // 公式引擎
   formulaEval: (formula: string, ctx: any = {}) => http.post('/kpi/formula/eval', { formula, ctx }).then((r) => r.data),
   formulaValidate: (formula: string) => http.post('/kpi/formula/validate', { formula }).then((r) => r.data),
