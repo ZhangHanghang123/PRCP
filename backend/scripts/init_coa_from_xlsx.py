@@ -102,14 +102,14 @@ def main():
     l1_ids = {}
     for cat in ('资产', '负债', '表外'):
         cur.execute("""
-            INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, sort_order, created_by, updated_by)
-            VALUES (%s, %s, %s, NULL, 1, 'CATEGORY', %s, 1, 1)
-        """, (scheme_id, f'L1_{cat}', cat, list(('资产', '负债', '表外')).index(cat)))
+            INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, created_by, updated_by)
+            VALUES (%s, %s, %s, NULL, 1, 'CATEGORY', %s, %s, 1, 1)
+        """, (scheme_id, f'L1_{cat}', cat, f'/L1_{cat}/', list(('资产', '负债', '表外')).index(cat)))
         l1_ids[cat] = cur.lastrowid
 
     # Level 2: 业务分组
-    l2_ids = {}  # (category, group) -> id
-    grp_order = {}  # 按出现顺序
+    l2_ids = {}   # (category, group) -> id
+    l2_codes = {}  # (category, group) -> node_code
     counter = 0
     for g in grouped:
         key = (g['category'], g['group'])
@@ -117,10 +117,12 @@ def main():
             counter += 1
             grp_code = f'L2_{g["category"]}_{counter:02d}'
             cur.execute("""
-                INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, sort_order, created_by, updated_by)
-                VALUES (%s, %s, %s, %s, 2, 'GROUP', %s, 1, 1)
-            """, (scheme_id, grp_code, g['group'], l1_ids[g['category']], counter))
+                INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, created_by, updated_by)
+                VALUES (%s, %s, %s, %s, 2, 'GROUP', %s, %s, 1, 1)
+            """, (scheme_id, grp_code, g['group'], l1_ids[g['category']],
+                  f'/L1_{g["category"]}/{grp_code}/', counter))
             l2_ids[key] = cur.lastrowid
+            l2_codes[key] = grp_code
 
     # Level 3: 账户册
     node_id_map = {}  # code -> id
@@ -129,10 +131,13 @@ def main():
         sort += 1
         cat = g['category']
         grp = g['group']
+        l2_code = l2_codes[(cat, grp)]
         cur.execute("""
-            INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, sort_order, description, created_by, updated_by)
-            VALUES (%s, %s, %s, %s, 3, 'ACCOUNT', %s, %s, 1, 1)
-        """, (scheme_id, g['code'], g['name'], l2_ids[(cat, grp)], sort, g['desc']))
+            INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, description, created_by, updated_by)
+            VALUES (%s, %s, %s, %s, 3, 'ACCOUNT', %s, %s, %s, 1, 1)
+        """, (scheme_id, g['code'], g['name'], l2_ids[(cat, grp)],
+              f'/L1_{cat}/{l2_code}/{g["code"]}/',
+              sort, g['desc']))
         node_id_map[g['code']] = cur.lastrowid
     conn.commit()
     print(f'   共创建节点 {3 + len(l2_ids) + len(node_id_map)} 个')
