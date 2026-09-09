@@ -12,7 +12,7 @@
 - POST   /data-maint/monthly-calc               按月出指标：对所有 rpt_item（带 coa_node_ids 的）批量计算
 """
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
