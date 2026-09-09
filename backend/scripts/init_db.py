@@ -46,110 +46,8 @@ DDLS = [
       INDEX idx_username (username)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     """,
-    # 资金组
-    """
-    CREATE TABLE IF NOT EXISTS prcp_group (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      group_code VARCHAR(64) NOT NULL,
-      group_name VARCHAR(128) NOT NULL,
-      group_type VARCHAR(32),
-      currency VARCHAR(16) DEFAULT 'CNY',
-      total_limit DECIMAL(18,2) DEFAULT 0,
-      used_limit DECIMAL(18,2) DEFAULT 0,
-      status VARCHAR(16) DEFAULT 'ACTIVE',
-      description TEXT,
-      is_deleted TINYINT(1) DEFAULT 0,
-      created_by BIGINT, updated_by BIGINT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_code (group_code),
-      INDEX idx_type (group_type)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """,
-    # 头寸
-    """
-    CREATE TABLE IF NOT EXISTS prcp_position (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      position_code VARCHAR(64) NOT NULL,
-      group_id BIGINT,
-      account_code VARCHAR(64),
-      currency VARCHAR(16) DEFAULT 'CNY',
-      direction VARCHAR(8) DEFAULT 'IN',
-      amount DECIMAL(18,2) DEFAULT 0,
-      rate DECIMAL(10,6) DEFAULT 0,
-      status VARCHAR(16) DEFAULT 'PENDING',
-      trade_date DATE,
-      settle_date DATE,
-      counterparty VARCHAR(128),
-      description TEXT,
-      is_deleted TINYINT(1) DEFAULT 0,
-      created_by BIGINT, updated_by BIGINT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_code (position_code),
-      INDEX idx_group (group_id),
-      INDEX idx_status (status)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """,
-    # 组算规则
-    """
-    CREATE TABLE IF NOT EXISTS prcp_rule (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      rule_code VARCHAR(64) NOT NULL,
-      rule_name VARCHAR(128) NOT NULL,
-      rule_type VARCHAR(32),
-      priority INT DEFAULT 0,
-      source_group VARCHAR(64),
-      target_group VARCHAR(64),
-      currency VARCHAR(16),
-      threshold DECIMAL(18,2) DEFAULT 0,
-      action VARCHAR(32),
-      status VARCHAR(16) DEFAULT 'ACTIVE',
-      description TEXT,
-      is_deleted TINYINT(1) DEFAULT 0,
-      created_by BIGINT, updated_by BIGINT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_code (rule_code),
-      INDEX idx_type (rule_type)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """,
-    # 组算任务
-    """
-    CREATE TABLE IF NOT EXISTS prcp_task (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      task_code VARCHAR(64) NOT NULL,
-      task_name VARCHAR(128) NOT NULL,
-      schedule_date DATE,
-      total_amount DECIMAL(18,2) DEFAULT 0,
-      matched_amount DECIMAL(18,2) DEFAULT 0,
-      matched_count INT DEFAULT 0,
-      gap_amount DECIMAL(18,2) DEFAULT 0,
-      status VARCHAR(16) DEFAULT 'PENDING',
-      description TEXT,
-      started_at DATETIME,
-      finished_at DATETIME,
-      is_deleted TINYINT(1) DEFAULT 0,
-      created_by BIGINT, updated_by BIGINT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      INDEX idx_code (task_code),
-      INDEX idx_status (status)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """,
-    # 任务流水
-    """
-    CREATE TABLE IF NOT EXISTS prcp_task_log (
-      id BIGINT AUTO_INCREMENT PRIMARY KEY,
-      task_id BIGINT NOT NULL,
-      log_type VARCHAR(32),
-      summary_json LONGTEXT,
-      created_by BIGINT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      INDEX idx_task (task_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    """,
     # 注：prcp_metric_item 表已废弃（193 条数据已迁移到 prcp_rpt_item 的 6 个 category）
+    # 注：prcp_group/position/rule/task/task_log 已废弃（资金组/头寸/组算规则/组算任务模块下架）
     """
     CREATE TABLE IF NOT EXISTS prcp_coa_scheme (
       id              BIGINT AUTO_INCREMENT PRIMARY KEY,
@@ -397,26 +295,6 @@ with engine.begin() as conn:
     else:
         print(f"ℹ️ admin 账号已存在 id={row[0]}")
 
-# 4) 演示数据：1 个资金组 + 3 条头寸 + 1 条规则
-with engine.begin() as conn:
-    if not conn.execute(text("SELECT id FROM prcp_group LIMIT 1")).first():
-        conn.execute(text("""
-            INSERT INTO prcp_group (group_code, group_name, group_type, currency,
-              total_limit, used_limit, status, description, created_by, updated_by)
-            VALUES ('GRP_DEMO_001', '人民币资金组', 'INTERNAL', 'CNY',
-              100000000, 35000000, 'ACTIVE', '人民币内部资金调度组', 1, 1)
-        """))
-        print("✅ 演示资金组 GRP_DEMO_001 已创建")
-
-    if not conn.execute(text("SELECT id FROM prcp_rule LIMIT 1")).first():
-        conn.execute(text("""
-            INSERT INTO prcp_rule (rule_code, rule_name, rule_type, priority,
-              source_group, target_group, currency, threshold, action, status,
-              description, created_by, updated_by)
-            VALUES ('RULE_DEMO_001', '本币内部调拨', 'INTERNAL_TRANSFER', 100,
-              'GRP_DEMO_001', 'GRP_DEMO_001', 'CNY', 1000000, 'AUTO_MATCH', 'ACTIVE',
-              '人民币内部自动撮合规则（演示）', 1, 1)
-        """))
-        print("✅ 演示规则 RULE_DEMO_001 已创建")
+# 注：资金组/头寸/组算规则/组算任务模块已下架，无演示数据
 
 print(f"🎉 PRCP 初始化完成 → http://127.0.0.1:8006/prcp/api/docs")

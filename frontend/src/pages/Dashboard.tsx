@@ -10,7 +10,7 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([dashboardApi.overview(), dashboardApi.taskTrend(14), dashboardApi.currencyDistribution()])
+    Promise.all([dashboardApi.overview(), dashboardApi.kpiTrend(14), dashboardApi.schemeDistribution()])
       .then(([o, t, d]) => { setData(o); setTrend(t); setDist(d) })
       .finally(() => setLoading(false))
   }, [])
@@ -21,7 +21,7 @@ const Dashboard: React.FC = () => {
     tooltip: { trigger: 'axis' },
     grid: { left: 40, right: 20, top: 20, bottom: 30 },
     xAxis: { type: 'category', data: (trend.items || []).map((i: any) => i.date.slice(5)) },
-    yAxis: { type: 'value', name: '任务数' },
+    yAxis: { type: 'value', name: '录入数' },
     series: [{
       data: (trend.items || []).map((i: any) => i.count),
       type: 'line', smooth: true, areaStyle: { color: 'rgba(102,126,234,0.25)' },
@@ -35,7 +35,7 @@ const Dashboard: React.FC = () => {
     legend: { bottom: 0, type: 'scroll' },
     series: [{
       type: 'pie', radius: ['45%', '70%'],
-      data: (dist.items || []).map((i: any) => ({ name: i.currency, value: i.amount })),
+      data: (dist.items || []).map((i: any) => ({ name: `${i.scheme_code} · ${i.scheme_name}`, value: i.def_count })),
       label: { formatter: '{b}\n{d}%' },
       color: ['#667eea', '#764ba2', '#f59e0b', '#52c41a', '#1890ff', '#eb2f96', '#13c2c2', '#fa8c16'],
     }],
@@ -61,12 +61,12 @@ const Dashboard: React.FC = () => {
 
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} lg={14}>
-          <Card title="近 14 天组算任务趋势">
+          <Card title="近 14 天指标值录入趋势">
             {trend.items?.length ? <ReactECharts option={trendOpt} style={{ height: 320 }} /> : <Empty />}
           </Card>
         </Col>
         <Col xs={24} lg={10}>
-          <Card title="币种头寸分布">
+          <Card title="指标方案下指标定义分布">
             {dist.items?.length ? <ReactECharts option={distOpt} style={{ height: 320 }} /> : <Empty description="暂无数据" />}
           </Card>
         </Col>

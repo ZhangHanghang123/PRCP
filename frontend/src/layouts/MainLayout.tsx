@@ -2,10 +2,6 @@ import React from 'react'
 import { Layout, Menu, Dropdown, Avatar } from 'antd'
 import {
   DashboardOutlined,
-  TeamOutlined,
-  BankOutlined,
-  ApartmentOutlined,
-  ExperimentOutlined,
   PartitionOutlined,
   FileDoneOutlined,
   LineChartOutlined,
@@ -30,10 +26,6 @@ const MainLayout: React.FC = () => {
     { key: '/reports', icon: <FileDoneOutlined />, label: '报表表项管理' },
     { key: '/balance', icon: <LineChartOutlined />, label: '资产负债表' },
     { key: '/kpi', icon: <FunctionOutlined />, label: '指标管理' },
-    { key: '/groups', icon: <TeamOutlined />, label: '资金组管理' },
-    { key: '/positions', icon: <BankOutlined />, label: '头寸管理' },
-    { key: '/rules', icon: <ApartmentOutlined />, label: '组算规则' },
-    { key: '/tasks', icon: <ExperimentOutlined />, label: '组算任务' },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 

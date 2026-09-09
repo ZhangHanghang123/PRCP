@@ -33,34 +33,10 @@ export const authApi = {
 }
 export const dashboardApi = {
   overview: () => http.get('/dashboard/overview').then((r) => r.data),
-  taskTrend: (days = 14) => http.get('/dashboard/task-trend', { params: { days } }).then((r) => r.data),
-  currencyDistribution: () => http.get('/dashboard/currency-distribution').then((r) => r.data),
+  kpiTrend: (days = 14) => http.get('/dashboard/kpi-trend', { params: { days } }).then((r) => r.data),
+  schemeDistribution: () => http.get('/dashboard/scheme-distribution').then((r) => r.data),
 }
-export const groupsApi = {
-  list: (params: any = {}) => http.get('/groups', { params }).then((r) => r.data),
-  create: (data: any) => http.post('/groups', data).then((r) => r.data),
-  update: (id: number, data: any) => http.put(`/groups/${id}`, data).then((r) => r.data),
-  delete: (id: number) => http.delete(`/groups/${id}`).then((r) => r.data),
-}
-export const positionsApi = {
-  list: (params: any = {}) => http.get('/positions', { params }).then((r) => r.data),
-  create: (data: any) => http.post('/positions', data).then((r) => r.data),
-  update: (id: number, data: any) => http.put(`/positions/${id}`, data).then((r) => r.data),
-  delete: (id: number) => http.delete(`/positions/${id}`).then((r) => r.data),
-  gap: (params: any = {}) => http.get('/positions/gap', { params }).then((r) => r.data),
-}
-export const rulesApi = {
-  list: (params: any = {}) => http.get('/rules', { params }).then((r) => r.data),
-  create: (data: any) => http.post('/rules', data).then((r) => r.data),
-  update: (id: number, data: any) => http.put(`/rules/${id}`, data).then((r) => r.data),
-  delete: (id: number) => http.delete(`/rules/${id}`).then((r) => r.data),
-}
-export const tasksApi = {
-  list: (params: any = {}) => http.get('/tasks', { params }).then((r) => r.data),
-  create: (data: any) => http.post('/tasks', data).then((r) => r.data),
-  run: (id: number) => http.post(`/tasks/${id}/run`).then((r) => r.data),
-  log: (id: number) => http.get(`/tasks/${id}/log`).then((r) => r.data),
-}
+
 // metricItemsApi 已废弃：193 条数据已迁移到 prcp_rpt_item，请使用 reportsApi
 
 // 账户册
