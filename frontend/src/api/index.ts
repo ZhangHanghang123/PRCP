@@ -121,4 +121,10 @@ export const kpiApi = {
   formulaValidate: (formula: string) => http.post('/kpi/formula/validate', { formula }).then((r) => r.data),
   recalc: (kpiId: number, dataDate: string) =>
     http.post('/kpi/recalc', null, { params: { kpi_id: kpiId, data_date: dataDate } }).then((r) => r.data),
+  // 评分规则
+  listScoreRules: (params: any = {}) => http.get('/kpi/score-rules', { params }).then((r) => r.data),
+  createScoreRule: (data: any) => http.post('/kpi/score-rules', data).then((r) => r.data),
+  updateScoreRule: (id: number, data: any) => http.put(`/kpi/score-rules/${id}`, data).then((r) => r.data),
+  deleteScoreRule: (id: number) => http.delete(`/kpi/score-rules/${id}`).then((r) => r.data),
+  scoreCalc: (ruleId: number, value: number) => http.post('/kpi/score-calc', { rule_id: ruleId, value }).then((r) => r.data),
 }

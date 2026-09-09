@@ -468,3 +468,214 @@ async def recalc_kpi(
         {"k": kpi_id, "d": data_date, "c": result, "cl": log[:5000], "u": uid},
     ).lastrowid
     return {"id": rid, "value": result, "action": "created", "ctx": ctx}
+
+
+# ============== 指标评分（v3 新增） ==============
+class SegmentIn(BaseModel):
+    seg_order: int = 0
+    min_value: Optional[float] = None
+    max_value: Optional[float] = None
+    score: float
+    segment_desc: Optional[str] = None
+
+
+class ScoreRuleIn(BaseModel):
+    scheme_id: int
+    kpi_id: int
+    rule_name: str
+    calc_method: str = "PIECEWISE"   # PIECEWISE 分段 / LINEAR 线性
+    total_score: float = 100.0
+    higher_is_better: int = 1
+    description: Optional[str] = None
+    status: str = "ACTIVE"
+    segments: List[SegmentIn] = []   # 新建时一并保存
+
+
+@router.get("/score-rules")
+async def list_score_rules(
+    scheme_id: Optional[int] = None,
+    kpi_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """列出评分规则，可按方案/指标过滤；返回时附带 segments"""
+    where = ["r.is_deleted=0"]
+    params: dict = {}
+    if scheme_id:
+        where.append("r.scheme_id=:s")
+        params["s"] = scheme_id
+    if kpi_id:
+        where.append("r.kpi_id=:k")
+        params["k"] = kpi_id
+    rules = db.execute(
+        text(f"""SELECT r.id, r.scheme_id, r.kpi_id, r.rule_name, r.calc_method,
+                       r.total_score, r.higher_is_better, r.description, r.status,
+                       d.kpi_code, d.kpi_name, s.scheme_code, s.scheme_name
+                FROM prcp_kpi_score_rule r
+                LEFT JOIN prcp_kpi_definition d ON d.id=r.kpi_id AND d.is_deleted=0
+                LEFT JOIN prcp_kpi_scheme s ON s.id=r.scheme_id
+                WHERE {' AND '.join(where)}
+                ORDER BY r.id DESC"""),
+        params,
+    ).fetchall()
+    if not rules:
+        return {"items": []}
+    rule_ids = [r[0] for r in rules]
+    segs = db.execute(
+        text(f"""SELECT id, rule_id, seg_order, min_value, max_value, score, segment_desc
+                FROM prcp_kpi_score_segment
+                WHERE rule_id IN :ids AND is_deleted=0
+                ORDER BY rule_id, seg_order"""),
+        {"ids": tuple(rule_ids)},
+    ).fetchall()
+    seg_map: dict = {}
+    for s in segs:
+        seg_map.setdefault(s[1], []).append({
+            "id": s[0], "rule_id": s[1], "seg_order": s[2],
+            "min_value": float(s[3]) if s[3] is not None else None,
+            "max_value": float(s[4]) if s[4] is not None else None,
+            "score": float(s[5]), "segment_desc": s[6],
+        })
+    return {"items": [{
+        "id": r[0], "scheme_id": r[1], "kpi_id": r[2], "rule_name": r[3],
+        "calc_method": r[4], "total_score": float(r[5]), "higher_is_better": r[6],
+        "description": r[7], "status": r[8],
+        "kpi_code": r[9], "kpi_name": r[10],
+        "scheme_code": r[11], "scheme_name": r[12],
+        "segments": seg_map.get(r[0], []),
+    } for r in rules]}
+
+
+@router.post("/score-rules")
+async def create_score_rule(p: ScoreRuleIn, db: Session = Depends(get_db),
+                            user=Depends(get_current_user)):
+    uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    # 校验 KPI 存在
+    kpi = db.execute(
+        text("SELECT id FROM prcp_kpi_definition WHERE id=:i AND is_deleted=0"),
+        {"i": p.kpi_id},
+    ).first()
+    if not kpi:
+        raise HTTPException(404, "指标不存在")
+    try:
+        rid = db.execute(
+            text("""INSERT INTO prcp_kpi_score_rule
+                (scheme_id, kpi_id, rule_name, calc_method, total_score, higher_is_better,
+                 description, status, created_by, updated_by)
+                VALUES (:s, :k, :n, :m, :t, :h, :d, :st, :u, :u)"""),
+            {"s": p.scheme_id, "k": p.kpi_id, "n": p.rule_name, "m": p.calc_method,
+             "t": p.total_score, "h": p.higher_is_better, "d": p.description,
+             "st": p.status, "u": uid},
+        ).lastrowid
+        for seg in p.segments:
+            db.execute(
+                text("""INSERT INTO prcp_kpi_score_segment
+                    (rule_id, seg_order, min_value, max_value, score, segment_desc)
+                    VALUES (:r, :o, :mn, :mx, :sc, :d)"""),
+                {"r": rid, "o": seg.seg_order,
+                 "mn": seg.min_value, "mx": seg.max_value,
+                 "sc": seg.score, "d": seg.segment_desc},
+            )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(400, f"创建失败: {e}")
+    return {"id": rid, "message": "ok", "segment_count": len(p.segments)}
+
+
+@router.put("/score-rules/{rid}")
+async def update_score_rule(rid: int, p: ScoreRuleIn, db: Session = Depends(get_db),
+                            user=Depends(get_current_user)):
+    uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    exist = db.execute(
+        text("SELECT id FROM prcp_kpi_score_rule WHERE id=:i AND is_deleted=0"),
+        {"i": rid},
+    ).first()
+    if not exist:
+        raise HTTPException(404, "规则不存在")
+    try:
+        db.execute(
+            text("""UPDATE prcp_kpi_score_rule SET
+                scheme_id=:s, kpi_id=:k, rule_name=:n, calc_method=:m,
+                total_score=:t, higher_is_better=:h, description=:d, status=:st,
+                updated_by=:u WHERE id=:i"""),
+            {"s": p.scheme_id, "k": p.kpi_id, "n": p.rule_name, "m": p.calc_method,
+             "t": p.total_score, "h": p.higher_is_better, "d": p.description,
+             "st": p.status, "u": uid, "i": rid},
+        )
+        # 整段替换：软删旧段，插入新段
+        db.execute(
+            text("UPDATE prcp_kpi_score_segment SET is_deleted=1 WHERE rule_id=:r"),
+            {"r": rid},
+        )
+        for seg in p.segments:
+            db.execute(
+                text("""INSERT INTO prcp_kpi_score_segment
+                    (rule_id, seg_order, min_value, max_value, score, segment_desc)
+                    VALUES (:r, :o, :mn, :mx, :sc, :d)"""),
+                {"r": rid, "o": seg.seg_order,
+                 "mn": seg.min_value, "mx": seg.max_value,
+                 "sc": seg.score, "d": seg.segment_desc},
+            )
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(400, f"更新失败: {e}")
+    return {"id": rid, "message": "ok"}
+
+
+@router.delete("/score-rules/{rid}")
+async def delete_score_rule(rid: int, db: Session = Depends(get_db),
+                            user=Depends(get_current_user)):
+    db.execute(
+        text("UPDATE prcp_kpi_score_rule SET is_deleted=1 WHERE id=:i"),
+        {"i": rid},
+    )
+    db.execute(
+        text("UPDATE prcp_kpi_score_segment SET is_deleted=1 WHERE rule_id=:i"),
+        {"i": rid},
+    )
+    db.commit()
+    return {"id": rid, "message": "ok"}
+
+
+@router.post("/score-calc")
+async def score_calc(payload: dict, db: Session = Depends(get_db),
+                     user=Depends(get_current_user)):
+    """根据指标值 + 规则 ID 计算分数"""
+    rule_id = payload.get("rule_id")
+    value = payload.get("value")
+    if rule_id is None or value is None:
+        raise HTTPException(400, "缺少 rule_id 或 value")
+    rule = db.execute(
+        text("""SELECT calc_method, higher_is_better FROM prcp_kpi_score_rule
+            WHERE id=:i AND is_deleted=0"""),
+        {"i": rule_id},
+    ).first()
+    if not rule:
+        raise HTTPException(404, "规则不存在")
+    segs = db.execute(
+        text("""SELECT min_value, max_value, score, segment_desc
+            FROM prcp_kpi_score_segment
+            WHERE rule_id=:r AND is_deleted=0 ORDER BY seg_order"""),
+        {"r": rule_id},
+    ).fetchall()
+    matched = None
+    for s in segs:
+        mn, mx, sc, desc = s
+        in_range = True
+        if mn is not None and value < float(mn):
+            in_range = False
+        if mx is not None and value > float(mx):
+            in_range = False
+        if in_range:
+            matched = {"score": float(sc), "min_value": float(mn) if mn is not None else None,
+                       "max_value": float(mx) if mx is not None else None,
+                       "segment_desc": desc}
+            break
+    if matched is None:
+        return {"matched": False, "value": value, "score": None,
+                "message": "所有区间均不匹配，请检查规则配置"}
+    return {"matched": True, "value": value, "score": matched["score"],
+            "matched_range": {k: v for k, v in matched.items() if k != "score"},
+            "higher_is_better": rule[1]}

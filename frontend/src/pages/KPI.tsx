@@ -6,14 +6,15 @@ import {
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   PlayCircleOutlined, FunctionOutlined, AppstoreOutlined,
-  InsertRowAboveOutlined, InsertRowBelowOutlined,
+  InsertRowAboveOutlined, InsertRowBelowOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { kpiApi, reportsApi } from '../api'
+import KpiScore from './KpiScore'
 
 const KPI: React.FC = () => {
-  const [tab, setTab] = useState<'schemes' | 'defs' | 'values'>('schemes')
+  const [tab, setTab] = useState<'schemes' | 'defs' | 'scores' | 'values'>('schemes')
   const [schemes, setSchemes] = useState<any[]>([])
   const [defs, setDefs] = useState<any[]>([])
   const [values, setValues] = useState<any[]>([])
@@ -420,9 +421,9 @@ const KPI: React.FC = () => {
     },
   ]
 
-  // 切换 Tab：必须先选指标方案才能进入"指标定义" / "指标维护"
+  // 切换 Tab：必须先选指标方案才能进入"指标定义" / "指标评分" / "指标维护"
   const onTabChange = (k: string) => {
-    if ((k === 'defs' || k === 'values') && !activeScheme) {
+    if ((k === 'defs' || k === 'scores' || k === 'values') && !activeScheme) {
       message.warning('请先在【指标方案】Tab 中选择或创建一个指标方案')
       setTab('schemes')
       return
@@ -544,6 +545,11 @@ const KPI: React.FC = () => {
                     }
                   />
                 )}
+              </div>
+            ) },
+            { key: 'scores', label: <span><ThunderboltOutlined /> 指标评分</span>, children: (
+              <div style={{ padding: 16 }}>
+                <KpiScore activeScheme={activeScheme} currentScheme={currentScheme} />
               </div>
             ) },
             { key: 'values', label: <span><InsertRowBelowOutlined /> 指标维护</span>, children: (
