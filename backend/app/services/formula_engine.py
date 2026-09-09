@@ -1,11 +1,14 @@
 """PRCP 公式引擎 — 纯 Python，支持四则运算 + 基础函数
 公式语法示例:
-    100 * (rpt:001001 + rpt:001002) / rpt:001003
-    SUM(rpt:001001, rpt:001002, rpt:001003)
-    AVG(rpt:001001, rpt:001002)
-    IF(rpt:001001 > 0, rpt:001002, 0)
-    ABS(rpt:001001 - 100)
-变量以"rpt:"或"node:"前缀引用报表表项 / 账户册节点
+    100 * ([001001] + [001002]) / [001003]
+    SUM([001001], [001002], [001003])
+    AVG([001001], [001002])
+    IF([001001] > 0, [001002], 0)
+    ABS([001001] - 100)
+    rpt / node * 100                 (普通标识符变量，kpi_code 引用)
+    item_1 + item_2                  (兼容旧版 item_<ID> 引用)
+
+变量以 [item_code] 形式引用报表表项，标识符（[A-Za-z_][A-Za-z0-9_]*）引用其他 KPI
 """
 import re
 from typing import Dict, Optional
@@ -18,11 +21,12 @@ class FormulaError(Exception):
 
 # ---------- Token ----------
 TOKEN_PAT = re.compile(r"""
-    \s+                                    # 空白
-    | (?P<NUM>\d+(?:\.\d+)?)               # 数字
-    | (?P<ID>[A-Za-z_][A-Za-z0-9_]*)       # 标识符
-    | (?P<OP>[\+\-\*\/\(\)\,])             # 运算符 / 括号 / 逗号
-    | (?P<CMP><=|>=|<>|!=|==|<|>)         # 比较
+    \s+                                            # 空白
+    | (?P<NUM>\d+(?:\.\d+)?)                       # 数字
+    | (?P<BKT>\[\s*(?P<BKTID>[A-Za-z0-9_\-\u4e00-\u9fa5]+)\s*\])   # 方括号变量 [item_code]
+    | (?P<ID>[A-Za-z_][A-Za-z0-9_]*)               # 标识符（普通变量名）
+    | (?P<OP>[\+\-\*\/\(\)\,])                     # 运算符 / 括号 / 逗号
+    | (?P<CMP><=|>=|<>|!=|==|<|>)                  # 比较
 """, re.VERBOSE)
 
 
@@ -33,12 +37,13 @@ def tokenize(expr: str):
         m = TOKEN_PAT.match(expr, pos)
         if not m:
             raise FormulaError(f"无法识别的字符: {expr[pos:pos+10]!r} 在位置 {pos}")
-        if m.lastgroup != "WHITESPACE" if hasattr(m, "WHITESPACE") else True:
-            if m.group():
-                # 跳过纯空白
-                pass
-        if m.group().strip():
-            tokens.append((m.lastgroup, m.group().strip()))
+        g = m.group()
+        if g and not g.isspace():
+            if m.lastgroup == "BKT":
+                # 方括号变量，记录括号内内容作为变量名
+                tokens.append(("BKT", m.group("BKTID")))
+            else:
+                tokens.append((m.lastgroup, g))
         pos = m.end()
     return tokens
 
@@ -70,7 +75,7 @@ def _eval_term(tokens, pos, ctx):
 
 
 def _eval_factor(tokens, pos, ctx):
-    """处理括号 / 数字 / 标识符 / 比较 / 函数"""
+    """处理括号 / 数字 / 方括号变量 / 标识符 / 比较 / 函数"""
     if pos >= len(tokens):
         raise FormulaError("公式意外结束")
     typ, val = tokens[pos]
@@ -89,6 +94,22 @@ def _eval_factor(tokens, pos, ctx):
         if pos >= len(tokens) or tokens[pos] != ("OP", ")"):
             raise FormulaError("括号不匹配")
         return v, pos + 1
+    # 方括号变量 [item_code]
+    if typ == "BKT":
+        # 比较运算符: [code] > 100
+        if pos + 1 < len(tokens) and tokens[pos + 1][0] == "CMP":
+            op = tokens[pos + 1][1]
+            right, pos = _eval_expr(tokens, pos + 2, ctx)
+            ops = {
+                ">": lambda a, b: 1.0 if a > b else 0.0,
+                "<": lambda a, b: 1.0 if a < b else 0.0,
+                "==": lambda a, b: 1.0 if abs(a - b) < 1e-9 else 0.0,
+                "!=": lambda a, b: 0.0 if abs(a - b) < 1e-9 else 1.0,
+                ">=": lambda a, b: 1.0 if a >= b else 0.0,
+                "<=": lambda a, b: 1.0 if a <= b else 0.0,
+            }
+            return ops[op](ctx.get(val, 0), right), pos
+        return ctx.get(val, 0), pos + 1
     # 函数或变量
     if typ == "ID":
         # 函数: ID(...)

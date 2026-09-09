@@ -101,16 +101,18 @@ const KPI: React.FC = () => {
     return roots
   }
 
-  // 公式：item_<ID> → 报表项中文名（只读预览）
+  // 公式：[item_code] → 报表项中文名（只读预览）
   const translateFormula = (formula: string, items: any[]): string => {
-    if (!formula || !items.length) return formula || ''
-    // 按 id 倒序，避免 item_12 误替换 item_1 的部分
-    const sorted = [...items].sort((a, b) => b.id - a.id)
+    if (!formula) return ''
     let result = formula
-    for (const it of sorted) {
-      const code = `item_${it.id}`
-      const name = it.item_name || code
-      result = result.split(code).join(name)
+    if (items.length) {
+      // 按 item_code 长度倒序，避免 001001 误替换 001
+      const sorted = [...items].sort((a, b) => b.item_code.length - a.item_code.length)
+      for (const it of sorted) {
+        const code = `[${it.item_code}]`
+        const name = `[${it.item_name || it.item_code}]`
+        result = result.split(code).join(name)
+      }
     }
     return result
   }
@@ -256,19 +258,48 @@ const KPI: React.FC = () => {
     } catch (e: any) { message.error(e?.response?.data?.detail || '保存失败') }
   }
 
-  // 在公式中插入报表表项引用
+  // 在公式中插入报表表项引用（用 [item_code] 形式）
   const insertItemIntoFormula = (item: any) => {
     const v = defForm.getFieldValue('formula') || ''
-    defForm.setFieldsValue({ formula: v ? `${v} item_${item.id}` : `item_${item.id}` })
+    const ref = `[${item.item_code}]`
+    defForm.setFieldsValue({ formula: v ? `${v} ${ref}` : ref })
   }
 
-  // 在公式中插入符号/函数（append 模式；带右括号时支持光标定位）
+  // 在公式中插入符号/函数（append 模式）
   const insertSymbolIntoFormula = (sym: string, closeSym?: string, isFunc = false) => {
     const v = defForm.getFieldValue('formula') || ''
     const next = isFunc ? `${v}${sym}` + (closeSym || '') : `${v}${sym}`
     defForm.setFieldsValue({ formula: next })
-    // 触发 onChange 校验
     onFormulaChange(next)
+  }
+
+  // 退格（删除公式最后一个 token，而非最后一个字符）
+  const backspaceFormula = () => {
+    const v = defForm.getFieldValue('formula') || ''
+    if (!v) return
+    let next = v
+    // 优先删整个 [xxx] 引用 / item_<ID> 引用 / 函数名 / 操作符
+    const patterns = [
+      /\s*\[[^\]]+\]\s*$/,            // [item_code]
+      /\s*item_\d+\s*$/,              // item_<ID>
+      /\s*[A-Za-z_]+\s*\([^()]*\)\s*$/,  // FUNC(args)
+      /\s*[^A-Za-z_\[\]\s]\s*$/,      // 单字符运算符
+      /\s*[A-Za-z_]\w*\s*$/,          // 标识符
+    ]
+    for (const p of patterns) {
+      if (p.test(next)) {
+        next = next.replace(p, '').trimEnd()
+        break
+      }
+    }
+    defForm.setFieldsValue({ formula: next })
+    onFormulaChange(next)
+  }
+
+  // 清空公式
+  const clearFormula = () => {
+    defForm.setFieldsValue({ formula: '' })
+    onFormulaChange('')
   }
 
   // ========= 值 CRUD =========
@@ -502,7 +533,7 @@ const KPI: React.FC = () => {
               ]} />
             </Form.Item></Col>
           </Row>
-          {/* 公式工具栏：符号 + 函数一键插入 */}
+          {/* 公式工具栏：符号 + 函数 + 退格一键插入 */}
           <Form.Item label="公式符号与函数">
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 8px', border: '1px solid #f0f0f0', borderRadius: 4, background: '#fafafa' }}>
               <Button.Group size="small">
@@ -533,12 +564,16 @@ const KPI: React.FC = () => {
                 <Button onClick={() => insertSymbolIntoFormula(' <= ')}>{'<='}</Button>
                 <Button onClick={() => insertSymbolIntoFormula(' == ')}>{'=='}</Button>
               </Button.Group>
+              <Button.Group size="small" style={{ marginLeft: 8 }}>
+                <Button onClick={backspaceFormula} title="退格（删除最后一个 token）">⌫ 退格</Button>
+                <Button onClick={clearFormula} danger title="清空公式">清空</Button>
+              </Button.Group>
             </div>
           </Form.Item>
 
-          <Form.Item name="formula" label="计算公式（码值，可编辑）" rules={[{ required: true }]}
-            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = item_<ID>。点击上方符号按钮或下方树叶子节点快速插入">
-            <Input.TextArea rows={3} placeholder="例如：item_248 - item_249" onChange={(e) => onFormulaChange(e.target.value)} />
+          <Form.Item name="formula" label="计算公式（表项编码，可编辑）" rules={[{ required: true }]}
+            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = [item_code]（点下方报表结构树叶子节点自动插入）">
+            <Input.TextArea rows={3} placeholder="例如：[001001001001] - [001001001002]" onChange={(e) => onFormulaChange(e.target.value)} />
           </Form.Item>
           {formulaValid && (
             formulaValid.ok
