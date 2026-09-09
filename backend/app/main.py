@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.auth import init_admin
 from app.routers import auth, dashboard, groups, positions, rules, tasks
-from app.routers import coa, reports, balance, kpi
+from app.routers import coa, reports, balance, kpi, admin
 
 logging.basicConfig(
     level=settings.LOG_LEVEL,
@@ -63,6 +63,7 @@ app.include_router(coa.router, prefix="/prcp/api")
 app.include_router(reports.router, prefix="/prcp/api")
 app.include_router(balance.router, prefix="/prcp/api")
 app.include_router(kpi.router, prefix="/prcp/api")
+app.include_router(admin.router, prefix="/prcp/api")
 
 
 if __name__ == "__main__":

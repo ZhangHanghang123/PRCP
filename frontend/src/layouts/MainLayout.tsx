@@ -12,6 +12,7 @@ import {
   FunctionOutlined,
   UserOutlined,
   LogoutOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { clearToken } from '../api'
@@ -33,6 +34,7 @@ const MainLayout: React.FC = () => {
     { key: '/positions', icon: <BankOutlined />, label: '头寸管理' },
     { key: '/rules', icon: <ApartmentOutlined />, label: '组算规则' },
     { key: '/tasks', icon: <ExperimentOutlined />, label: '组算任务' },
+    { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 
   const handleLogout = () => {

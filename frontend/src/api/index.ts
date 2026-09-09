@@ -132,3 +132,28 @@ export const kpiApi = {
   deleteScoreRule: (id: number) => http.delete(`/kpi/score-rules/${id}`).then((r) => r.data),
   scoreCalc: (ruleId: number, value: number) => http.post('/kpi/score-calc', { rule_id: ruleId, value }).then((r) => r.data),
 }
+
+// 系统管理：用户 / 角色 / 字典
+export const adminApi = {
+  // 用户
+  listUsers: (params: any = {}) => http.get('/admin/users', { params }).then((r) => r.data),
+  createUser: (data: any) => http.post('/admin/users', data).then((r) => r.data),
+  updateUser: (id: number, data: any) => http.put(`/admin/users/${id}`, data).then((r) => r.data),
+  deleteUser: (id: number) => http.delete(`/admin/users/${id}`).then((r) => r.data),
+  resetPassword: (id: number, new_password: string) =>
+    http.post(`/admin/users/${id}/reset-password`, { new_password }).then((r) => r.data),
+  // 角色
+  listRoles: (params: any = {}) => http.get('/admin/roles', { params }).then((r) => r.data),
+  createRole: (data: any) => http.post('/admin/roles', data).then((r) => r.data),
+  updateRole: (id: number, data: any) => http.put(`/admin/roles/${id}`, data).then((r) => r.data),
+  deleteRole: (id: number) => http.delete(`/admin/roles/${id}`).then((r) => r.data),
+  // 字典
+  listDicts: (params: any = {}) => http.get('/admin/dicts', { params }).then((r) => r.data),
+  createDict: (data: any) => http.post('/admin/dicts', data).then((r) => r.data),
+  updateDict: (id: number, data: any) => http.put(`/admin/dicts/${id}`, data).then((r) => r.data),
+  deleteDict: (id: number) => http.delete(`/admin/dicts/${id}`).then((r) => r.data),
+  listDictItems: (dictId: number) => http.get(`/admin/dicts/${dictId}/items`).then((r) => r.data),
+  createDictItem: (dictId: number, data: any) => http.post(`/admin/dicts/${dictId}/items`, data).then((r) => r.data),
+  updateDictItem: (id: number, data: any) => http.put(`/admin/dict-items/${id}`, data).then((r) => r.data),
+  deleteDictItem: (id: number) => http.delete(`/admin/dict-items/${id}`).then((r) => r.data),
+}
