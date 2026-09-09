@@ -144,11 +144,13 @@ const KPI: React.FC = () => {
     } finally { setLoading(false) }
   }
 
-  // 加载值
+  // 加载值（按当前 activeScheme 过滤）
   const loadValues = async () => {
     setLoading(true)
     try {
-      const r = await kpiApi.listValues({})
+      const params: any = {}
+      if (activeScheme) params.scheme_id = activeScheme
+      const r = await kpiApi.listValues(params)
       setValues(r.items || [])
     } finally { setLoading(false) }
   }
@@ -161,7 +163,7 @@ const KPI: React.FC = () => {
 
   useEffect(() => { loadSchemes() }, [])
   useEffect(() => { if (tab === 'defs') { loadReports(); loadDefs() } }, [tab, activeScheme, keyword])
-  useEffect(() => { if (tab === 'values') loadValues() }, [tab])
+  useEffect(() => { if (tab === 'values') loadValues() }, [tab, activeScheme])
 
   // 公式实时校验
   const onFormulaChange = async (v: string) => {
@@ -418,6 +420,19 @@ const KPI: React.FC = () => {
     },
   ]
 
+  // 切换 Tab：必须先选指标方案才能进入"指标定义" / "指标维护"
+  const onTabChange = (k: string) => {
+    if ((k === 'defs' || k === 'values') && !activeScheme) {
+      message.warning('请先在【指标方案】Tab 中选择或创建一个指标方案')
+      setTab('schemes')
+      return
+    }
+    setTab(k as any)
+  }
+
+  // 当前选中的方案
+  const currentScheme = schemes.find((s) => s.id === activeScheme)
+
   return (
     <Spin spinning={loading}>
       <div className="page-title">
@@ -427,8 +442,10 @@ const KPI: React.FC = () => {
 
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}><Card><Statistic title="指标方案" value={schemes.length} prefix={<AppstoreOutlined />} /></Card></Col>
-        <Col span={6}><Card><Statistic title="指标定义" value={defs.length} prefix={<FunctionOutlined />} /></Card></Col>
-        <Col span={6}><Card><Statistic title="指标值" value={values.length} prefix={<InsertRowAboveOutlined />} /></Card></Col>
+        <Col span={6}><Card><Statistic title="当前方案指标定义" value={defs.length} prefix={<FunctionOutlined />}
+          suffix={currentScheme ? <small style={{ fontSize: 12, color: '#999' }}>{currentScheme.scheme_code}</small> : '全部'} /></Card></Col>
+        <Col span={6}><Card><Statistic title="当前方案指标值" value={values.length} prefix={<InsertRowAboveOutlined />}
+          suffix={currentScheme ? <small style={{ fontSize: 12, color: '#999' }}>{currentScheme.scheme_code}</small> : '全部'} /></Card></Col>
         <Col span={6}><Card>
           <Space>
             <span>重算日期：</span>
@@ -437,9 +454,35 @@ const KPI: React.FC = () => {
         </Card></Col>
       </Row>
 
+      {/* 顶部：当前方案选择器（全局可见，所有 Tab 都能切） */}
+      <Card style={{ marginBottom: 16 }} bodyStyle={{ padding: '12px 16px' }}>
+        <Space size="middle" wrap>
+          <span style={{ color: '#666' }}>📦 当前指标方案：</span>
+          <Select
+            placeholder="请选择指标方案（先选才能看定义与维护）"
+            style={{ minWidth: 280 }}
+            value={activeScheme || undefined}
+            onChange={setActiveScheme}
+            allowClear={false}
+            options={schemes.map((s) => ({ value: s.id, label: `${s.scheme_code} · ${s.scheme_name}` }))}
+          />
+          {currentScheme && (
+            <Tag color="purple" style={{ marginLeft: 4 }}>
+              {currentScheme.kpi_count || 0} 个指标 · {currentScheme.status}
+            </Tag>
+          )}
+          {!currentScheme && schemes.length > 0 && (
+            <Tag color="warning">⚠️ 未选方案</Tag>
+          )}
+          <Button size="small" type="link" onClick={() => setTab('schemes')}>
+            ➕ 新建方案
+          </Button>
+        </Space>
+      </Card>
+
       <Card bordered={false} bodyStyle={{ padding: 0 }}>
         <Tabs
-          activeKey={tab} onChange={(k) => setTab(k as any)}
+          activeKey={tab} onChange={onTabChange}
           items={[
             { key: 'schemes', label: <span><AppstoreOutlined /> 指标方案</span>, children: (
               <div style={{ padding: 16 }}>
@@ -455,38 +498,95 @@ const KPI: React.FC = () => {
             ) },
             { key: 'defs', label: <span><FunctionOutlined /> 指标定义</span>, children: (
               <div style={{ padding: 16 }}>
-                <Space style={{ marginBottom: 12 }} wrap>
-                  <Select
-                    placeholder="选择指标方案" style={{ width: 200 }}
-                    value={activeScheme || undefined}
-                    onChange={setActiveScheme}
-                    allowClear
-                    options={schemes.map((s) => ({ value: s.id, label: `${s.scheme_code} · ${s.scheme_name}` }))}
+                {activeScheme && currentScheme ? (
+                  <>
+                    <Space style={{ marginBottom: 12 }} wrap>
+                      <Tag color="purple">当前方案：{currentScheme.scheme_code} · {currentScheme.scheme_name}</Tag>
+                      <Input.Search
+                        placeholder="搜索编码 / 名称"
+                        value={keyword}
+                        onChange={(e) => setKeyword(e.target.value)}
+                        style={{ width: 240 }}
+                        allowClear
+                      />
+                      <Button icon={<ReloadOutlined />} onClick={loadDefs}>刷新</Button>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDef}>新增指标</Button>
+                    </Space>
+                    <Table size="small" rowKey="id" dataSource={defs} columns={defCols}
+                      scroll={{ x: 1300 }}
+                      locale={{
+                        emptyText: (
+                          <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description={
+                              <div>
+                                <div>当前方案还没有任何指标定义</div>
+                                <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDef} style={{ marginTop: 12 }}>
+                                  立即新增一个指标
+                                </Button>
+                              </div>
+                            }
+                          />
+                        ),
+                      }}
+                      pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
+                  </>
+                ) : (
+                  <Empty
+                    style={{ padding: 60 }}
+                    description={
+                      <div>
+                        <div style={{ marginBottom: 8 }}>请先选择一个指标方案</div>
+                        <Button type="primary" onClick={() => setTab('schemes')}>
+                          前往【指标方案】
+                        </Button>
+                      </div>
+                    }
                   />
-                  <Input.Search
-                    placeholder="搜索编码 / 名称"
-                    value={keyword}
-                    onChange={(e) => setKeyword(e.target.value)}
-                    style={{ width: 240 }}
-                    allowClear
-                  />
-                  <Button icon={<ReloadOutlined />} onClick={loadDefs}>刷新</Button>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDef}>新增指标</Button>
-                </Space>
-                <Table size="small" rowKey="id" dataSource={defs} columns={defCols}
-                  scroll={{ x: 1300 }}
-                  pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
+                )}
               </div>
             ) },
             { key: 'values', label: <span><InsertRowBelowOutlined /> 指标维护</span>, children: (
               <div style={{ padding: 16 }}>
-                <Space style={{ marginBottom: 12 }}>
-                  <Button type="primary" icon={<PlusOutlined />} onClick={onCreateValue}>新增指标值</Button>
-                  <Button icon={<ReloadOutlined />} onClick={loadValues}>刷新</Button>
-                </Space>
-                <Table size="small" rowKey="id" dataSource={values} columns={valueCols}
-                  scroll={{ x: 1400 }}
-                  pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
+                {activeScheme && currentScheme ? (
+                  <>
+                    <Space style={{ marginBottom: 12 }} wrap>
+                      <Tag color="purple">当前方案：{currentScheme.scheme_code} · {currentScheme.scheme_name}</Tag>
+                      <Button type="primary" icon={<PlusOutlined />} onClick={onCreateValue}>新增指标值</Button>
+                      <Button icon={<ReloadOutlined />} onClick={loadValues}>刷新</Button>
+                    </Space>
+                    <Table size="small" rowKey="id" dataSource={values} columns={valueCols}
+                      scroll={{ x: 1400 }}
+                      locale={{
+                        emptyText: (
+                          <Empty
+                            image={Empty.PRESENTED_IMAGE_SIMPLE}
+                            description={
+                              <div>
+                                <div>当前方案还没有任何指标值</div>
+                                <Button type="primary" icon={<PlusOutlined />} onClick={onCreateValue} style={{ marginTop: 12 }}>
+                                  立即录入指标值
+                                </Button>
+                              </div>
+                            }
+                          />
+                        ),
+                      }}
+                      pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条` }} />
+                  </>
+                ) : (
+                  <Empty
+                    style={{ padding: 60 }}
+                    description={
+                      <div>
+                        <div style={{ marginBottom: 8 }}>请先选择一个指标方案</div>
+                        <Button type="primary" onClick={() => setTab('schemes')}>
+                          前往【指标方案】
+                        </Button>
+                      </div>
+                    }
+                  />
+                )}
               </div>
             ) },
           ]}
