@@ -72,6 +72,13 @@ export const balanceApi = {
   upsert: (data: any) => http.post('/balance/', data).then((r) => r.data),
   delete: (id: number) => http.delete(`/balance/${id}`).then((r) => r.data),
   gapSummary: (dataDate: string) => http.get('/balance/gap-summary', { params: { data_date: dataDate } }).then((r) => r.data),
+  // 新设计：按方案 + 数据日期聚合 + 大类汇总 + 日期历史
+  byScheme: (scheme_id: number, data_date: string) =>
+    http.get('/balance/by-scheme', { params: { scheme_id, data_date } }).then((r) => r.data),
+  listDates: (scheme_id?: number) =>
+    http.get('/balance/dates', { params: scheme_id ? { scheme_id } : {} }).then((r) => r.data),
+  categorySummary: (data_date: string, scheme_id?: number) =>
+    http.get('/balance/category-summary', { params: { data_date, scheme_id } }).then((r) => r.data),
 }
 
 // 指标（v2：方案 + 定义 + 维护）
