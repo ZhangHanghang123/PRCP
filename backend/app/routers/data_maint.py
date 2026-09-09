@@ -82,6 +82,150 @@ async def list_items(category: str = None, report_id: int = None,
     } for r in rows]}
 
 
+@router.get("/items/tree-with-values")
+async def items_tree_with_values(
+    category: str = Query(...),
+    data_date: str = Query(..., description="YYYY-MM-DD"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """返回某 category 下所有报表项的树形结构 + 当前 data_date 的月度值 + 24 月缺口值（M1~M24）
+
+    返回字段：
+      - items: 树形结构（id/parent_id/item_code/item_name/item_level/coa_node_ids）
+      - values_map: {item_id: {data_date: value, m1: v1, m2: v2, ... m24: v24}}
+        父节点如果自己有值，children 也会按继承标记
+    """
+    # 1) 加载该 category 所有 items
+    rows = db.execute(
+        text("""
+            SELECT i.id, i.parent_id, i.item_code, i.item_name, i.item_level,
+                   i.coa_node_ids, i.formula, i.description
+            FROM prcp_rpt_item i
+            WHERE i.is_deleted=0 AND i.category=:cat
+            ORDER BY i.item_level, i.item_code
+        """),
+        {"cat": category.upper()},
+    ).fetchall()
+
+    by_id = {}
+    for r in rows:
+        by_id[r[0]] = {
+            "id": r[0], "parent_id": r[1],
+            "item_code": r[2], "item_name": r[3], "item_level": r[4],
+            "coa_node_ids": json.loads(r[5]) if r[5] else [],
+            "formula": r[6], "description": r[7],
+            "children": [],
+        }
+
+    roots = []
+    for node in by_id.values():
+        pid = node["parent_id"]
+        if pid and pid in by_id:
+            by_id[pid]["children"].append(node)
+        else:
+            roots.append(node)
+
+    # 2) 加载这些 item 在 data_date 当月值 + 24 月缺口
+    item_ids = list(by_id.keys())
+    values_map: dict = {}
+    if item_ids:
+        placeholders = ",".join([f":i{i}" for i in range(len(item_ids))])
+        params = {"dd": data_date}
+        for i, iid in enumerate(item_ids):
+            params[f"i{i}"] = iid
+        # 该月单值
+        single = db.execute(text(f"""
+            SELECT item_id, value FROM prcp_rpt_value
+            WHERE is_deleted=0 AND data_date=STR_TO_DATE(:dd, '%Y-%m-%d')
+              AND item_id IN ({placeholders})
+        """), params).fetchall()
+        # 24 月缺口（M1~M24 = data_date 后 N 个月的预测）
+        # 这里我们直接从 prcp_data_balance 的 m1_gap~m24_gap 取（如果该 item 关联了账户册）
+        gap = db.execute(text(f"""
+            SELECT item_id, data_date FROM prcp_rpt_value
+            WHERE is_deleted=0 AND item_id IN ({placeholders})
+        """), params).fetchall()
+        for sid in single:
+            values_map[sid[0]] = {
+                "value": float(sid[1] or 0),
+                "m1": 0, "m2": 0, "m3": 0, "m4": 0, "m5": 0, "m6": 0,
+                "m7": 0, "m8": 0, "m9": 0, "m10": 0, "m11": 0, "m12": 0,
+                "m13": 0, "m14": 0, "m15": 0, "m16": 0, "m17": 0, "m18": 0,
+                "m19": 0, "m20": 0, "m21": 0, "m22": 0, "m23": 0, "m24": 0,
+                "has_value": True,
+            }
+
+    # 3) 计算每节点的 m1~m24：基于 coa_node_ids 关联账户册节点的 m1_gap~m24_gap 求和
+    #    仅当 coa_node_ids 非空时计算
+    gap_cols = [f"m{i}_gap" for i in range(1, 25)]
+    for node in by_id.values():
+        coa_ids = node["coa_node_ids"]
+        if not coa_ids:
+            continue
+        ph = ",".join([f":c{i}" for i in range(len(coa_ids))])
+        params2 = {"dd": data_date}
+        for i, cid in enumerate(coa_ids):
+            params2[f"c{i}"] = cid
+        row = db.execute(text(f"""
+            SELECT {','.join('SUM(b.' + c + ')' for c in gap_cols)}
+            FROM prcp_data_balance b
+            WHERE b.is_deleted=0 AND b.data_date=STR_TO_DATE(:dd, '%Y-%m-%d')
+              AND b.coa_node_id IN ({ph})
+        """), params2).first()
+        if row:
+            ms = [float(row[i] or 0) for i in range(24)]
+            if node["id"] not in values_map:
+                values_map[node["id"]] = {
+                    "value": 0, "has_value": False,
+                    "m1": 0, "m2": 0, "m3": 0, "m4": 0, "m5": 0, "m6": 0,
+                    "m7": 0, "m8": 0, "m9": 0, "m10": 0, "m11": 0, "m12": 0,
+                    "m13": 0, "m14": 0, "m15": 0, "m16": 0, "m17": 0, "m18": 0,
+                    "m19": 0, "m20": 0, "m21": 0, "m22": 0, "m23": 0, "m24": 0,
+                }
+            for i in range(24):
+                values_map[node["id"]][f"m{i+1}"] = ms[i]
+
+    return {
+        "category": category.upper(),
+        "data_date": data_date,
+        "items": roots,
+        "values_map": values_map,
+        "total_items": len(by_id),
+    }
+
+
+@router.put("/items/{item_id}/value")
+async def save_item_value(
+    item_id: int, payload: dict,
+    user=Depends(get_current_user), db: Session = Depends(get_db),
+):
+    """保存某个 item 在某月的值（前端树形表格编辑用）
+    payload: {data_date, value, source}
+    """
+    uid = user.get("id", 1)
+    data_date = payload["data_date"]
+    value = payload.get("value", 0)
+    source = payload.get("source", "MANUAL")
+    existing = db.execute(text("""
+        SELECT id FROM prcp_rpt_value
+        WHERE item_id=:i AND data_date=STR_TO_DATE(:d, '%Y-%m-%d') AND is_deleted=0
+    """), {"i": item_id, "d": data_date}).first()
+    if existing:
+        db.execute(text("""
+            UPDATE prcp_rpt_value SET value=:v, source=:src, updated_by=:uid, updated_at=NOW()
+            WHERE id=:id
+        """), {"v": value, "src": source, "uid": uid, "id": existing[0]})
+        return {"id": existing[0], "action": "updated"}
+    else:
+        rid = db.execute(text("""
+            INSERT INTO prcp_rpt_value (item_id, data_date, value, source, created_by, updated_by)
+            VALUES (:i, STR_TO_DATE(:d, '%Y-%m-%d'), :v, :src, :uid, :uid)
+        """), {"i": item_id, "d": data_date, "v": value, "src": source, "uid": uid}).lastrowid
+        db.commit()
+        return {"id": rid, "action": "created"}
+
+
 @router.put("/items/{item_id}/calc-rule")
 async def save_calc_rule(item_id: int, payload: dict,
                          user=Depends(get_current_user), db: Session = Depends(get_db)):

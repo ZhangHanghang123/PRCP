@@ -32,7 +32,9 @@ const App: React.FC = () => (
         <Route path="reports" element={<Reports />} />
         <Route path="balance" element={<BalanceSheet />} />
         <Route path="kpi" element={<KPI />} />
-        <Route path="data-maint" element={<DataMaint />} />
+        <Route path="data-maint" element={<DataMaint />}>
+          <Route path=":category" element={<DataMaint />} />
+        </Route>
         <Route path="system" element={<System />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

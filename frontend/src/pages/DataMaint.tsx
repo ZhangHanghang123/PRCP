@@ -1,52 +1,57 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  Card, Row, Col, Form, Input, Select, Button, Table, Space, Tag,
-  Modal, message, Spin, Empty, DatePicker, Popconfirm, Statistic, Alert, InputNumber, Tree, Tabs, Descriptions,
+  Card, Row, Col, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
+  Modal, message, Spin, Empty, DatePicker, Popconfirm, Statistic, Alert,
+  Tooltip, Dropdown, Tree, Tabs,
 } from 'antd'
 import {
-  PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
-  CalculatorOutlined, FunctionOutlined, AppstoreOutlined, ThunderboltOutlined,
+  PlusOutlined, ReloadOutlined, DownloadOutlined, UploadOutlined,
+  CalculatorOutlined, FunctionOutlined, EditOutlined, AppstoreOutlined,
+  ThunderboltOutlined, FileTextOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { dataMaintApi, coaApi } from '../api'
 
-const CATEGORIES = [
-  { code: 'FINANCIAL', name: '1-账务结果指标', color: '#667eea' },
-  { code: 'PARAM',     name: '2-关键参数指标', color: '#52c41a' },
-  { code: 'SCALE',     name: '3-规模指标',     color: '#f59e0b' },
-  { code: 'PRICE',     name: '4-价格指标',     color: '#eb2f96' },
-  { code: 'FEE',       name: '5-中收指标',     color: '#13c2c2' },
-  { code: 'RWA',       name: '6-资本与RWA假设指标', color: '#722ed1' },
+const CATEGORIES: Array<{ code: string; name: string; color: string; desc: string }> = [
+  { code: 'FINANCIAL', name: '1. 账务结果指标',     color: '#667eea', desc: '资产负债表 + 利润表科目值' },
+  { code: 'PARAM',     name: '2. 关键参数指标',     color: '#52c41a', desc: '存款准备金率 / 流动性比例等监管参数' },
+  { code: 'SCALE',     name: '3. 规模指标',         color: '#f59e0b', desc: '资产/负债/客户数等规模量' },
+  { code: 'PRICE',     name: '4. 价格指标',         color: '#eb2f96', desc: 'FTP 利率 / 存贷利率 / 利差' },
+  { code: 'FEE',       name: '5. 中收指标',         color: '#13c2c2', desc: '手续费及佣金收入' },
+  { code: 'RWA',       name: '6. 资本与RWA指标',    color: '#722ed1', desc: '资本充足率 / 风险加权资产' },
 ]
 
 const DataMaint: React.FC = () => {
-  const [tab, setTab] = useState('FINANCIAL')
+  const params = useParams()
+  const navigate = useNavigate()
+  const location = useLocation()
+  // 从 URL 拿 category，没有则默认 FINANCIAL
+  const category = (params.category || 'FINANCIAL').toUpperCase()
+  const categoryMeta = CATEGORIES.find((c) => c.code === category) || CATEGORIES[0]
+
   const [loading, setLoading] = useState(false)
-  const [items, setItems] = useState<any[]>([])
-  const [months, setMonths] = useState([])
-  const [selectedDate, setSelectedDate] = useState<Dayjs>(dayjs('2026-08-01'))
-  const [values, setValues] = useState<any[]>([])
+  const [treeData, setTreeData] = useState<any[]>([])
+  const [valuesMap, setValuesMap] = useState<Record<number, any>>({})
+  const [months, setMonths] = useState<string[]>([])
+  const [dataDate, setDataDate] = useState<Dayjs>(dayjs('2027-12-01'))
   const [selectedItem, setSelectedItem] = useState<any>(null)
+  const [valueModal, setValueModal] = useState(false)
+  const [ruleModal, setRuleModal] = useState(false)
   const [coaTrees, setCoaTrees] = useState<any[]>([])
   const [coaSchemes, setCoaSchemes] = useState<any[]>([])
   const [activeCoaScheme, setActiveCoaScheme] = useState<number | null>(null)
-
-  const [valueModal, setValueModal] = useState(false)
-  const [editingValue, setEditingValue] = useState<any>(null)
-  const [ruleModal, setRuleModal] = useState(false)
   const [form] = Form.useForm()
   const [ruleForm] = Form.useForm()
 
-  const loadItems = async (cat: string) => {
-    setLoading(true)
-    try {
-      const r = await dataMaintApi.listItems({ category: cat })
-      setItems(r.items || [])
-      setSelectedItem(null)
-    } finally { setLoading(false) }
+  // 加载数据日期列表
+  const loadMonths = async () => {
+    const r = await dataMaintApi.listMonths()
+    setMonths(r.items || [])
   }
 
+  // 加载账户册树（取数逻辑 Modal 用）
   const loadCoaTrees = async () => {
     const sr = await coaApi.listSchemes()
     setCoaSchemes(sr.items || [])
@@ -54,98 +59,67 @@ const DataMaint: React.FC = () => {
     if (v6) setActiveCoaScheme(v6.id)
     else if (sr.items?.length) setActiveCoaScheme(sr.items[0].id)
   }
-
   const loadCoaNodes = async (schemeId: number) => {
     const r = await coaApi.listNodes(schemeId)
     setCoaTrees(r.items || [])
   }
 
-  const loadMonths = async () => {
-    const r = await dataMaintApi.listMonths()
-    setMonths(r.items || [])
-  }
-
-  const loadValues = async () => {
-    if (!selectedItem) { setValues([]); return }
+  // 加载当前 category + dataDate 的树+值
+  const loadTree = async () => {
     setLoading(true)
     try {
-      const r = await dataMaintApi.listValues({ item_id: selectedItem.id, data_date: selectedDate.format('YYYY-MM-DD') })
-      setValues(r.items || [])
+      const r = await dataMaintApi.treeWithValues(category, dataDate.format('YYYY-MM-DD'))
+      setTreeData(r.items || [])
+      setValuesMap(r.values_map || {})
     } finally { setLoading(false) }
   }
 
-  useEffect(() => { loadItems(tab) }, [tab])
   useEffect(() => { loadMonths(); loadCoaTrees() }, [])
   useEffect(() => { if (activeCoaScheme) loadCoaNodes(activeCoaScheme) }, [activeCoaScheme])
-  useEffect(() => { loadValues() }, [selectedItem, selectedDate])
+  useEffect(() => { setSelectedItem(null); loadTree() }, [category, dataDate])
 
-  const buildTree = (list: any[], codeField: string, levelField: string, parentField: string, latestAmountField?: string) => {
-    const byLevel: Record<number, any[]> = {}
-    list.forEach((i) => {
-      const lvl = i[levelField] || 1
-      if (!byLevel[lvl]) byLevel[lvl] = []
-      byLevel[lvl].push(i)
-    })
-    const map = new Map<number, any>()
-    list.forEach((i) => {
-      map.set(i.id, {
-        key: `${codeField}_${i.id}`,
-        title: (
-          <span style={{ fontFamily: 'monospace', fontSize: 12 }}>
-            <Tag color={i[levelField] === 1 ? 'blue' : i[levelField] === 2 ? 'cyan' : i[levelField] === 3 ? 'geekblue' : 'green'} style={{ marginRight: 4 }}>L{i[levelField]}</Tag>
-            <strong>{i[codeField]}</strong> · {i.item_name || i.node_name}
-            {i.coa_node_ids && i.coa_node_ids.length > 0 && codeField === 'item_code' && (
-              <Tag color="green" style={{ marginLeft: 4, fontSize: 10 }}>已配取数</Tag>
-            )}
-            {latestAmountField && i[latestAmountField] > 0 && (
-              <span style={{ marginLeft: 6, color: '#999' }}>{i[latestAmountField].toFixed(0)}亿</span>
-            )}
-          </span>
-        ),
-        raw: i,
-        level: i[levelField],
-        children: [] as any[],
-      })
-    })
-    const roots: any[] = []
-    list.forEach((i) => {
-      const node = map.get(i.id)
-      if (i[levelField] === 1 || !i[parentField]) {
-        roots.push(node)
-      } else if (map.has(i[parentField])) {
-        map.get(i[parentField]).children.push(node)
-      } else {
-        roots.push(node)
-      }
-    })
-    const clean = (ns: any[]) => {
-      ns.forEach((n) => {
-        if (n.children.length === 0) n.children = undefined
-        else clean(n.children)
+  // 扁平化 + 嵌套数据，转换成 antd Table 用的格式
+  // 同时把父节点的"继承"信息：子节点无值时显示父节点的值
+  const flatRows = useMemo(() => {
+    const rows: any[] = []
+    const walk = (nodes: any[], inheritedValues: any | null) => {
+      nodes.forEach((n) => {
+        const v = valuesMap[n.id]
+        const hasOwnValue = v && v.has_value
+        // 父节点向下继承：如果自己有值，传递给自己；否则用祖先的
+        const effValues = v || inheritedValues
+        const isInherited = !hasOwnValue && inheritedValues != null
+        rows.push({
+          ...n,
+          _effValues: effValues,
+          _isInherited: isInherited,
+          _hasOwnValue: hasOwnValue,
+        })
+        if (n.children?.length) walk(n.children, effValues)
       })
     }
-    clean(roots)
-    return roots
+    walk(treeData, null)
+    return rows
+  }, [treeData, valuesMap])
+
+  // 切换 category
+  const onCategoryChange = (key: string) => {
+    navigate(`/data-maint/${key}`)
   }
 
-  const itemTree = useMemo(() => buildTree(items, 'item_code', 'item_level', 'parent_id'), [items])
-  const coaTreeData = useMemo(() => buildTree(coaTrees, 'node_code', 'node_level', 'parent_id', 'latest_amount'), [coaTrees])
-
-  const totalItems = items.length
-  const itemsWithRule = items.filter((i) => i.coa_node_ids && i.coa_node_ids.length > 0).length
-
+  // 按月出指标
   const onMonthlyCalc = async () => {
-    if (!selectedDate) { message.warning('请选择数据日期'); return }
     setLoading(true)
     try {
-      const r = await dataMaintApi.monthlyCalc({ data_date: selectedDate.format('YYYY-MM-DD'), category: tab })
-      message.success(`本月计算完成：${r.count} 个指标`)
-      loadItems(tab)
+      const r = await dataMaintApi.monthlyCalc({ data_date: dataDate.format('YYYY-MM-DD'), category })
+      message.success(`本月计算完成：${r.count || 0} 个指标`)
+      loadTree()
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '计算失败')
     } finally { setLoading(false) }
   }
 
+  // 编辑取数逻辑
   const onEditRule = (item: any) => {
     setSelectedItem(item)
     ruleForm.setFieldsValue({
@@ -161,30 +135,31 @@ const DataMaint: React.FC = () => {
       await dataMaintApi.saveCalcRule(selectedItem.id, v)
       message.success('已保存取数逻辑')
       setRuleModal(false)
-      loadItems(tab)
+      loadTree()
     } catch (e: any) {
       if (e.errorFields) return
-      message.error('保存失败')
+      message.error(e?.response?.data?.detail || '保存失败')
     }
   }
 
-  const onEditValue = (v: any) => {
-    setEditingValue(v)
+  // 编辑/新增值（弹窗）
+  const onEditValue = (row: any) => {
+    setSelectedItem(row)
+    const v = row._effValues || {}
     form.setFieldsValue({
-      item_id: selectedItem.id,
-      data_date: dayjs(v.data_date),
-      value: v.value,
-      source: v.source,
+      item_id: row.id,
+      data_date: dataDate,
+      value: v.value || 0,
+      source: v.source || 'MANUAL',
     })
     setValueModal(true)
   }
   const onCreateValue = () => {
-    if (!selectedItem) { message.warning('请先选择指标'); return }
-    setEditingValue(null)
+    if (!selectedItem) { message.warning('请先选择左侧指标'); return }
     form.resetFields()
     form.setFieldsValue({
       item_id: selectedItem.id,
-      data_date: selectedDate,
+      data_date: dataDate,
       value: 0,
       source: 'MANUAL',
     })
@@ -193,207 +168,276 @@ const DataMaint: React.FC = () => {
   const onSaveValue = async () => {
     try {
       const v = await form.validateFields()
-      const payload = {
-        item_id: v.item_id,
+      await dataMaintApi.saveItemValue(v.item_id, {
         data_date: v.data_date.format('YYYY-MM-DD'),
         value: v.value,
         source: v.source,
-      }
-      await dataMaintApi.upsertValue(payload)
+      })
       message.success('已保存')
       setValueModal(false)
-      loadValues()
+      loadTree()
     } catch (e: any) {
       if (e.errorFields) return
       message.error(e?.response?.data?.detail || '保存失败')
     }
   }
 
-  const onCalcPreview = async () => {
-    if (!selectedItem) { message.warning('请先选择指标'); return }
+  // 行内直接编辑（点击单元格 → InputNumber）
+  const onCellEdit = async (row: any, field: 'value' | string, newVal: number) => {
     try {
-      const r = await dataMaintApi.calcPreview(selectedItem.id, selectedDate.format('YYYY-MM-DD'))
-      Modal.info({
-        title: `${r.item_code} · ${r.item_name} 预览（${selectedDate.format('YYYY-MM-DD')}）`,
-        width: 600,
-        content: (
-          <div>
-            <p>计算结果：<strong style={{ fontSize: 16, color: '#667eea' }}>{r.value.toLocaleString()}</strong></p>
-            <p>分子节点（{r.detail.length} 个）：</p>
-            <Table size="small" dataSource={r.detail} rowKey="coa_node_id" pagination={false}
-              columns={[
-                { title: '编码', dataIndex: 'node_code', width: 90 },
-                { title: '名称', dataIndex: 'node_name' },
-                { title: '余额', dataIndex: 'amount', width: 100, render: (v) => v?.toLocaleString() },
-              ]}
-            />
-          </div>
-        ),
+      await dataMaintApi.saveItemValue(row.id, {
+        data_date: dataDate.format('YYYY-MM-DD'),
+        value: newVal,
+        source: 'MANUAL',
       })
+      message.success(`${row.item_code} ${field} 已更新`)
+      loadTree()
     } catch (e: any) {
-      message.error(e?.response?.data?.detail || '预览失败')
+      message.error(e?.response?.data?.detail || '更新失败')
     }
   }
 
-  const valueCols: ColumnsType<any> = [
-    { title: '数据日期', dataIndex: 'data_date', width: 110 },
-    { title: '指标编码', dataIndex: 'item_code', width: 130, render: (c) => <code>{c}</code> },
-    { title: '指标名称', dataIndex: 'item_name', ellipsis: true },
-    { title: '值', dataIndex: 'value', width: 150,
-      render: (v) => v != null ? <strong style={{ color: '#667eea' }}>{v.toLocaleString(undefined, { maximumFractionDigits: 4 })}</strong> : '-' },
-    { title: '来源', dataIndex: 'source', width: 90,
-      render: (s) => <Tag color={s === 'MANUAL' ? 'blue' : s === 'CALC' ? 'green' : 'purple'}>{s}</Tag> },
-    { title: '操作', width: 130, fixed: 'right' as const,
-      render: (_, r) => (
-        <Space size="small">
-          <Button size="small" icon={<EditOutlined />} onClick={() => onEditValue(r)}>编辑</Button>
-          <Popconfirm title="确认删除？" onConfirm={() => dataMaintApi.deleteValue(r.id).then(() => { message.success('已删除'); loadValues() })}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+  // 表格列定义
+  const baseCols: ColumnsType<any> = [
+    {
+      title: '账户册编码 / 指标编码', dataIndex: 'item_code', width: 180, fixed: 'left' as const,
+      render: (c, r) => (
+        <Space size={4}>
+          <Tag color={
+            r.item_level === 1 ? 'blue' :
+            r.item_level === 2 ? 'cyan' :
+            r.item_level === 3 ? 'geekblue' : 'green'
+          } style={{ marginRight: 0 }}>L{r.item_level}</Tag>
+          <code style={{ fontSize: 12, color: r.item_level <= 2 ? '#1d39c4' : '#595959' }}>{c}</code>
         </Space>
       ),
     },
+    {
+      title: '账户册名称 / 指标名称', dataIndex: 'item_name', width: 240, fixed: 'left' as const,
+      render: (n, r) => (
+        <Space>
+          <FileTextOutlined style={{ color: r.item_level <= 2 ? '#1d39c4' : '#52c41a' }} />
+          <span style={{ fontWeight: r.item_level <= 2 ? 600 : 400 }}>{n}</span>
+          {r.coa_node_ids?.length > 0 && (
+            <Tooltip title={`已配 ${r.coa_node_ids.length} 个账户册节点`}>
+              <Tag color="green" style={{ marginLeft: 4 }}>已配取数</Tag>
+            </Tooltip>
+          )}
+          {r._isInherited && (
+            <Tooltip title="父节点已配置，本节点未单独设置 - 沿用父节点值">
+              <Tag color="green">继承</Tag>
+            </Tooltip>
+          )}
+        </Space>
+      ),
+    },
+    {
+      title: (
+        <Tooltip title="点击单元格编辑">
+          <span>当期值 <small>({dataDate.format('YYYY-MM')})</small></span>
+        </Tooltip>
+      ),
+      dataIndex: '_effValues', width: 140, fixed: 'left' as const,
+      render: (_, r) => {
+        const v = r._effValues
+        if (!v) return <span style={{ color: '#ccc' }}>-</span>
+        return (
+          <Popconfirm
+            title={`编辑 ${r.item_code} 当期值`}
+            okText="保存"
+            cancelText="取消"
+            onConfirm={(e) => {
+              // 用 Modal 编辑
+              onEditValue(r)
+            }}
+          >
+            <span
+              style={{
+                cursor: 'pointer',
+                color: r._isInherited ? '#52c41a' : (v.value >= 0 ? '#cf1322' : '#3f8600'),
+                fontWeight: 600,
+                borderBottom: r._hasOwnValue ? '1px solid #1d39c4' : '1px dashed #52c41a',
+                padding: '2px 4px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {v.value != null ? (v.value as number).toLocaleString(undefined, { maximumFractionDigits: 4 }) : '—'}
+            </span>
+          </Popconfirm>
+        )
+      },
+    },
   ]
+
+  // M1 ~ M24 列
+  const mCols: ColumnsType<any> = Array.from({ length: 24 }, (_, i) => ({
+    title: `M${i + 1}`, dataIndex: '_effValues', width: 110,
+    render: (_v: any, r: any) => {
+      const v = r._effValues
+      if (!v) return <span style={{ color: '#ccc' }}>-</span>
+      const val = v[`m${i + 1}`] || 0
+      return (
+        <Tooltip title={`${r.item_code} M${i + 1} - ${r._isInherited ? '继承自父节点' : '本节点配置'}`}>
+          <span style={{
+            color: val > 0 ? '#cf1322' : val < 0 ? '#3f8600' : '#999',
+            fontFamily: 'monospace',
+          }}>
+            {val === 0 ? '-' : (val as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+          </span>
+        </Tooltip>
+      )
+    },
+  }))
+
+  const actionCol: ColumnsType<any>[number] = {
+    title: '操作', width: 100, fixed: 'right' as const,
+    render: (_, r) => (
+      <Space size="small">
+        <Tooltip title="配置取数逻辑">
+          <Button size="small" icon={<FunctionOutlined />} onClick={() => onEditRule(r)} />
+        </Tooltip>
+        <Tooltip title="编辑当期值">
+          <Button size="small" icon={<EditOutlined />} onClick={() => { setSelectedItem(r); onEditValue(r) }} />
+        </Tooltip>
+      </Space>
+    ),
+  }
+
+  const allCols = [...baseCols, ...mCols, actionCol]
+
+  // KPI 统计
+  const kpi = useMemo(() => {
+    const total = flatRows.length
+    const withRule = flatRows.filter((r) => r.coa_node_ids?.length > 0).length
+    const withValue = flatRows.filter((r) => r._hasOwnValue).length
+    return { total, withRule, withValue }
+  }, [flatRows])
 
   return (
     <Spin spinning={loading}>
       <div className="page-title">
         <span className="page-title-icon" />
-        数据维护 <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal' }}>· 6 类指标 · 月度值 · 取数逻辑 · 按月出指标</span>
+        <span>
+          数据维护 <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal' }}>
+            · {categoryMeta.name} · {categoryMeta.desc}
+          </span>
+        </span>
       </div>
 
+      {/* 顶部 6 类指标 Tab */}
+      <Card bordered={false} size="small" style={{ marginBottom: 16 }}>
+        <Tabs
+          activeKey={category}
+          onChange={onCategoryChange}
+          type="card"
+          items={CATEGORIES.map((c) => ({
+            key: c.code,
+            label: (
+              <span>
+                <Tag color={c.color} style={{ marginRight: 4 }}>{c.code}</Tag>
+                {c.name}
+              </span>
+            ),
+          }))}
+        />
+      </Card>
+
+      {/* 数据日期 + 操作按钮 */}
+      <Card bordered={false} style={{ marginBottom: 16 }} size="small">
+        <Row gutter={16} align="middle">
+          <Col>
+            <span style={{ marginRight: 8 }}>数据日期：</span>
+            <DatePicker
+              value={dataDate}
+              onChange={setDataDate}
+              picker="month"
+              format="YYYY-MM"
+            />
+            <span style={{ marginLeft: 12, color: '#999', fontSize: 12 }}>
+              （切换日期后自动加载该月数据 + M1~M24 预测值）
+            </span>
+          </Col>
+          <Col flex="auto" />
+          <Col>
+            <Space>
+              <Button icon={<ReloadOutlined />} onClick={loadTree}>刷新</Button>
+              <Button icon={<DownloadOutlined />}>导出 Excel</Button>
+              <Button icon={<UploadOutlined />}>导入 Excel</Button>
+              <Button icon={<ThunderboltOutlined />} type="primary" onClick={onMonthlyCalc}>按月出指标</Button>
+            </Space>
+          </Col>
+        </Row>
+      </Card>
+
+      {/* KPI 看板 */}
       <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}><Card><Statistic title={`${tab} 指标项`} value={totalItems} prefix={<AppstoreOutlined />} /></Card></Col>
-        <Col span={6}><Card><Statistic title="已配置取数逻辑" value={itemsWithRule} prefix={<FunctionOutlined />} valueStyle={{ color: '#52c41a' }} /></Card></Col>
-        <Col span={6}><Card>
-          <Space>
-            <span>数据日期：</span>
-            <DatePicker value={selectedDate} onChange={setSelectedDate} picker="month" size="small" />
-          </Space>
-        </Card></Col>
-        <Col span={6}><Card>
-          <Space>
-            <Button type="primary" icon={<ThunderboltOutlined />} onClick={onMonthlyCalc}>按月出指标</Button>
-            <Button icon={<CalculatorOutlined />} onClick={onCalcPreview}>预览</Button>
-          </Space>
-        </Card></Col>
-      </Row>
-
-      <Tabs
-        activeKey={tab}
-        onChange={setTab}
-        items={CATEGORIES.map((c) => ({ key: c.code, label: <span><Tag color={c.color}>{c.code}</Tag> {c.name}</span> }))}
-      />
-
-      <Row gutter={16}>
-        <Col span={9}>
-          <Card title={`${tab} 指标项（按层级）`} size="small"
-            extra={<Button size="small" icon={<ReloadOutlined />} onClick={() => loadItems(tab)} />}
-          >
-            {itemTree.length > 0 ? (
-              <Tree
-                treeData={itemTree}
-                defaultExpandAll
-                showLine
-                blockNode
-                selectable
-                onSelect={(_, info: any) => {
-                  if (info.node) setSelectedItem(info.node.raw)
-                }}
-              />
-            ) : <Empty description="无指标项" />}
+        <Col span={8}>
+          <Card>
+            <Statistic title="指标项数（含层级）" value={kpi.total} prefix={<AppstoreOutlined />} />
           </Card>
         </Col>
-        <Col span={15}>
-          <Card title={selectedItem ? `${selectedItem.item_code} · ${selectedItem.item_name} 月度值` : '请选择左侧指标项'}
-            size="small"
-            extra={
-              <Space>
-                <Button size="small" icon={<ReloadOutlined />} onClick={loadValues}>刷新</Button>
-                {selectedItem && (
-                  <>
-                    <Button size="small" icon={<FunctionOutlined />} onClick={() => onEditRule(selectedItem)}>取数逻辑</Button>
-                    <Button type="primary" size="small" icon={<PlusOutlined />} onClick={onCreateValue}>新增值</Button>
-                  </>
-                )}
-              </Space>
-            }>
-            {selectedItem ? (
-              <>
-                <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
-                  <Descriptions.Item label="编码">{selectedItem.item_code}</Descriptions.Item>
-                  <Descriptions.Item label="层级">L{selectedItem.item_level}</Descriptions.Item>
-                  <Descriptions.Item label="分类">{selectedItem.category}</Descriptions.Item>
-                  <Descriptions.Item label="取数逻辑节点数" span={3}>
-                    {selectedItem.coa_node_ids?.length > 0 ? (
-                      <Space wrap>
-                        {selectedItem.coa_node_ids.map((nid: number) => {
-                          const node = coaTrees.find((c) => c.id === nid)
-                          return node ? <Tag key={nid} color="blue">{node.node_code}</Tag> : <Tag key={nid}>ID:{nid}</Tag>
-                        })}
-                      </Space>
-                    ) : <span style={{ color: '#999' }}>未配置（点【取数逻辑】按钮配置）</span>}
-                  </Descriptions.Item>
-                </Descriptions>
-                <Table size="small" rowKey="id" dataSource={values} columns={valueCols}
-                  scroll={{ x: 900 }} pagination={{ pageSize: 12, showTotal: (t) => `共 ${t} 条` }} />
-              </>
-            ) : <Empty description="请点击左侧指标项" style={{ padding: 60 }} />}
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title="已配置取数逻辑"
+              value={kpi.withRule}
+              prefix={<FunctionOutlined />}
+              valueStyle={{ color: '#52c41a' }}
+            />
+          </Card>
+        </Col>
+        <Col span={8}>
+          <Card>
+            <Statistic
+              title={`当期(${dataDate.format('YYYY-MM')})有值指标`}
+              value={kpi.withValue}
+              prefix={<CalculatorOutlined />}
+              valueStyle={{ color: '#1d39c4' }}
+            />
           </Card>
         </Col>
       </Row>
 
-      <Modal title={editingValue ? '编辑月度值' : '新增月度值'} open={valueModal}
-        onCancel={() => setValueModal(false)} onOk={onSaveValue}>
-        <Form form={form} layout="vertical">
-          <Form.Item name="item_id" hidden><Input /></Form.Item>
-          <Form.Item name="data_date" label="数据日期" rules={[{ required: true }]}>
-            <DatePicker style={{ width: '100%' }} picker="month" />
-          </Form.Item>
-          <Form.Item name="value" label="指标值" rules={[{ required: true }]}>
-            <InputNumber style={{ width: '100%' }} step={1000} />
-          </Form.Item>
-          <Form.Item name="source" label="来源">
-            <Select options={[
-              { value: 'MANUAL', label: '手工录入' },
-              { value: 'IMPORT', label: '导入' },
-              { value: 'CALC', label: '系统计算' },
-              { value: 'MODEL', label: '模型输出' },
-            ]} />
-          </Form.Item>
-        </Form>
-      </Modal>
+      {/* 主表 */}
+      <Card bordered={false} size="small">
+        <Alert
+          type="info" showIcon style={{ marginBottom: 12 }}
+          message="横向滚动查看 M1 ~ M24 风险权重；父级配置后下级继承（绿色「继承」标签）；点击「当期值」单元格或操作列的编辑按钮覆盖当前节点单独设置"
+        />
+        <Table
+          size="small"
+          rowKey="id"
+          dataSource={flatRows}
+          columns={allCols}
+          scroll={{ x: 180 + 240 + 140 + 24 * 110 + 100 }}
+          pagination={{ pageSize: 50, showSizeChanger: true, showTotal: (t) => `共 ${t} 条` }}
+          indentSize={20}
+          defaultExpandAllRows
+          rowClassName={(r) => r.item_level <= 2 ? 'row-level-high' : ''}
+          locale={{ emptyText: <Empty description={`${categoryMeta.name} 暂无数据，请先在「报表表项管理」中维护该类别指标项`} /> }}
+        />
+      </Card>
 
-      <Modal title={`配置取数逻辑：${selectedItem?.item_code || ''} · ${selectedItem?.item_name || ''}`}
-        open={ruleModal} onCancel={() => setRuleModal(false)} onOk={onSaveRule} width={780}>
+      {/* 取数逻辑 Modal */}
+      <Modal
+        title={`配置取数逻辑：${selectedItem?.item_code || ''} · ${selectedItem?.item_name || ''}`}
+        open={ruleModal} onCancel={() => setRuleModal(false)} onOk={onSaveRule} width={780}
+      >
         <Form form={ruleForm} layout="vertical">
           <Alert type="info" showIcon style={{ marginBottom: 12 }}
-            message="取数逻辑 = 多个账户册节点（分子）的余额求和。点击下方树选中叶子节点加入右侧已选列表。"
-          />
+            message="取数逻辑 = 多个账户册节点（求和）或自定义公式。点击左侧树选中 L3 账户册节点加入右侧已选列表。" />
           <Row gutter={16}>
             <Col span={10}>
               <Card size="small" title={`账户册树（${coaSchemes.find((s) => s.id === activeCoaScheme)?.scheme_code || ''}）`}>
-                {coaTreeData.length > 0 ? (
-                  <Tree
-                    treeData={coaTreeData}
-                    defaultExpandAll
-                    showLine
-                    blockNode
-                    selectable
-                    multiple
-                    onSelect={(_, info: any) => {
-                      const raw = info.node?.raw
-                      if (raw && raw.node_level >= 3) {
-                        const cur = ruleForm.getFieldValue('coa_node_ids') || []
-                        if (!cur.includes(raw.id)) {
-                          ruleForm.setFieldsValue({ coa_node_ids: [...cur, raw.id] })
-                          message.success(`已添加：${raw.node_code} · ${raw.node_name}`)
-                        }
-                      } else if (raw) {
-                        message.warning('请选择叶子节点（账户册）')
-                      }
-                    }}
-                  />
+                {coaTrees.length > 0 ? (
+                  <AccountTree nodes={coaTrees} onPick={(node) => {
+                    if (node.node_level < 3) { message.warning('请选择叶子节点（账户册）'); return }
+                    const cur = ruleForm.getFieldValue('coa_node_ids') || []
+                    if (!cur.includes(node.id)) {
+                      ruleForm.setFieldsValue({ coa_node_ids: [...cur, node.id] })
+                      message.success(`已添加：${node.node_code}`)
+                    }
+                  }} />
                 ) : <Empty />}
               </Card>
             </Col>
@@ -409,17 +453,62 @@ const DataMaint: React.FC = () => {
                 </Select>
               </Form.Item>
               <Form.Item name="formula" label="公式（可选）">
-                <Input.TextArea rows={2} placeholder="可选：自定义公式，如 SUM(node_a, node_b) / node_c" />
+                <Input.TextArea rows={2} placeholder="如 SUM(node_a, node_b) / node_c" />
               </Form.Item>
               <Form.Item name="description" label="说明">
-                <Input.TextArea rows={2} placeholder="说明这个取数逻辑的含义..." />
+                <Input.TextArea rows={2} />
               </Form.Item>
             </Col>
           </Row>
         </Form>
       </Modal>
+
+      {/* 编辑当期值 Modal */}
+      <Modal title={selectedItem ? `编辑当期值：${selectedItem.item_code} · ${selectedItem.item_name}` : '编辑值'}
+        open={valueModal} onCancel={() => setValueModal(false)} onOk={onSaveValue} width={520}>
+        <Form form={form} layout="vertical">
+          <Form.Item name="item_id" hidden><Input /></Form.Item>
+          <Form.Item name="data_date" label="数据日期" rules={[{ required: true }]}>
+            <DatePicker style={{ width: '100%' }} picker="month" format="YYYY-MM-DD" />
+          </Form.Item>
+          <Form.Item name="value" label="指标值" rules={[{ required: true }]}>
+            <InputNumber style={{ width: '100%' }} step={1000} />
+          </Form.Item>
+          <Form.Item name="source" label="来源">
+            <Select options={[
+              { value: 'MANUAL', label: '手工录入' },
+              { value: 'IMPORT', label: '导入' },
+              { value: 'CALC', label: '系统计算' },
+              { value: 'MODEL', label: '模型输出' },
+            ]} />
+          </Form.Item>
+        </Form>
+      </Modal>
     </Spin>
   )
+}
+
+// 简易账户册树（不带 antd Tree 控件）
+const AccountTree: React.FC<{ nodes: any[]; onPick: (n: any) => void }> = ({ nodes, onPick }) => {
+  const renderNode = (n: any, depth: number) => (
+    <div key={n.id} style={{ paddingLeft: depth * 16, lineHeight: '24px', cursor: 'pointer' }}
+      onClick={() => onPick(n)}
+      onMouseEnter={(e) => (e.currentTarget.style.background = '#f5f5f5')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}>
+      <Tag color={n.node_level === 1 ? 'blue' : n.node_level === 2 ? 'cyan' : 'geekblue'}>
+        L{n.node_level}
+      </Tag>
+      <code style={{ fontSize: 12 }}>{n.node_code}</code>
+      <span style={{ marginLeft: 6 }}>{n.node_name}</span>
+    </div>
+  )
+  const flat: any[] = []
+  const walk = (ns: any[], d: number) => ns.forEach((n) => {
+    flat.push(renderNode(n, d))
+    if (n.children?.length) walk(n.children, d + 1)
+  })
+  walk(nodes, 0)
+  return <div style={{ maxHeight: 400, overflow: 'auto' }}>{flat}</div>
 }
 
 export default DataMaint

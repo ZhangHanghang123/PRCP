@@ -27,7 +27,19 @@ const MainLayout: React.FC = () => {
     { key: '/reports', icon: <FileDoneOutlined />, label: '报表表项管理' },
     { key: '/balance', icon: <LineChartOutlined />, label: '资产负债表' },
     { key: '/kpi', icon: <FunctionOutlined />, label: '指标管理' },
-    { key: '/data-maint', icon: <ThunderboltOutlined />, label: '数据维护' },
+    {
+      key: '/data-maint',
+      icon: <ThunderboltOutlined />,
+      label: '数据维护',
+      children: [
+        { key: '/data-maint/FINANCIAL', label: '1. 账务结果指标' },
+        { key: '/data-maint/PARAM',     label: '2. 关键参数指标' },
+        { key: '/data-maint/SCALE',     label: '3. 规模指标' },
+        { key: '/data-maint/PRICE',     label: '4. 价格指标' },
+        { key: '/data-maint/FEE',       label: '5. 中收指标' },
+        { key: '/data-maint/RWA',       label: '6. 资本与RWA指标' },
+      ],
+    },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 

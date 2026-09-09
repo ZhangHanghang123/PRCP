@@ -145,6 +145,10 @@ export const adminApi = {
 export const dataMaintApi = {
   listCategories: () => http.get('/data-maint/categories').then((r) => r.data),
   listItems: (params: any = {}) => http.get('/data-maint/items', { params }).then((r) => r.data),
+  // 树形表格聚合：items 树 + values_map
+  treeWithValues: (category: string, dataDate: string) =>
+    http.get('/data-maint/items/tree-with-values', { params: { category, data_date: dataDate } }).then((r) => r.data),
+  saveItemValue: (itemId: number, data: any) => http.put(`/data-maint/items/${itemId}/value`, data).then((r) => r.data),
   saveCalcRule: (itemId: number, data: any) => http.put(`/data-maint/items/${itemId}/calc-rule`, data).then((r) => r.data),
   listValues: (params: any = {}) => http.get('/data-maint/values', { params }).then((r) => r.data),
   upsertValue: (data: any) => http.post('/data-maint/values', data).then((r) => r.data),
