@@ -79,6 +79,9 @@ export const balanceApi = {
     http.get('/balance/dates', { params: scheme_id ? { scheme_id } : {} }).then((r) => r.data),
   categorySummary: (data_date: string, scheme_id?: number) =>
     http.get('/balance/category-summary', { params: { data_date, scheme_id } }).then((r) => r.data),
+  // 二级表头矩阵：行=账户册 / 列=月份 / 单元格=7度量
+  bySchemeMatrix: (scheme_id: number, start_date: string, end_date: string) =>
+    http.get('/balance/by-scheme-matrix', { params: { scheme_id, start_date, end_date } }).then((r) => r.data),
 }
 
 // 指标（v2：方案 + 定义 + 维护）

@@ -14,17 +14,30 @@ import { balanceApi, coaApi } from '../api'
 
 const { DirectoryTree } = Tree
 
+// 二级指标定义（顺序即表头顺序）
+const MEASURES = [
+  { key: 'begin_balance',   name: '期初余额', width: 120, color: '#595959', precision: 2, isPercent: false },
+  { key: 'avg_balance',     name: '平均余额', width: 120, color: '#1d39c4', precision: 2, isPercent: false },
+  { key: 'current_amount',  name: '期末余额', width: 130, color: '#cf1322', precision: 2, isPercent: false },
+  { key: 'interest_rate',   name: '利率(%)',  width: 100, color: '#fa8c16', precision: 4, isPercent: true  },
+  { key: 'interest_amount', name: '利息',     width: 120, color: '#722ed1', precision: 2, isPercent: false },
+  { key: 'capital_ratio',   name: '资本占比(%)', width: 110, color: '#13c2c2', precision: 4, isPercent: true  },
+  { key: 'risk_weight',     name: '风险权重(%)', width: 110, color: '#eb2f96', precision: 4, isPercent: true  },
+]
+
 const BalanceSheet: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
   const [activeScheme, setActiveScheme] = useState<number | null>(null)
   const [treeData, setTreeData] = useState<any[]>([])
-  const [records, setRecords] = useState<any[]>([])
-  const [dates, setDates] = useState<any[]>([])
-  const [categoryRows, setCategoryRows] = useState<any[]>([])
+  const [matrix, setMatrix] = useState<Record<number, Record<string, any>>>({})
+  const [matrixDates, setMatrixDates] = useState<string[]>([])
+  const [matrixNodes, setMatrixNodes] = useState<any[]>([])
+  const [categoriesAgg, setCategoriesAgg] = useState<Record<string, Record<string, any>>>({})
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [dataDate, setDataDate] = useState<Dayjs>(dayjs('2026-08-31'))
+  const [startMonth, setStartMonth] = useState<Dayjs>(dayjs('2027-01-01'))
+  const [endMonth, setEndMonth] = useState<Dayjs>(dayjs('2027-12-01'))
   const [form] = Form.useForm()
 
   // 加载方案
@@ -32,7 +45,6 @@ const BalanceSheet: React.FC = () => {
     const r = await coaApi.listSchemes()
     setSchemes(r.items || [])
     if (!activeScheme && r.items?.length) {
-      // 默认选 COA_V6
       const v6 = r.items.find((s: any) => s.scheme_code === 'COA_V6') || r.items[0]
       setActiveScheme(v6.id)
     }
@@ -47,61 +59,54 @@ const BalanceSheet: React.FC = () => {
   }
   useEffect(() => { loadTree() }, [activeScheme])
 
-  // 加载当月所有数据 + 大类汇总
-  const loadRecords = async () => {
-    if (!activeScheme || !dataDate) return
+  // 加载矩阵
+  const loadMatrix = async () => {
+    if (!activeScheme) return
     setLoading(true)
     try {
-      const [r1, r2] = await Promise.all([
-        balanceApi.byScheme(activeScheme, dataDate.format('YYYY-MM-DD')),
-        balanceApi.categorySummary(dataDate.format('YYYY-MM-DD'), activeScheme),
-      ])
-      setRecords(r1.items || [])
-      setCategoryRows(r2.items || [])
+      const r = await balanceApi.bySchemeMatrix(
+        activeScheme,
+        startMonth.format('YYYY-MM-DD'),
+        endMonth.format('YYYY-MM-DD'),
+      )
+      setMatrix(r.matrix || {})
+      setMatrixDates(r.dates || [])
+      setMatrixNodes(r.nodes || [])
+      setCategoriesAgg(r.categories || {})
     } finally { setLoading(false) }
   }
-  // 加载历史月份
-  const loadDates = async () => {
-    if (!activeScheme) return
-    const r = await balanceApi.listDates(activeScheme)
-    setDates(r.items || [])
-  }
-  useEffect(() => {
-    if (activeScheme) { loadRecords(); loadDates() }
-  }, [activeScheme, dataDate])
+  useEffect(() => { loadMatrix() }, [activeScheme, startMonth, endMonth])
 
-  // 新增
+  // 新增/编辑弹窗
   const onCreate = (preselectNodeId?: number) => {
     setEditing(null)
     form.resetFields()
     form.setFieldsValue({
       coa_node_id: preselectNodeId,
-      data_date: dataDate,
-      current_amount: 0,
-      begin_balance: 0,
-      avg_balance: 0,
-      interest_rate: 0,
-      interest_amount: 0,
-      capital_ratio: 0,
-      risk_weight: 0,
+      data_date: endMonth,
+      current_amount: 0, begin_balance: 0, avg_balance: 0,
+      interest_rate: 0, interest_amount: 0,
+      capital_ratio: 0, risk_weight: 0,
       gaps: Array(24).fill(0),
     })
     setModalOpen(true)
   }
-  const onEdit = (r: any) => {
-    setEditing(r)
+  const onEditCell = (nodeId: number, ym: string) => {
+    const node = matrixNodes.find((n) => n.coa_node_id === nodeId)
+    const cell = matrix[nodeId]?.[ym] || {}
+    setEditing({ node_code: node?.node_code, node_name: node?.node_name, ym })
     form.setFieldsValue({
-      coa_node_id: r.coa_node_id,
-      data_date: dayjs(r.data_date),
-      current_amount: r.current_amount,
-      begin_balance: r.begin_balance,
-      avg_balance: r.avg_balance,
-      interest_rate: r.interest_rate,
-      interest_amount: r.interest_amount,
-      capital_ratio: r.capital_ratio,
-      risk_weight: r.risk_weight,
-      gaps: r.gaps,
-      calc_note: r.calc_note,
+      coa_node_id: nodeId,
+      data_date: dayjs(ym + '-01'),
+      current_amount: cell.current_amount || 0,
+      begin_balance: cell.begin_balance || 0,
+      avg_balance: cell.avg_balance || 0,
+      interest_rate: cell.interest_rate || 0,
+      interest_amount: cell.interest_amount || 0,
+      capital_ratio: cell.capital_ratio || 0,
+      risk_weight: cell.risk_weight || 0,
+      gaps: [],
+      calc_note: '',
     })
     setModalOpen(true)
   }
@@ -121,39 +126,145 @@ const BalanceSheet: React.FC = () => {
         gaps: v.gaps,
         calc_note: v.calc_note,
       })
-      message.success(editing ? '已更新' : '已创建')
+      message.success('已保存')
       setModalOpen(false)
-      loadRecords()
+      loadMatrix()
     } catch (e: any) { message.error(e?.response?.data?.detail || '保存失败') }
   }
 
-  // KPI 汇总（基于 records）
-  const kpi = useMemo(() => {
-    const totalAmt = records.reduce((s, r) => s + (r.current_amount || 0), 0)
-    const totalInterest = records.reduce((s, r) => s + (r.interest_amount || 0), 0)
-    const totalGap24 = records.reduce((s, r) => s + (r.sum_24m || 0), 0)
-    const totalAvg = records.reduce((s, r) => s + (r.avg_balance || 0), 0)
-    const weightedRate = totalAvg > 0
-      ? records.reduce((s, r) => s + (r.interest_rate || 0) * (r.avg_balance || 0), 0) / totalAvg : 0
-    return {
-      accountCount: records.length,
-      totalAmt, totalInterest, totalGap24, weightedRate,
-    }
-  }, [records])
+  // 只展示 L3 账户册（按 path 排序）
+  const accountRows = useMemo(() =>
+    matrixNodes
+      .filter((n) => n.node_level === 3)
+      .sort((a, b) => (a.path || '').localeCompare(b.path || '')),
+    [matrixNodes])
 
-  // 渲染 tree 节点 title
-  const renderTreeTitle = (node: any) => {
-    const color = node.level === 1 ? '#1d39c4'
-                : node.level === 2 ? '#096dd9'
-                : '#595959'
-    return (
-      <span style={{ color }}>
-        {node.name || node.code}
-        <span style={{ color: '#999', marginLeft: 4, fontSize: 12 }}>({node.code})</span>
-      </span>
-    )
+  // 表格列定义：固定列 + 二级表头（每个月 group 下挂 7 个指标）
+  const baseCols: ColumnsType<any> = [
+    { title: '账户册编码', dataIndex: 'node_code', width: 110, fixed: 'left' as const,
+      render: (c) => <code style={{ color: '#1d39c4', fontSize: 12 }}>{c}</code> },
+    { title: '账户册名称', dataIndex: 'node_name', width: 200, fixed: 'left' as const,
+      render: (n, r) => (
+        <Tooltip title={r.path}>
+          <span style={{ fontWeight: 500 }}>{n}</span>
+        </Tooltip>
+      ),
+    },
+  ]
+
+  // 二级表头：每个月一个 group，group.title = 月份，group.children = 7 个指标列
+  const monthGroups: any[] = matrixDates.map((ym) => ({
+    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>{ym}</span>,
+    children: MEASURES.map((m) => ({
+      title: <span style={{ color: m.color, fontSize: 12 }}>{m.name}</span>,
+      dataIndex: `_m_${ym}_${m.key}`,
+      width: m.width,
+      align: 'right' as const,
+      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+      render: (_v: any, r: any) => {
+        const cell = matrix[r.coa_node_id]?.[ym] || {}
+        const v = cell[m.key]
+        if (v === undefined || v === null) {
+          return <span style={{ color: '#ccc' }}>-</span>
+        }
+        const formatted = m.isPercent
+          ? (v as number).toFixed(m.precision) + '%'
+          : (v as number).toLocaleString(undefined, { maximumFractionDigits: m.precision })
+        return (
+          <Tooltip title={`点击编辑 ${ym} · ${m.name}`}>
+            <span
+              onClick={() => onEditCell(r.coa_node_id, ym)}
+              style={{
+                cursor: 'pointer',
+                color: m.color,
+                fontFamily: m.isPercent ? 'monospace' : undefined,
+                fontWeight: m.key === 'current_amount' ? 600 : 400,
+              }}
+            >
+              {formatted}
+            </span>
+          </Tooltip>
+        )
+      },
+    })),
+  }))
+
+  const actionCol: ColumnsType<any>[number] = {
+    title: '操作', width: 80, fixed: 'right' as const,
+    render: (_, r) => (
+      <Button size="small" type="link" icon={<EditOutlined />}
+        onClick={() => onEditCell(r.coa_node_id, matrixDates[matrixDates.length - 1] || dayjs().format('YYYY-MM'))}>
+        编辑
+      </Button>
+    ),
   }
-  // 转换数据为 antd Tree 格式
+
+  const allCols: ColumnsType<any> = [...baseCols, ...monthGroups, actionCol]
+
+  // KPI
+  const kpi = useMemo(() => {
+    let totalAmt = 0, totalInterest = 0, totalAvg = 0
+    Object.values(matrix).forEach((ymMap) => {
+      Object.values(ymMap).forEach((m: any) => {
+        totalAmt += m.current_amount || 0
+        totalInterest += m.interest_amount || 0
+        totalAvg += m.avg_balance || 0
+      })
+    })
+    const monthsCount = matrixDates.length
+    const monthsAvgAmt = monthsCount > 0 ? totalAmt / monthsCount : 0
+    const monthsAvgInt = monthsCount > 0 ? totalInterest / monthsCount : 0
+    const weightedRate = totalAvg > 0
+      ? Object.values(matrix).reduce((s, ymMap) => {
+          return s + Object.values(ymMap).reduce((s2, m: any) =>
+            s2 + (m.interest_rate || 0) * (m.avg_balance || 0), 0)
+        }, 0) / totalAvg
+      : 0
+    return {
+      accountCount: accountRows.length,
+      monthsCount,
+      totalAmt, totalInterest,
+      monthsAvgAmt, monthsAvgInt,
+      weightedRate,
+    }
+  }, [matrix, matrixDates, accountRows])
+
+  // 大类汇总列（行=资产/负债/表外，列=月份）
+  const categoryBaseCols: ColumnsType<any> = [
+    { title: '大类', dataIndex: 'category', width: 100, fixed: 'left' as const,
+      render: (v) => <Tag color={v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'} style={{ fontSize: 14 }}>{v}</Tag> },
+    { title: '账户册数', dataIndex: 'account_count', width: 100, fixed: 'left' as const,
+      render: (v, r) => v || (matrixNodes.filter((n) =>
+        n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3).length) },
+  ]
+  const categoryMonthGroups: any[] = matrixDates.map((ym) => ({
+    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>{ym}</span>,
+    children: MEASURES.map((m) => ({
+      title: <span style={{ color: m.color, fontSize: 12 }}>{m.name}</span>,
+      dataIndex: `_cm_${ym}_${m.key}`,
+      width: m.width, align: 'right' as const,
+      render: (_v: any, r: any) => {
+        const cell = categoriesAgg[r.category]?.[ym] || {}
+        const v = cell[m.key]
+        if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+        const formatted = m.isPercent
+          ? (v as number).toFixed(m.precision) + '%'
+          : (v as number).toLocaleString(undefined, { maximumFractionDigits: m.precision })
+        return <span style={{ color: m.color }}>{formatted}</span>
+      },
+    })),
+  }))
+  const allCatCols: ColumnsType<any> = [...categoryBaseCols, ...categoryMonthGroups]
+
+  const renderTreeTitle = (node: any) => (
+    <span>
+      <Tag color={node.level === 1 ? 'blue' : node.level === 2 ? 'cyan' : 'geekblue'} style={{ marginRight: 4 }}>
+        L{node.level}
+      </Tag>
+      <strong>{node.name || node.code}</strong>
+      <span style={{ color: '#999', marginLeft: 4, fontSize: 12 }}>({node.code})</span>
+    </span>
+  )
   const convertTree = (nodes: any[]): any[] =>
     nodes.map((n) => ({
       title: renderTreeTitle(n),
@@ -162,110 +273,44 @@ const BalanceSheet: React.FC = () => {
       children: n.children?.length ? convertTree(n.children) : undefined,
     }))
 
-  // 账户册列表（level=3）展示用
-  const accountList = useMemo(() =>
-    records.filter((r) => r.node_level === 3).sort((a, b) =>
-      (a.path || '').localeCompare(b.path || '')), [records])
-
-  const accountCols: ColumnsType<any> = [
-    { title: '账户册编码', dataIndex: 'node_code', width: 100,
-      render: (c, r) => <code style={{ color: r.node_type === 'ACCOUNT' ? '#1d39c4' : '#999' }}>{c}</code> },
-    { title: '账户册名称', dataIndex: 'node_name', ellipsis: true },
-    { title: '类别', dataIndex: 'node_type', width: 90,
-      render: (t) => <Tag color={t === 'CATEGORY' ? 'blue' : t === 'GROUP' ? 'cyan' : 'default'}>{t}</Tag> },
-    { title: '期初余额', dataIndex: 'begin_balance', width: 130,
-      render: (v) => (v || 0).toLocaleString() },
-    { title: '期末余额', dataIndex: 'current_amount', width: 140,
-      render: (v) => <strong style={{ color: '#1d39c4' }}>{(v || 0).toLocaleString()}</strong> },
-    { title: '平均余额', dataIndex: 'avg_balance', width: 130,
-      render: (v) => (v || 0).toLocaleString() },
-    { title: '利率(%)', dataIndex: 'interest_rate', width: 100,
-      render: (v) => v ? <span style={{ color: '#fa8c16' }}>{v.toFixed(4)}</span> : '—' },
-    { title: '利息', dataIndex: 'interest_amount', width: 130,
-      render: (v) => <span style={{ color: v >= 0 ? '#cf1322' : '#3f8600' }}>{(v || 0).toLocaleString()}</span> },
-    { title: '资本占比(%)', dataIndex: 'capital_ratio', width: 110,
-      render: (v) => v ? v.toFixed(4) : '—' },
-    { title: '风险权重(%)', dataIndex: 'risk_weight', width: 110,
-      render: (v) => v ? v.toFixed(4) : '—' },
-    { title: '24月缺口合计', dataIndex: 'sum_24m', width: 130,
-      render: (v) => {
-        const s = v || 0
-        return <Tag color={s > 0 ? 'red' : s < 0 ? 'green' : 'default'}>{s.toLocaleString()}</Tag>
-      },
-    },
-    {
-      title: '操作', width: 110, fixed: 'right' as const,
-      render: (_, r) => (
-        <Space size="small">
-          <Tooltip title="编辑该账户册当月数据">
-            <Button size="small" icon={<EditOutlined />} onClick={() => onEdit(r)}>编辑</Button>
-          </Tooltip>
-          {r.id && (
-            <Popconfirm title="确认删除？" onConfirm={async () => {
-              await balanceApi.delete(r.id)
-              message.success('已删除')
-              loadRecords()
-            }}>
-              <Button size="small" danger icon={<DeleteOutlined />} />
-            </Popconfirm>
-          )}
-        </Space>
-      ),
-    },
-  ]
-
-  // 大类汇总表
-  const categoryCols: ColumnsType<any> = [
-    { title: '大类', dataIndex: 'category', width: 100,
-      render: (v) => <Tag color={v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'} style={{ fontSize: 14 }}>{v}</Tag> },
-    { title: '账户册数', dataIndex: 'account_count', width: 100 },
-    { title: '期初余额', dataIndex: 'total_begin', width: 150,
-      render: (v) => (v || 0).toLocaleString() },
-    { title: '期末余额', dataIndex: 'total_amount', width: 160,
-      render: (v) => <strong style={{ color: '#1d39c4', fontSize: 16 }}>{(v || 0).toLocaleString()}</strong> },
-    { title: '平均余额', dataIndex: 'total_avg', width: 150,
-      render: (v) => (v || 0).toLocaleString() },
-    { title: '利息合计', dataIndex: 'total_interest', width: 150,
-      render: (v) => <span style={{ color: v >= 0 ? '#cf1322' : '#3f8600' }}>{(v || 0).toLocaleString()}</span> },
-    { title: '加权利率(%)', dataIndex: 'weighted_rate', width: 130,
-      render: (v) => v ? <span style={{ color: '#fa8c16' }}>{v.toFixed(4)}</span> : '—' },
-    { title: '加权资本占比(%)', dataIndex: 'weighted_capital', width: 150,
-      render: (v) => v ? v.toFixed(4) : '—' },
-    { title: '加权风险权重(%)', dataIndex: 'weighted_risk_weight', width: 150,
-      render: (v) => v ? v.toFixed(4) : '—' },
-    { title: '24月缺口合计', dataIndex: 'sum_24m', width: 150,
-      render: (v) => {
-        const s = v || 0
-        return <Tag color={s > 0 ? 'red' : s < 0 ? 'green' : 'default'}>{s.toLocaleString()}</Tag>
-      },
-    },
-  ]
-
-  // 历史月份表
-  const dateCols: ColumnsType<any> = [
-    { title: '数据日期', dataIndex: 'data_date', width: 140,
-      render: (v) => <a onClick={() => setDataDate(dayjs(v))}>{v}</a> },
-    { title: '记录数', dataIndex: 'record_count', width: 100 },
-    { title: '总余额', dataIndex: 'total_amount', width: 180,
-      render: (v) => <strong style={{ color: '#1d39c4' }}>{(v || 0).toLocaleString()}</strong> },
-    { title: '总利息', dataIndex: 'total_interest', width: 180,
-      render: (v) => <span style={{ color: '#cf1322' }}>{(v || 0).toLocaleString()}</span> },
-  ]
-
   return (
     <Spin spinning={loading}>
       <div className="page-title">
         <span className="page-title-icon" />
-        <span>资产负债表 <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal' }}>· 账户册月度量纲 + 24 月现金流缺口</span></span>
+        <span>
+          资产负债表 <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal' }}>
+            · 账户册 × 月份 矩阵 · 二级表头
+          </span>
+        </span>
       </div>
 
-      {/* 顶部筛选 */}
-      <Card bordered={false} style={{ marginBottom: 16 }}>
+      {/* 顶部 7 类 Tab */}
+      <Card bordered={false} size="small" style={{ marginBottom: 16 }}>
+        <Tabs
+          activeKey="BALANCE"
+          onChange={(k) => {
+            if (k !== 'BALANCE') window.location.href = `/prcp/data-maint/${k}`
+          }}
+          type="card"
+          items={[
+            { key: 'FINANCIAL', label: <span><Tag color="#667eea" style={{ marginRight: 4 }}>FINANCIAL</Tag>1. 账务结果指标</span> },
+            { key: 'PARAM',     label: <span><Tag color="#52c41a" style={{ marginRight: 4 }}>PARAM</Tag>2. 关键参数指标</span> },
+            { key: 'SCALE',     label: <span><Tag color="#f59e0b" style={{ marginRight: 4 }}>SCALE</Tag>3. 规模指标</span> },
+            { key: 'PRICE',     label: <span><Tag color="#eb2f96" style={{ marginRight: 4 }}>PRICE</Tag>4. 价格指标</span> },
+            { key: 'FEE',       label: <span><Tag color="#13c2c2" style={{ marginRight: 4 }}>FEE</Tag>5. 中收指标</span> },
+            { key: 'RWA',       label: <span><Tag color="#722ed1" style={{ marginRight: 4 }}>RWA</Tag>6. 资本与RWA指标</span> },
+            { key: 'BALANCE',   label: <span><Tag color="#1d39c4" style={{ marginRight: 4 }}>BALANCE</Tag>7. 资产负债表</span> },
+          ]}
+        />
+      </Card>
+
+      {/* 顶部筛选 + 时间窗口 */}
+      <Card bordered={false} style={{ marginBottom: 16 }} size="small">
         <Row gutter={16} align="middle">
           <Col>
             <span style={{ marginRight: 8 }}>账户册方案：</span>
             <Select
-              style={{ width: 260 }}
+              style={{ width: 240 }}
               value={activeScheme || undefined}
               onChange={setActiveScheme}
               options={schemes.map((s) => ({
@@ -275,18 +320,24 @@ const BalanceSheet: React.FC = () => {
             />
           </Col>
           <Col>
-            <span style={{ marginRight: 8 }}>数据日期：</span>
+            <span style={{ marginRight: 8 }}>起始月份：</span>
             <DatePicker
-              value={dataDate}
-              onChange={setDataDate}
-              format="YYYY-MM-DD"
+              value={startMonth} onChange={setStartMonth}
+              picker="month" format="YYYY-MM"
+            />
+          </Col>
+          <Col>
+            <span style={{ marginRight: 8 }}>结束月份：</span>
+            <DatePicker
+              value={endMonth} onChange={setEndMonth}
+              picker="month" format="YYYY-MM"
             />
           </Col>
           <Col flex="auto" />
           <Col>
             <Space>
-              <Button icon={<ReloadOutlined />} onClick={() => { loadRecords(); loadDates() }}>刷新</Button>
-              <Button type="primary" icon={<PlusOutlined />} onClick={() => onCreate()}>新增账户册月度数据</Button>
+              <Button icon={<ReloadOutlined />} onClick={loadMatrix}>刷新</Button>
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => onCreate()}>新增月度数据</Button>
             </Space>
           </Col>
         </Row>
@@ -296,19 +347,19 @@ const BalanceSheet: React.FC = () => {
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}>
           <Card>
-            <Statistic
-              title="账户册记录数"
-              value={kpi.accountCount}
-              prefix={<BankOutlined />}
-              suffix="册"
-            />
+            <Statistic title="账户册数" value={kpi.accountCount} prefix={<BankOutlined />} suffix="册" />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic title="显示月份数" value={kpi.monthsCount} suffix="月" />
           </Card>
         </Col>
         <Col span={6}>
           <Card>
             <Statistic
-              title="期末总余额（亿元）"
-              value={kpi.totalAmt}
+              title="月份平均总规模（亿元）"
+              value={kpi.monthsAvgAmt}
               precision={2}
               prefix={<FundProjectionScreenOutlined />}
               valueStyle={{ color: '#1d39c4' }}
@@ -318,21 +369,11 @@ const BalanceSheet: React.FC = () => {
         <Col span={6}>
           <Card>
             <Statistic
-              title="本月总利息（亿元）"
-              value={kpi.totalInterest}
+              title="月份平均利息（亿元）"
+              value={kpi.monthsAvgInt}
               precision={2}
-              prefix={kpi.totalInterest >= 0 ? <RiseOutlined /> : <FallOutlined />}
-              valueStyle={{ color: kpi.totalInterest >= 0 ? '#cf1322' : '#3f8600' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="24 月缺口合计（亿元）"
-              value={kpi.totalGap24}
-              precision={2}
-              valueStyle={{ color: kpi.totalGap24 > 0 ? '#cf1322' : kpi.totalGap24 < 0 ? '#3f8600' : '#666' }}
+              prefix={kpi.monthsAvgInt >= 0 ? <RiseOutlined /> : <FallOutlined />}
+              valueStyle={{ color: kpi.monthsAvgInt >= 0 ? '#cf1322' : '#3f8600' }}
             />
           </Card>
         </Col>
@@ -341,85 +382,22 @@ const BalanceSheet: React.FC = () => {
       {/* 主内容 */}
       <Card bordered={false} bodyStyle={{ paddingTop: 8 }}>
         <Tabs
-          defaultActiveKey="accounts"
+          defaultActiveKey="matrix"
           items={[
             {
-              key: 'accounts',
-              label: <span><BankOutlined /> 账户册月度数据 <Badge count={accountList.length} showZero color="#1d39c4" /></span>,
+              key: 'matrix',
+              label: <span><BankOutlined /> 账户册矩阵（二级表头） <Badge count={accountRows.length} showZero color="#1d39c4" /></span>,
               children: (
-                <div style={{ display: 'flex', gap: 16, minHeight: 600 }}>
-                  {/* 左侧账户册树 */}
-                  <div style={{ width: 320, borderRight: '1px solid #f0f0f0', paddingRight: 12 }}>
-                    <div style={{ marginBottom: 8, fontWeight: 600 }}>
-                      <span>账户册树</span>
-                      <Tooltip title="点击账户册节点 → 自动定位到该行并预填新建表单">
-                        <Tag color="blue" style={{ marginLeft: 8 }}>? 提示</Tag>
-                      </Tooltip>
-                    </div>
-                    {treeData.length === 0 ? (
-                      <Empty description="暂无账户册数据" />
-                    ) : (
-                      <DirectoryTree
-                        treeData={convertTree(treeData)}
-                        defaultExpandAll
-                        blockNode
-                        onSelect={(keys, info) => {
-                          const node = (info.node as any).raw
-                          if (node?.level === 3) {
-                            const exists = accountList.find((r) => r.coa_node_id === node.id)
-                            if (exists) {
-                              onEdit(exists)
-                            } else {
-                              Modal.confirm({
-                                title: `为「${node.name}(${node.code})」创建 ${dataDate.format('YYYY-MM-DD')} 的月度数据？`,
-                                onOk: () => onCreate(node.id),
-                              })
-                            }
-                          }
-                        }}
-                      />
-                    )}
-                  </div>
-
-                  {/* 右侧账户册列表 + 缺口 */}
-                  <div style={{ flex: 1, overflow: 'auto' }}>
-                    <Table
-                      size="small"
-                      rowKey="coa_node_id"
-                      dataSource={accountList}
-                      columns={accountCols}
-                      scroll={{ x: 1500 }}
-                      pagination={{ pageSize: 15, showSizeChanger: true, showTotal: (t) => `共 ${t} 册` }}
-                      locale={{ emptyText: <Empty description="当月暂无账户册月度数据，点击右上角'新增账户册月度数据'开始" /> }}
-                      summary={() => {
-                        const total = accountList.reduce((s, r) => ({
-                          amt: s.amt + (r.current_amount || 0),
-                          avg: s.avg + (r.avg_balance || 0),
-                          int: s.int + (r.interest_amount || 0),
-                          gap: s.gap + (r.sum_24m || 0),
-                        }), { amt: 0, avg: 0, int: 0, gap: 0 })
-                        return (
-                          <Table.Summary.Row style={{ background: '#fafafa', fontWeight: 600 }}>
-                            <Table.Summary.Cell index={0} colSpan={4}>合计 / 加权</Table.Summary.Cell>
-                            <Table.Summary.Cell index={1}>{total.amt.toLocaleString()}</Table.Summary.Cell>
-                            <Table.Summary.Cell index={2}>{total.avg.toLocaleString()}</Table.Summary.Cell>
-                            <Table.Summary.Cell index={3}>—</Table.Summary.Cell>
-                            <Table.Summary.Cell index={4}>
-                              <span style={{ color: total.int >= 0 ? '#cf1322' : '#3f8600' }}>{total.int.toLocaleString()}</span>
-                            </Table.Summary.Cell>
-                            <Table.Summary.Cell index={5} colSpan={2}>—</Table.Summary.Cell>
-                            <Table.Summary.Cell index={6}>
-                              <Tag color={total.gap > 0 ? 'red' : total.gap < 0 ? 'green' : 'default'}>
-                                {total.gap.toLocaleString()}
-                              </Tag>
-                            </Table.Summary.Cell>
-                            <Table.Summary.Cell index={7}>—</Table.Summary.Cell>
-                          </Table.Summary.Row>
-                        )
-                      }}
-                    />
-                  </div>
-                </div>
+                <Table
+                  size="small"
+                  rowKey="coa_node_id"
+                  dataSource={accountRows}
+                  columns={allCols as any}
+                  scroll={{ x: 310 + matrixDates.length * 7 * 110 + 80 }}
+                  pagination={{ pageSize: 30, showSizeChanger: true, showTotal: (t) => `共 ${t} 册` }}
+                  bordered
+                  locale={{ emptyText: <Empty description="该时间窗口无账户册月度数据" /> }}
+                />
               ),
             },
             {
@@ -427,41 +405,49 @@ const BalanceSheet: React.FC = () => {
               label: <span><FundProjectionScreenOutlined /> 大类汇总（资产/负债/表外）</span>,
               children: (
                 <Table
-                  size="middle"
+                  size="small"
                   rowKey="category"
-                  dataSource={categoryRows}
-                  columns={categoryCols}
+                  dataSource={[
+                    { category: '资产', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_资产') && n.node_level === 3).length },
+                    { category: '负债', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_负债') && n.node_level === 3).length },
+                    { category: '表外', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_表外') && n.node_level === 3).length },
+                  ]}
+                  columns={allCatCols as any}
+                  scroll={{ x: 200 + matrixDates.length * 7 * 110 }}
                   pagination={false}
-                  locale={{ emptyText: <Empty description="当月暂无账户册数据，无法生成大类汇总" /> }}
+                  bordered
                 />
               ),
             },
             {
-              key: 'history',
-              label: <span><RiseOutlined /> 历史月份 <Badge count={dates.length} showZero color="#52c41a" /></span>,
+              key: 'tree',
+              label: <span><PartitionOutlined /> 账户册树（按层级）</span>,
               children: (
-                <Table
-                  size="middle"
-                  rowKey="data_date"
-                  dataSource={dates}
-                  columns={dateCols}
-                  pagination={false}
-                  onRow={(r) => ({ onClick: () => setDataDate(dayjs(r.data_date)) })}
-                  locale={{ emptyText: <Empty description="暂无历史数据" /> }}
-                />
+                <div style={{ minHeight: 400 }}>
+                  {treeData.length === 0 ? <Empty /> : (
+                    <DirectoryTree
+                      treeData={convertTree(treeData)}
+                      defaultExpandAll blockNode
+                      onSelect={(keys, info) => {
+                        const n = (info.node as any)?.raw
+                        if (n?.level === 3) onCreate(n.id)
+                      }}
+                    />
+                  )}
+                </div>
               ),
             },
           ]}
         />
       </Card>
 
-      {/* 编辑/新增弹窗 */}
+      {/* 编辑弹窗 */}
       <Modal
-        title={editing ? `编辑账户册月度数据 - ${editing.node_code}` : '新增账户册月度数据'}
+        title={editing ? `编辑 ${editing.node_code} · ${editing.node_name} - ${editing.ym || ''}` : '新增账户册月度数据'}
         open={modalOpen}
         onCancel={() => setModalOpen(false)}
         onOk={onSave}
-        width={920}
+        width={720}
       >
         <Form form={form} layout="vertical">
           <Row gutter={16}>
@@ -469,99 +455,40 @@ const BalanceSheet: React.FC = () => {
               <Form.Item name="coa_node_id" label="账户册节点" rules={[{ required: true }]}>
                 <Select
                   showSearch optionFilterProp="label"
-                  placeholder="选择账户册（仅 L3 节点）"
-                  options={(() => {
-                    // 扁平化 treeData
-                    const flat: any[] = []
-                    const walk = (ns: any[]) => ns.forEach((n) => {
-                      flat.push({ value: n.id, label: `${n.code} - ${n.name || ''}` })
-                      if (n.children) walk(n.children)
-                    })
-                    walk(treeData)
-                    return flat
-                  })()}
+                  options={matrixNodes
+                    .filter((n) => n.node_level === 3)
+                    .map((n) => ({ value: n.coa_node_id, label: `${n.node_code} - ${n.node_name}` }))}
                 />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item name="data_date" label="数据日期" rules={[{ required: true }]}>
-                <DatePicker style={{ width: '100%' }} />
+                <DatePicker style={{ width: '100%' }} picker="month" format="YYYY-MM-DD" />
               </Form.Item>
             </Col>
           </Row>
-
-          <Divider orientation="left" style={{ fontSize: 13 }}>账户册 7 个度量</Divider>
+          <Divider orientation="left" style={{ fontSize: 13 }}>7 个度量</Divider>
           <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="current_amount" label="期末余额">
-                <InputNumber style={{ width: '100%' }} step={1000} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="begin_balance" label="期初余额">
-                <InputNumber style={{ width: '100%' }} step={1000} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="avg_balance" label="平均余额">
-                <InputNumber style={{ width: '100%' }} step={1000} />
-              </Form.Item>
-            </Col>
+            <Col span={8}><Form.Item name="begin_balance"   label="期初余额"><InputNumber style={{ width: '100%' }} step={1000} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="avg_balance"     label="平均余额"><InputNumber style={{ width: '100%' }} step={1000} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="current_amount"  label="期末余额"><InputNumber style={{ width: '100%' }} step={1000} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="interest_rate" label="加权平均利率（%）">
-                <InputNumber style={{ width: '100%' }} step={0.0001} precision={4} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="interest_amount" label="本期利息">
-                <InputNumber style={{ width: '100%' }} step={1000} />
-              </Form.Item>
-            </Col>
-            <Col span={8}>
-              <Form.Item name="capital_ratio" label="资本占用比例（%）">
-                <InputNumber style={{ width: '100%' }} step={0.0001} precision={4} />
-              </Form.Item>
-            </Col>
+            <Col span={8}><Form.Item name="interest_rate"   label="加权平均利率（%）"><InputNumber style={{ width: '100%' }} step={0.0001} precision={4} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="interest_amount" label="本期利息"><InputNumber style={{ width: '100%' }} step={1000} /></Form.Item></Col>
+            <Col span={8}><Form.Item name="capital_ratio"   label="资本占用比例（%）"><InputNumber style={{ width: '100%' }} step={0.0001} precision={4} /></Form.Item></Col>
           </Row>
           <Row gutter={16}>
-            <Col span={8}>
-              <Form.Item name="risk_weight" label="风险权重（%）">
-                <InputNumber style={{ width: '100%' }} step={0.0001} precision={4} />
-              </Form.Item>
-            </Col>
-            <Col span={16}>
-              <Form.Item name="calc_note" label="计算备注">
-                <Input.TextArea rows={2} placeholder="如：本月新发放贷款 50 亿，月末冲销 30 亿" />
-              </Form.Item>
-            </Col>
+            <Col span={8}><Form.Item name="risk_weight"     label="风险权重（%）"><InputNumber style={{ width: '100%' }} step={0.0001} precision={4} /></Form.Item></Col>
+            <Col span={16}><Form.Item name="calc_note"       label="备注"><Input.TextArea rows={2} /></Form.Item></Col>
           </Row>
-
-          <Divider orientation="left" style={{ fontSize: 13 }}>未来 24 月现金流缺口（M1 ~ M24）</Divider>
-          <Row gutter={[6, 6]}>
-            {Array.from({ length: 24 }, (_, i) => (
-              <Col span={3} key={i}>
-                <Form.Item name={['gaps', i]} noStyle>
-                  <InputNumber
-                    placeholder={`M${i + 1}`}
-                    size="small"
-                    style={{ width: '100%' }}
-                    formatter={(v) => v ? `${v}` : ''}
-                  />
-                </Form.Item>
-              </Col>
-            ))}
-          </Row>
-          <div style={{ marginTop: 6, color: '#999', fontSize: 12 }}>
-            <span>说明：</span>
-            <span style={{ marginLeft: 8 }}>正数 = 资金净流出缺口</span>
-            <span style={{ marginLeft: 12 }}>负数 = 资金净流入剩余</span>
-          </div>
         </Form>
       </Modal>
     </Spin>
   )
 }
+
+// 兼容 antd Tabs 的二级表头
+;(Table as any).SECOND_LEVEL_HEADER = true
 
 export default BalanceSheet

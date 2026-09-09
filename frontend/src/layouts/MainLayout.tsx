@@ -4,7 +4,6 @@ import {
   DashboardOutlined,
   PartitionOutlined,
   FileDoneOutlined,
-  LineChartOutlined,
   FunctionOutlined,
   UserOutlined,
   LogoutOutlined,
@@ -25,7 +24,6 @@ const MainLayout: React.FC = () => {
     { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
     { key: '/coa', icon: <PartitionOutlined />, label: '账户册维护' },
     { key: '/reports', icon: <FileDoneOutlined />, label: '报表表项管理' },
-    { key: '/balance', icon: <LineChartOutlined />, label: '资产负债表' },
     { key: '/kpi', icon: <FunctionOutlined />, label: '指标管理' },
     {
       key: '/data-maint',
@@ -38,6 +36,7 @@ const MainLayout: React.FC = () => {
         { key: '/data-maint/PRICE',     label: '4. 价格指标' },
         { key: '/data-maint/FEE',       label: '5. 中收指标' },
         { key: '/data-maint/RWA',       label: '6. 资本与RWA指标' },
+        { key: '/data-maint/BALANCE',   label: '7. 资产负债表' },
       ],
     },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },

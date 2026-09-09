@@ -183,6 +183,135 @@ async def gap_summary(
     return {"data_date": data_date, "items": items, "total": len(items)}
 
 
+@router.get("/by-scheme-matrix")
+async def by_scheme_matrix(
+    scheme_id: int = Query(...),
+    start_date: str = Query(..., description="YYYY-MM-DD 起始月"),
+    end_date: str = Query(..., description="YYYY-MM-DD 结束月"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """二维矩阵：行 = 账户册 × 列 = 月份，单元格 = 7 个度量
+
+    返回结构：
+    - dates: ['2026-01', '2026-02', ..., '2026-12']  (按月排序)
+    - nodes: [{coa_node_id, node_code, node_name, path, node_level, category}]
+    - matrix: {coa_node_id: {date_str: {begin_balance, avg_balance, current_amount,
+                                       interest_rate, interest_amount,
+                                       capital_ratio, risk_weight}}}
+    - categories: {category: {date_str: 聚合后的当月汇总值}}
+    """
+    # 1) 加载该方案下所有节点（按层级排序，方便按大类聚合）
+    node_rows = db.execute(
+        text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path
+                FROM prcp_coa_node
+                WHERE scheme_id=:s AND is_deleted=0
+                ORDER BY path, sort_order"""),
+        {"s": scheme_id},
+    ).fetchall()
+
+    nodes = [{
+        "coa_node_id": r[0], "node_code": r[1], "node_name": r[2],
+        "parent_id": r[3], "node_level": r[4], "node_type": r[5], "path": r[6],
+    } for r in node_rows]
+
+    # 计算月份列表（按月递增）
+    from datetime import datetime
+    from dateutil.relativedelta import relativedelta
+    start = datetime.strptime(start_date, "%Y-%m-%d").replace(day=1)
+    end = datetime.strptime(end_date, "%Y-%m-%d").replace(day=1)
+    dates = []
+    cur = start
+    while cur <= end:
+        dates.append(cur.strftime("%Y-%m"))
+        cur = cur + relativedelta(months=1)
+    if not dates:
+        return {"dates": [], "nodes": [], "matrix": {}, "categories": {}}
+
+    # 2) 一次性查所有月份的 balance（用 BETWEEN）
+    rows = db.execute(
+        text(f"""SELECT b.coa_node_id, DATE_FORMAT(b.data_date, '%Y-%m') AS ym,
+                       b.begin_balance, b.avg_balance, b.current_amount,
+                       b.interest_rate, b.interest_amount,
+                       b.capital_ratio, b.risk_weight
+                FROM prcp_data_balance b
+                JOIN prcp_coa_node n ON n.id=b.coa_node_id
+                WHERE n.scheme_id=:s AND b.is_deleted=0
+                  AND b.data_date BETWEEN :sd AND :ed
+                ORDER BY b.coa_node_id, b.data_date"""),
+        {"s": scheme_id, "sd": start_date, "ed": end_date},
+    ).fetchall()
+
+    # 3) 构建 matrix[coa_node_id][ym] = 7 度量
+    matrix: dict = {}
+    for r in rows:
+        cid = r[0]
+        ym = r[1]
+        if cid not in matrix:
+            matrix[cid] = {}
+        matrix[cid][ym] = {
+            "begin_balance": float(r[2] or 0),
+            "avg_balance": float(r[3] or 0),
+            "current_amount": float(r[4] or 0),
+            "interest_rate": float(r[5] or 0),
+            "interest_amount": float(r[6] or 0),
+            "capital_ratio": float(r[7] or 0),
+            "risk_weight": float(r[8] or 0),
+        }
+
+    # 4) 按 L1 大类聚合（path 首段 = /L1_xxx/）
+    categories: dict = {}
+    node_by_id = {n["coa_node_id"]: n for n in nodes}
+    for cid, ym_map in matrix.items():
+        n = node_by_id.get(cid)
+        if not n or not n["path"]:
+            continue
+        cat = n["path"].split("/")[1] if "/" in n["path"] else "其他"
+        cat = cat.replace("L1_", "")
+        bucket = categories.setdefault(cat, {})
+        for ym, m in ym_map.items():
+            cb = bucket.setdefault(ym, {
+                "begin_balance": 0.0, "avg_balance": 0.0, "current_amount": 0.0,
+                "interest_rate": 0.0, "interest_amount": 0.0,
+                "capital_ratio": 0.0, "risk_weight": 0.0,
+                "account_count": 0,
+            })
+            cb["begin_balance"] += m["begin_balance"]
+            cb["avg_balance"] += m["avg_balance"]
+            cb["current_amount"] += m["current_amount"]
+            cb["interest_amount"] += m["interest_amount"]
+            cb["account_count"] += 1
+
+    # 计算加权值
+    for cat, ym_map in categories.items():
+        for ym, m in ym_map.items():
+            if m["avg_balance"] > 0:
+                m["interest_rate"] = round(
+                    sum(matrix.get(cid, {}).get(ym, {}).get("interest_rate", 0) *
+                        matrix.get(cid, {}).get(ym, {}).get("avg_balance", 0)
+                        for cid in matrix) / m["avg_balance"], 4)
+                m["capital_ratio"] = round(
+                    sum(matrix.get(cid, {}).get(ym, {}).get("capital_ratio", 0) *
+                        matrix.get(cid, {}).get(ym, {}).get("avg_balance", 0)
+                        for cid in matrix) / m["avg_balance"], 4)
+                m["risk_weight"] = round(
+                    sum(matrix.get(cid, {}).get(ym, {}).get("risk_weight", 0) *
+                        matrix.get(cid, {}).get(ym, {}).get("avg_balance", 0)
+                        for cid in matrix) / m["avg_balance"], 4)
+            for k in ("begin_balance", "avg_balance", "current_amount", "interest_amount"):
+                m[k] = round(m[k], 4)
+
+    return {
+        "scheme_id": scheme_id,
+        "start_date": start_date,
+        "end_date": end_date,
+        "dates": dates,
+        "nodes": nodes,
+        "matrix": matrix,
+        "categories": categories,
+    }
+
+
 @router.get("/by-scheme")
 async def list_by_scheme(
     scheme_id: int = Query(...),
