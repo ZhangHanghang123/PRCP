@@ -9,6 +9,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
+  ThunderboltOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { clearToken } from '../api'
@@ -26,6 +27,7 @@ const MainLayout: React.FC = () => {
     { key: '/reports', icon: <FileDoneOutlined />, label: '报表表项管理' },
     { key: '/balance', icon: <LineChartOutlined />, label: '资产负债表' },
     { key: '/kpi', icon: <FunctionOutlined />, label: '指标管理' },
+    { key: '/data-maint', icon: <ThunderboltOutlined />, label: '数据维护' },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 

@@ -8,6 +8,7 @@ import COA from './pages/COA'
 import Reports from './pages/Reports'
 import BalanceSheet from './pages/BalanceSheet'
 import KPI from './pages/KPI'
+import DataMaint from './pages/DataMaint'
 import System from './pages/System'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
@@ -31,6 +32,7 @@ const App: React.FC = () => (
         <Route path="reports" element={<Reports />} />
         <Route path="balance" element={<BalanceSheet />} />
         <Route path="kpi" element={<KPI />} />
+        <Route path="data-maint" element={<DataMaint />} />
         <Route path="system" element={<System />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

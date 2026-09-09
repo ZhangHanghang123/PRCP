@@ -133,3 +133,16 @@ export const adminApi = {
   updateDictItem: (id: number, data: any) => http.put(`/admin/dict-items/${id}`, data).then((r) => r.data),
   deleteDictItem: (id: number) => http.delete(`/admin/dict-items/${id}`).then((r) => r.data),
 }
+
+// 数据维护（6 类指标 + 取数逻辑 + 按月出指标）
+export const dataMaintApi = {
+  listCategories: () => http.get('/data-maint/categories').then((r) => r.data),
+  listItems: (params: any = {}) => http.get('/data-maint/items', { params }).then((r) => r.data),
+  saveCalcRule: (itemId: number, data: any) => http.put(`/data-maint/items/${itemId}/calc-rule`, data).then((r) => r.data),
+  listValues: (params: any = {}) => http.get('/data-maint/values', { params }).then((r) => r.data),
+  upsertValue: (data: any) => http.post('/data-maint/values', data).then((r) => r.data),
+  deleteValue: (id: number) => http.delete(`/data-maint/values/${id}`).then((r) => r.data),
+  calcPreview: (itemId: number, dataDate: string) => http.get('/data-maint/calc-preview', { params: { item_id: itemId, data_date: dataDate } }).then((r) => r.data),
+  monthlyCalc: (data: any) => http.post('/data-maint/monthly-calc', data).then((r) => r.data),
+  listMonths: () => http.get('/data-maint/months').then((r) => r.data),
+}
