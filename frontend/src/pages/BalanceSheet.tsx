@@ -162,39 +162,49 @@ const BalanceSheet: React.FC = () => {
   const indent = (level: number) => ({ paddingLeft: (level - 1) * 20 })
 
   const baseCols: ColumnsType<any> = [
-    { title: '账户册编码', dataIndex: 'node_code', width: 100, fixed: 'left' as const,
+    { title: '账户册编码', dataIndex: 'node_code', width: 110, fixed: 'left' as const,
       render: (c, r) => (
         <span style={{ ...indent(r.node_level) }}>
           <code style={{ color: r.node_level === 3 ? '#1d39c4' : '#999', fontSize: 12, fontWeight: r.node_level < 3 ? 600 : 400 }}>{c}</code>
         </span>
       ),
     },
-    { title: '账户册名称', dataIndex: 'node_name', width: 220, fixed: 'left' as const,
+    { title: '账户册名称', dataIndex: 'node_name', width: 380, fixed: 'left' as const,
       render: (n, r) => {
         const fontSize = r.node_level === 1 ? 15 : r.node_level === 2 ? 14 : 13
         const fontWeight = r.node_level < 3 ? 700 : 500
         const color = r.node_level === 1 ? '#1d39c4' : r.node_level === 2 ? '#722ed1' : '#262626'
+        // tooltip 内容：账户册名称 + 业务口径说明
+        const tipContent = r.description
+          ? <div style={{ maxWidth: 360 }}>
+              <div style={{ fontWeight: 600 }}>{n}</div>
+              <div style={{ marginTop: 4, color: '#bbb' }}>{r.description}</div>
+            </div>
+          : n
         return (
-          <span style={{ ...indent(r.node_level), fontSize, fontWeight, color }}>
-            {r.node_level === 1 && <Tag color="blue" style={{ marginRight: 6 }}>大类</Tag>}
-            {r.node_level === 2 && <Tag color="purple" style={{ marginRight: 6 }}>分组</Tag>}
-            {n}
-          </span>
+          <Tooltip title={tipContent} placement="topLeft">
+            <span style={{
+              ...indent(r.node_level),
+              fontSize, fontWeight, color,
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              display: 'inline-block',
+              maxWidth: 360,
+            }}>
+              {r.node_level === 1 && <Tag color="blue" style={{ marginRight: 6 }}>大类</Tag>}
+              {r.node_level === 2 && <Tag color="purple" style={{ marginRight: 6 }}>分组</Tag>}
+              {n}
+            </span>
+          </Tooltip>
         )
       },
     },
-    { title: '大类', dataIndex: 'category', width: 70, fixed: 'left' as const,
+    { title: '大类', dataIndex: 'category', width: 80, fixed: 'left' as const,
       render: (v) => {
         const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
         return <Tag color={color} style={{ marginRight: 0 }}>{v || '-'}</Tag>
       },
-    },
-    { title: '业务口径说明', dataIndex: 'description', width: 280, fixed: 'left' as const,
-      render: (v) => (
-        <Tooltip title={v} placement="topLeft">
-          <span style={{ color: '#595959', fontSize: 12 }}>{v || '—'}</span>
-        </Tooltip>
-      ),
     },
   ]
 
@@ -249,25 +259,30 @@ const BalanceSheet: React.FC = () => {
 
   // 大类汇总列（行=资产/负债/表外，列=月份）
   const categoryBaseCols: ColumnsType<any> = [
-    { title: '大类', dataIndex: 'category', width: 100, fixed: 'left' as const,
-      render: (v) => <Tag color={v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'} style={{ fontSize: 14 }}>{v}</Tag> },
-    { title: '账户册数', dataIndex: 'account_count', width: 100, fixed: 'left' as const,
-      render: (v, r) => v || (matrixNodes.filter((n) =>
-        n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3).length) },
-    { title: '业务范围说明', dataIndex: 'category_desc', width: 380, fixed: 'left' as const,
-      render: (_v, r) => {
+    { title: '大类', dataIndex: 'category', width: 110, fixed: 'left' as const,
+      render: (v, r) => {
+        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
         const subs = matrixNodes
           .filter((n) => n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3)
-          .map((n) => `${n.node_code}`)
+          .map((n) => `${n.node_code} ${n.node_name}`)
+        const tipContent = (
+          <div style={{ maxWidth: 480 }}>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>{v}（共 {subs.length} 册）</div>
+            <div style={{ color: '#bbb', fontSize: 12, lineHeight: 1.6 }}>
+              {subs.join(' / ')}
+            </div>
+          </div>
+        )
         return (
-          <Tooltip title={subs.join(' / ')} placement="topLeft">
-            <span style={{ color: '#595959', fontSize: 12 }}>
-              覆盖 {subs.length} 册：{subs.slice(0, 3).join(' / ')}{subs.length > 3 ? ' ...' : ''}
-            </span>
+          <Tooltip title={tipContent} placement="topLeft">
+            <Tag color={color} style={{ fontSize: 14, cursor: 'help' }}>{v}（{subs.length}）</Tag>
           </Tooltip>
         )
       },
     },
+    { title: '账户册数', dataIndex: 'account_count', width: 100, fixed: 'left' as const,
+      render: (v, r) => v || (matrixNodes.filter((n) =>
+        n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3).length) },
   ]
   const categoryMonthGroups: any[] = matrixDates.map((ym) => ({
     title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>{ym}</span>,
@@ -370,7 +385,7 @@ const BalanceSheet: React.FC = () => {
                   rowKey="coa_node_id"
                   dataSource={accountRows}
                   columns={allCols as any}
-                  scroll={{ x: 90 + 200 + 70 + 280 + matrixDates.length * 7 * 110 + 80 }}
+                  scroll={{ x: 110 + 380 + 80 + matrixDates.length * 7 * 110 + 80 }}
                   pagination={{ pageSize: 30, showSizeChanger: true, showTotal: (t) => `共 ${t} 册` }}
                   bordered
                   locale={{ emptyText: <Empty description="该时间窗口无账户册月度数据" /> }}
@@ -390,7 +405,7 @@ const BalanceSheet: React.FC = () => {
                     { category: '表外', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_表外') && n.node_level === 3).length },
                   ]}
                   columns={allCatCols as any}
-                  scroll={{ x: 100 + 100 + 380 + matrixDates.length * 7 * 110 }}
+                  scroll={{ x: 110 + 100 + matrixDates.length * 7 * 110 }}
                   pagination={false}
                   bordered
                 />
