@@ -1,0 +1,195 @@
+"""PRCP · 账户册结构 + 资产负债表 数据初始化
+
+根据 docs/指标测算表_v6_账户册总表.xlsx 的「账户册总表（按层级）」sheet
+- 创建 prcp_coa_scheme（1 个方案）
+- 创建 prcp_coa_node（3 层结构）：大类 → 业务分组 → 账户册
+- 创建 prcp_data_balance（55 个账户册 × 24 个月 × 7 个指标）
+
+数据结构：
+  Level 1 (大类)     - 资产 / 负债 / 表外
+  Level 2 (业务分组) - （一）现金及准备金 · （二）公司信贷 · ...
+  Level 3 (账户册)   - A01 / A02 / L01 / O01 ...
+"""
+import pandas as pd
+import pymysql
+from datetime import datetime, date
+import re
+import os
+import sys
+
+# 优先从环境变量 / 命令行参数取，否则用脚本同目录下的 xlsx
+XLSX = os.environ.get('XLSX_PATH') or (sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(os.path.abspath(__file__)), '指标测算表_v6_账户册总表.xlsx'))
+SHEET = '账户册总表（按层级）'
+
+MYSQL = dict(host='localhost', port=3306, user='almd', password='Almd@2026',
+             database='prcp_db', charset='utf8mb4')
+
+# 列头定义：每个月重复 7 个字段
+COLS_PER_MONTH = ['月初余额', '月末余额', '平均余额', '加权平均利率',
+                  '平均利息收支', '资本占用比例', '风险权重']
+
+
+def main():
+    df = pd.read_excel(XLSX, sheet_name=SHEET, header=None)
+    # 行 1：24 个月份（v6 模板第二年写成了 2026-13~24，需要纠正为 2027-01~12）
+    months = []
+    for idx, c in enumerate(range(4, df.shape[1], 7)):
+        year = 2026 if idx < 12 else 2027
+        m = idx % 12 + 1
+        months.append(f'{year}-{m:02d}')
+    print(f'月份数: {len(months)} → {months[0]} ~ {months[-1]}')
+
+    # 解析所有行（行 3 起为实际数据）
+    nodes = []  # (编码, 名称, 大类, 业务口径说明, 业务分组)
+    for i in range(3, len(df)):
+        code = str(df.iloc[i, 0]).strip()
+        name = str(df.iloc[i, 1]).strip() if pd.notna(df.iloc[i, 1]) else ''
+        big = str(df.iloc[i, 2]).strip() if pd.notna(df.iloc[i, 2]) else ''
+        desc = str(df.iloc[i, 3]).strip() if pd.notna(df.iloc[i, 3]) else ''
+        if not code or code == 'nan' or not name:
+            continue
+        if code in ('合计', '小计'):  # 跳过合计/小计行
+            continue
+        if not re.match(r'^[ALO]\d{2}$', code):  # 只保留 A01-L99 / L01-L19 / O01-O10
+            continue
+        nodes.append({'code': code, 'name': name, 'category': big, 'desc': desc})
+    print(f'账户册数: {len(nodes)}')
+
+    # 按大类分组 + 抽取业务分组
+    # 业务分组行：编码空但名称形如 "（一）xxx" "（二）xxx" ...
+    grp_pat = re.compile(r'^（[一二三四五六七八九十]+）')
+
+    # 解析出业务分组（按出现顺序 + 关联到紧随其后的账户册）
+    grouped = []
+    current_grp = ''
+    for n in nodes:
+        # 检查业务口径说明里是否带分组前缀（xlsx 把分组写在"业务口径说明"列）
+        m = grp_pat.match(n['desc'])
+        if m:
+            current_grp = n['desc']  # （一）xxx
+            continue  # 分组行本身不创建节点
+        grouped.append({**n, 'group': current_grp})
+
+    print(f'实际账户册: {len(grouped)}')
+    # 按 category + group 汇总
+    for cat in ('资产', '负债', '表外'):
+        sub = [g for g in grouped if g['category'] == cat]
+        print(f'  {cat}: {len(sub)} 册')
+
+    # ========== 写入数据库 ==========
+    conn = pymysql.connect(**MYSQL)
+    cur = conn.cursor()
+
+    # 1) 清理旧 demo 数据（避免重复）
+    print('\n[1] 清理旧账户册数据...')
+    cur.execute("DELETE FROM prcp_coa_node WHERE scheme_id IN (SELECT id FROM prcp_coa_scheme WHERE scheme_code='COA_V6')")
+    cur.execute("DELETE FROM prcp_coa_scheme WHERE scheme_code='COA_V6'")
+    conn.commit()
+
+    # 2) 创建方案
+    print('[2] 创建 COA_V6 方案...')
+    cur.execute("""
+        INSERT INTO prcp_coa_scheme (scheme_code, scheme_name, description, status, node_count, created_by, updated_by)
+        VALUES ('COA_V6', '账户册总表_v6', '按层级结构：资产/负债/表外 → 业务分组 → 账户册（55 册）',
+                'ACTIVE', %s, 1, 1)
+    """, (len(grouped) * 2 + 3 + len(set((g['category'], g['group']) for g in grouped)),))
+    scheme_id = cur.lastrowid
+    print(f'   scheme_id={scheme_id}')
+
+    # 3) 创建节点（3 层）
+    print('[3] 创建 3 层节点结构...')
+    # Level 1: 大类（3 个）
+    l1_ids = {}
+    for cat in ('资产', '负债', '表外'):
+        cur.execute("""
+            INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, sort_order, created_by, updated_by)
+            VALUES (%s, %s, %s, NULL, 1, 'CATEGORY', %s, 1, 1)
+        """, (scheme_id, f'L1_{cat}', cat, list(('资产', '负债', '表外')).index(cat)))
+        l1_ids[cat] = cur.lastrowid
+
+    # Level 2: 业务分组
+    l2_ids = {}  # (category, group) -> id
+    grp_order = {}  # 按出现顺序
+    counter = 0
+    for g in grouped:
+        key = (g['category'], g['group'])
+        if key not in l2_ids:
+            counter += 1
+            grp_code = f'L2_{g["category"]}_{counter:02d}'
+            cur.execute("""
+                INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, sort_order, created_by, updated_by)
+                VALUES (%s, %s, %s, %s, 2, 'GROUP', %s, 1, 1)
+            """, (scheme_id, grp_code, g['group'], l1_ids[g['category']], counter))
+            l2_ids[key] = cur.lastrowid
+
+    # Level 3: 账户册
+    node_id_map = {}  # code -> id
+    sort = 0
+    for g in grouped:
+        sort += 1
+        cat = g['category']
+        grp = g['group']
+        cur.execute("""
+            INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, sort_order, description, created_by, updated_by)
+            VALUES (%s, %s, %s, %s, 3, 'ACCOUNT', %s, %s, 1, 1)
+        """, (scheme_id, g['code'], g['name'], l2_ids[(cat, grp)], sort, g['desc']))
+        node_id_map[g['code']] = cur.lastrowid
+    conn.commit()
+    print(f'   共创建节点 {3 + len(l2_ids) + len(node_id_map)} 个')
+
+    # 4) 更新方案 node_count
+    cur.execute("UPDATE prcp_coa_scheme SET node_count=%s WHERE id=%s",
+                (3 + len(l2_ids) + len(node_id_map), scheme_id))
+
+    # 5) 导入 prcp_data_balance 数据（含 7 个指标列）
+    print('[4] 导入 prcp_data_balance（55 册 × 24 个月 = 1320 行 + 7 个指标）...')
+    cur.execute("DELETE FROM prcp_data_balance WHERE coa_node_id IN %s",
+                (tuple(node_id_map.values()),))
+
+    # 解析 xlsx 中每个账户册每个月的 7 个数据
+    insert_rows = []
+    for i in range(3, len(df)):
+        code = str(df.iloc[i, 0]).strip()
+        if code not in node_id_map:
+            continue
+        coa_id = node_id_map[code]
+        # 24 个月份，每个月 7 个字段
+        for m_idx, month in enumerate(months):
+            base_col = 4 + m_idx * 7
+            try:
+                # xlsx 列序：月初/月末/平均/利率/利息/资本/风险权重
+                begin = float(df.iloc[i, base_col]) if pd.notna(df.iloc[i, base_col]) else 0
+                end = float(df.iloc[i, base_col + 1]) if pd.notna(df.iloc[i, base_col + 1]) else 0
+                avg = float(df.iloc[i, base_col + 2]) if pd.notna(df.iloc[i, base_col + 2]) else 0
+                rate = float(df.iloc[i, base_col + 3]) if pd.notna(df.iloc[i, base_col + 3]) else 0
+                interest = float(df.iloc[i, base_col + 4]) if pd.notna(df.iloc[i, base_col + 4]) else 0
+                capital = float(df.iloc[i, base_col + 5]) if pd.notna(df.iloc[i, base_col + 5]) else 0
+                risk = float(df.iloc[i, base_col + 6]) if pd.notna(df.iloc[i, base_col + 6]) else 0
+                gaps = [0] * 24
+                row = (coa_id, month + '-01', end, begin, avg, rate, interest, capital, risk) + tuple(gaps)
+                insert_rows.append(row)
+            except Exception as e:
+                print(f'   跳过 {code}/{month}: {e}')
+
+    print(f'   准备插入 {len(insert_rows)} 行')
+    cur.executemany("""
+        INSERT INTO prcp_data_balance
+          (coa_node_id, data_date, current_amount, begin_balance, avg_balance,
+           interest_rate, interest_amount, capital_ratio, risk_weight,
+           m1_gap, m2_gap, m3_gap, m4_gap, m5_gap,
+           m6_gap, m7_gap, m8_gap, m9_gap, m10_gap, m11_gap, m12_gap, m13_gap, m14_gap,
+           m15_gap, m16_gap, m17_gap, m18_gap, m19_gap, m20_gap, m21_gap, m22_gap, m23_gap, m24_gap)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    """, insert_rows)
+    conn.commit()
+    print(f'   ✅ 插入 {cur.rowcount} 行')
+
+    conn.close()
+    print('\n🎉 初始化完成')
+    return scheme_id, node_id_map
+
+
+if __name__ == '__main__':
+    main()

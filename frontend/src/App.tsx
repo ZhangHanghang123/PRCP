@@ -30,11 +30,9 @@ const App: React.FC = () => (
         <Route path="dashboard" element={<Dashboard />} />
         <Route path="coa" element={<COA />} />
         <Route path="reports" element={<Reports />} />
-        <Route path="balance" element={<BalanceSheet />} />
         <Route path="kpi" element={<KPI />} />
         <Route path="data-maint" element={<DataMaint />}>
           <Route path=":category" element={<DataMaint />} />
-          <Route path="balance" element={<BalanceSheet />} />
         </Route>
         <Route path="system" element={<System />} />
       </Route>

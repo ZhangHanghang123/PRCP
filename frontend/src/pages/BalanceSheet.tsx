@@ -10,6 +10,7 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
+import { useNavigate } from 'react-router-dom'
 import { balanceApi, coaApi } from '../api'
 
 const { DirectoryTree } = Tree
@@ -26,6 +27,7 @@ const MEASURES = [
 ]
 
 const BalanceSheet: React.FC = () => {
+  const navigate = useNavigate()
   const [schemes, setSchemes] = useState<any[]>([])
   const [activeScheme, setActiveScheme] = useState<number | null>(null)
   const [treeData, setTreeData] = useState<any[]>([])
@@ -312,7 +314,7 @@ const BalanceSheet: React.FC = () => {
         <Tabs
           activeKey="BALANCE"
           onChange={(k) => {
-            if (k !== 'BALANCE') window.location.href = `/prcp/data-maint/${k}`
+            if (k !== 'BALANCE') navigate(`/data-maint/${k}`)
           }}
           type="card"
           items={[

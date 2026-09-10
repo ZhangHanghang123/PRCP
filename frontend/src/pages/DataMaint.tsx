@@ -13,6 +13,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { dataMaintApi, coaApi } from '../api'
+import BalanceSheet from './BalanceSheet'
 
 const CATEGORIES: Array<{ code: string; name: string; color: string; desc: string }> = [
   { code: 'FINANCIAL', name: '1. 账务结果指标',     color: '#667eea', desc: '资产负债表 + 利润表科目值' },
@@ -30,6 +31,11 @@ const DataMaint: React.FC = () => {
   // 从 URL 拿 category，没有则默认 FINANCIAL
   const category = (params.category || 'FINANCIAL').toUpperCase()
   const categoryMeta = CATEGORIES.find((c) => c.code === category) || CATEGORIES[0]
+
+  // BALANCE 类别（资产负债表）→ 直接渲染 BalanceSheet 组件（避开 :category 路由冲突）
+  if (category === 'BALANCE') {
+    return <BalanceSheet />
+  }
 
   const [loading, setLoading] = useState(false)
   const [treeData, setTreeData] = useState<any[]>([])
