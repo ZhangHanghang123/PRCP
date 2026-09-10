@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Tabs, Tree, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
-  Modal, message, Spin, Empty, DatePicker, Popconfirm, Row, Col, Statistic,
+  Modal, message, Spin, Empty, DatePicker, Popconfirm, Row, Col,
   Tooltip, Divider, Badge,
 } from 'antd'
 import {
@@ -11,7 +11,6 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
-import { useNavigate } from 'react-router-dom'
 import { balanceApi, coaApi } from '../api'
 
 const { DirectoryTree } = Tree
@@ -28,7 +27,6 @@ const MEASURES = [
 ]
 
 const BalanceSheet: React.FC = () => {
-  const navigate = useNavigate()
   const [schemes, setSchemes] = useState<any[]>([])
   const [activeScheme, setActiveScheme] = useState<number | null>(null)
   const [treeData, setTreeData] = useState<any[]>([])
@@ -212,34 +210,6 @@ const BalanceSheet: React.FC = () => {
 
   const allCols: ColumnsType<any> = [...baseCols, ...monthGroups, actionCol]
 
-  // KPI
-  const kpi = useMemo(() => {
-    let totalAmt = 0, totalInterest = 0, totalAvg = 0
-    Object.values(matrix).forEach((ymMap) => {
-      Object.values(ymMap).forEach((m: any) => {
-        totalAmt += m.current_amount || 0
-        totalInterest += m.interest_amount || 0
-        totalAvg += m.avg_balance || 0
-      })
-    })
-    const monthsCount = matrixDates.length
-    const monthsAvgAmt = monthsCount > 0 ? totalAmt / monthsCount : 0
-    const monthsAvgInt = monthsCount > 0 ? totalInterest / monthsCount : 0
-    const weightedRate = totalAvg > 0
-      ? Object.values(matrix).reduce((s, ymMap) => {
-          return s + Object.values(ymMap).reduce((s2, m: any) =>
-            s2 + (m.interest_rate || 0) * (m.avg_balance || 0), 0)
-        }, 0) / totalAvg
-      : 0
-    return {
-      accountCount: accountRows.length,
-      monthsCount,
-      totalAmt, totalInterest,
-      monthsAvgAmt, monthsAvgInt,
-      weightedRate,
-    }
-  }, [matrix, matrixDates, accountRows])
-
   // 大类汇总列（行=资产/负债/表外，列=月份）
   const categoryBaseCols: ColumnsType<any> = [
     { title: '大类', dataIndex: 'category', width: 100, fixed: 'left' as const,
@@ -310,26 +280,6 @@ const BalanceSheet: React.FC = () => {
         </span>
       </div>
 
-      {/* 顶部 7 类 Tab */}
-      <Card bordered={false} size="small" style={{ marginBottom: 16 }}>
-        <Tabs
-          activeKey="BALANCE"
-          onChange={(k) => {
-            if (k !== 'BALANCE') navigate(`/data-maint/${k}`)
-          }}
-          type="card"
-          items={[
-            { key: 'FINANCIAL', label: <span><Tag color="#667eea" style={{ marginRight: 4 }}>FINANCIAL</Tag>1. 账务结果指标</span> },
-            { key: 'PARAM',     label: <span><Tag color="#52c41a" style={{ marginRight: 4 }}>PARAM</Tag>2. 关键参数指标</span> },
-            { key: 'SCALE',     label: <span><Tag color="#f59e0b" style={{ marginRight: 4 }}>SCALE</Tag>3. 规模指标</span> },
-            { key: 'PRICE',     label: <span><Tag color="#eb2f96" style={{ marginRight: 4 }}>PRICE</Tag>4. 价格指标</span> },
-            { key: 'FEE',       label: <span><Tag color="#13c2c2" style={{ marginRight: 4 }}>FEE</Tag>5. 中收指标</span> },
-            { key: 'RWA',       label: <span><Tag color="#722ed1" style={{ marginRight: 4 }}>RWA</Tag>6. 资本与RWA指标</span> },
-            { key: 'BALANCE',   label: <span><Tag color="#1d39c4" style={{ marginRight: 4 }}>BALANCE</Tag>7. 资产负债表</span> },
-          ]}
-        />
-      </Card>
-
       {/* 顶部筛选 + 时间窗口 */}
       <Card bordered={false} style={{ marginBottom: 16 }} size="small">
         <Row gutter={16} align="middle">
@@ -368,42 +318,6 @@ const BalanceSheet: React.FC = () => {
           </Col>
         </Row>
       </Card>
-
-      {/* KPI 看板 */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card>
-            <Statistic title="账户册数" value={kpi.accountCount} prefix={<BankOutlined />} suffix="册" />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic title="显示月份数" value={kpi.monthsCount} suffix="月" />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="月份平均总规模（亿元）"
-              value={kpi.monthsAvgAmt}
-              precision={2}
-              prefix={<FundProjectionScreenOutlined />}
-              valueStyle={{ color: '#1d39c4' }}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card>
-            <Statistic
-              title="月份平均利息（亿元）"
-              value={kpi.monthsAvgInt}
-              precision={2}
-              prefix={kpi.monthsAvgInt >= 0 ? <RiseOutlined /> : <FallOutlined />}
-              valueStyle={{ color: kpi.monthsAvgInt >= 0 ? '#cf1322' : '#3f8600' }}
-            />
-          </Card>
-        </Col>
-      </Row>
 
       {/* 主内容 */}
       <Card bordered={false} bodyStyle={{ paddingTop: 8 }}>
