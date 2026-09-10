@@ -240,7 +240,7 @@ const BalanceSheet: React.FC = () => {
         )
       },
     },
-    { title: '大类', dataIndex: 'category', width: 80, fixed: 'left' as const,
+    { title: '大类', dataIndex: 'category', width: 48, fixed: 'left' as const,
       render: (v) => {
         const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
         return <Tag color={color} style={{ marginRight: 0 }}>{v || '-'}</Tag>
@@ -433,7 +433,7 @@ const BalanceSheet: React.FC = () => {
                   rowKey="coa_node_id"
                   dataSource={accountRows}
                   columns={allCols as any}
-                  scroll={{ x: 75 + 250 + 80 + matrixDates.length * 7 * 110 + 80, y: 'calc(100vh - 380px)' }}
+                  scroll={{ x: 75 + 250 + 48 + matrixDates.length * 7 * 110 + 80, y: 'calc(100vh - 380px)' }}
                   pagination={false}
                   bordered
                   locale={{ emptyText: <Empty description="该时间窗口无账户册月度数据" /> }}
