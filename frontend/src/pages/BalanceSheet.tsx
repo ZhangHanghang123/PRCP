@@ -162,14 +162,14 @@ const BalanceSheet: React.FC = () => {
   const indent = (level: number) => ({ paddingLeft: (level - 1) * 20 })
 
   const baseCols: ColumnsType<any> = [
-    { title: '账户册编码', dataIndex: 'node_code', width: 110, fixed: 'left' as const,
+    { title: '账户册编码', dataIndex: 'node_code', width: 75, fixed: 'left' as const,
       render: (c, r) => (
         <span style={{ ...indent(r.node_level) }}>
           <code style={{ color: r.node_level === 3 ? '#1d39c4' : '#999', fontSize: 12, fontWeight: r.node_level < 3 ? 600 : 400 }}>{c}</code>
         </span>
       ),
     },
-    { title: '账户册名称', dataIndex: 'node_name', width: 380, fixed: 'left' as const,
+    { title: '账户册名称', dataIndex: 'node_name', width: 250, fixed: 'left' as const,
       render: (n, r) => {
         const fontSize = r.node_level === 1 ? 15 : r.node_level === 2 ? 14 : 13
         const fontWeight = r.node_level < 3 ? 700 : 500
@@ -190,7 +190,7 @@ const BalanceSheet: React.FC = () => {
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               display: 'inline-block',
-              maxWidth: 360,
+              maxWidth: 230,
             }}>
               {r.node_level === 1 && <Tag color="blue" style={{ marginRight: 6 }}>大类</Tag>}
               {r.node_level === 2 && <Tag color="purple" style={{ marginRight: 6 }}>分组</Tag>}
@@ -385,7 +385,7 @@ const BalanceSheet: React.FC = () => {
                   rowKey="coa_node_id"
                   dataSource={accountRows}
                   columns={allCols as any}
-                  scroll={{ x: 110 + 380 + 80 + matrixDates.length * 7 * 110 + 80, y: 'calc(100vh - 380px)' }}
+                  scroll={{ x: 75 + 250 + 80 + matrixDates.length * 7 * 110 + 80, y: 'calc(100vh - 380px)' }}
                   pagination={false}
                   bordered
                   locale={{ emptyText: <Empty description="该时间窗口无账户册月度数据" /> }}
