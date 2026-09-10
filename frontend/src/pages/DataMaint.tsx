@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Row, Col, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
-  Modal, message, Spin, Empty, DatePicker, Popconfirm, Statistic, Alert,
-  Tooltip, Dropdown, Tree, Tabs,
+  Modal, message, Spin, Empty, DatePicker, Popconfirm, Alert,
+  Tooltip, Dropdown, Tree,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, DownloadOutlined, UploadOutlined,
-  CalculatorOutlined, FunctionOutlined, EditOutlined, AppstoreOutlined,
+  FunctionOutlined, EditOutlined,
   ThunderboltOutlined, FileTextOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
@@ -326,28 +326,10 @@ const DataMaint: React.FC = () => {
         <span className="page-title-icon" />
         <span>
           数据维护 <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal' }}>
-            · {categoryMeta.name} · {categoryMeta.desc}
+            · {categoryMeta.name}
           </span>
         </span>
       </div>
-
-      {/* 顶部 6 类指标 Tab */}
-      <Card bordered={false} size="small" style={{ marginBottom: 16 }}>
-        <Tabs
-          activeKey={category}
-          onChange={onCategoryChange}
-          type="card"
-          items={CATEGORIES.map((c) => ({
-            key: c.code,
-            label: (
-              <span>
-                <Tag color={c.color} style={{ marginRight: 4 }}>{c.code}</Tag>
-                {c.name}
-              </span>
-            ),
-          }))}
-        />
-      </Card>
 
       {/* 数据日期 + 操作按钮 */}
       <Card bordered={false} style={{ marginBottom: 16 }} size="small">
@@ -375,35 +357,6 @@ const DataMaint: React.FC = () => {
           </Col>
         </Row>
       </Card>
-
-      {/* KPI 看板 */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={8}>
-          <Card>
-            <Statistic title="指标项数（含层级）" value={kpi.total} prefix={<AppstoreOutlined />} />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card>
-            <Statistic
-              title="已配置取数逻辑"
-              value={kpi.withRule}
-              prefix={<FunctionOutlined />}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-        <Col span={8}>
-          <Card>
-            <Statistic
-              title={`当期(${dataDate.format('YYYY-MM')})有值指标`}
-              value={kpi.withValue}
-              prefix={<CalculatorOutlined />}
-              valueStyle={{ color: '#1d39c4' }}
-            />
-          </Card>
-        </Col>
-      </Row>
 
       {/* 主表 */}
       <Card bordered={false} size="small">
