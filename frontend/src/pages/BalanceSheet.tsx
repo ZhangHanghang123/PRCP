@@ -133,19 +133,42 @@ const BalanceSheet: React.FC = () => {
     } catch (e: any) { message.error(e?.response?.data?.detail || '保存失败') }
   }
 
-  // 只展示 L3 账户册（按 path 排序）
+  // 树形行：L1 大类 → L2 业务分组 → L3 账户册（按 sort_order 排序）
   const accountRows = useMemo(() =>
     matrixNodes
-      .filter((n) => n.node_level === 3)
-      .sort((a, b) => (a.path || '').localeCompare(b.path || '')),
+      .filter((n) => n.node_level >= 1 && n.node_level <= 3)
+      .sort((a, b) => {
+        if (a.node_level !== b.node_level) return a.node_level - b.node_level
+        return (a.sort_order || 0) - (b.sort_order || 0)
+      }),
     [matrixNodes])
 
   // 表格列定义：固定列 + 二级表头（每个月 group 下挂 7 个指标）
+  // 树形缩进：根据 node_level 加 paddingLeft
+  const indent = (level: number) => ({ paddingLeft: (level - 1) * 20 })
+
   const baseCols: ColumnsType<any> = [
-    { title: '账户册编码', dataIndex: 'node_code', width: 90, fixed: 'left' as const,
-      render: (c) => <code style={{ color: '#1d39c4', fontSize: 12 }}>{c}</code> },
-    { title: '账户册名称', dataIndex: 'node_name', width: 200, fixed: 'left' as const,
-      render: (n) => <span style={{ fontWeight: 500 }}>{n}</span> },
+    { title: '账户册编码', dataIndex: 'node_code', width: 100, fixed: 'left' as const,
+      render: (c, r) => (
+        <span style={{ ...indent(r.node_level) }}>
+          <code style={{ color: r.node_level === 3 ? '#1d39c4' : '#999', fontSize: 12, fontWeight: r.node_level < 3 ? 600 : 400 }}>{c}</code>
+        </span>
+      ),
+    },
+    { title: '账户册名称', dataIndex: 'node_name', width: 220, fixed: 'left' as const,
+      render: (n, r) => {
+        const fontSize = r.node_level === 1 ? 15 : r.node_level === 2 ? 14 : 13
+        const fontWeight = r.node_level < 3 ? 700 : 500
+        const color = r.node_level === 1 ? '#1d39c4' : r.node_level === 2 ? '#722ed1' : '#262626'
+        return (
+          <span style={{ ...indent(r.node_level), fontSize, fontWeight, color }}>
+            {r.node_level === 1 && <Tag color="blue" style={{ marginRight: 6 }}>大类</Tag>}
+            {r.node_level === 2 && <Tag color="purple" style={{ marginRight: 6 }}>分组</Tag>}
+            {n}
+          </span>
+        )
+      },
+    },
     { title: '大类', dataIndex: 'category', width: 70, fixed: 'left' as const,
       render: (v) => {
         const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
