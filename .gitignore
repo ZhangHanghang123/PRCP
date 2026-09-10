@@ -17,3 +17,7 @@ __pycache__/
 .DS_Store
 Thumbs.db
 *.tgz
+script
+tmp_check.py
+*.pyc
+__pycache__/
