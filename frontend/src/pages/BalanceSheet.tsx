@@ -14,15 +14,15 @@ import { balanceApi, coaApi } from '../api'
 
 const { DirectoryTree } = Tree
 
-// 二级指标定义（顺序即表头顺序）
+// 二级指标定义（顺序即表头顺序，按截图：月初/月末/平均/利率/利息/资本/风险）
 const MEASURES = [
-  { key: 'begin_balance',   name: '期初余额', width: 120, color: '#595959', precision: 2, isPercent: false },
+  { key: 'begin_balance',   name: '月初余额', width: 120, color: '#595959', precision: 2, isPercent: false },
+  { key: 'current_amount',  name: '月末余额', width: 130, color: '#cf1322', precision: 2, isPercent: false },
   { key: 'avg_balance',     name: '平均余额', width: 120, color: '#1d39c4', precision: 2, isPercent: false },
-  { key: 'current_amount',  name: '期末余额', width: 130, color: '#cf1322', precision: 2, isPercent: false },
-  { key: 'interest_rate',   name: '利率(%)',  width: 100, color: '#fa8c16', precision: 4, isPercent: true  },
-  { key: 'interest_amount', name: '利息',     width: 120, color: '#722ed1', precision: 2, isPercent: false },
-  { key: 'capital_ratio',   name: '资本占比(%)', width: 110, color: '#13c2c2', precision: 4, isPercent: true  },
-  { key: 'risk_weight',     name: '风险权重(%)', width: 110, color: '#eb2f96', precision: 4, isPercent: true  },
+  { key: 'interest_rate',   name: '加权平均利率(%)', width: 110, color: '#fa8c16', precision: 4, isPercent: true },
+  { key: 'interest_amount', name: '平均利息收支',   width: 130, color: '#722ed1', precision: 2, isPercent: false },
+  { key: 'capital_ratio',   name: '资本占用比例(%)', width: 110, color: '#13c2c2', precision: 4, isPercent: true },
+  { key: 'risk_weight',     name: '风险权重(%)',    width: 110, color: '#eb2f96', precision: 4, isPercent: true },
 ]
 
 const BalanceSheet: React.FC = () => {
@@ -141,12 +141,20 @@ const BalanceSheet: React.FC = () => {
 
   // 表格列定义：固定列 + 二级表头（每个月 group 下挂 7 个指标）
   const baseCols: ColumnsType<any> = [
-    { title: '账户册编码', dataIndex: 'node_code', width: 110, fixed: 'left' as const,
+    { title: '账户册编码', dataIndex: 'node_code', width: 90, fixed: 'left' as const,
       render: (c) => <code style={{ color: '#1d39c4', fontSize: 12 }}>{c}</code> },
     { title: '账户册名称', dataIndex: 'node_name', width: 200, fixed: 'left' as const,
-      render: (n, r) => (
-        <Tooltip title={r.path}>
-          <span style={{ fontWeight: 500 }}>{n}</span>
+      render: (n) => <span style={{ fontWeight: 500 }}>{n}</span> },
+    { title: '大类', dataIndex: 'category', width: 70, fixed: 'left' as const,
+      render: (v) => {
+        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
+        return <Tag color={color} style={{ marginRight: 0 }}>{v || '-'}</Tag>
+      },
+    },
+    { title: '业务口径说明', dataIndex: 'description', width: 280, fixed: 'left' as const,
+      render: (v) => (
+        <Tooltip title={v} placement="topLeft">
+          <span style={{ color: '#595959', fontSize: 12 }}>{v || '—'}</span>
         </Tooltip>
       ),
     },
@@ -236,6 +244,20 @@ const BalanceSheet: React.FC = () => {
     { title: '账户册数', dataIndex: 'account_count', width: 100, fixed: 'left' as const,
       render: (v, r) => v || (matrixNodes.filter((n) =>
         n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3).length) },
+    { title: '业务范围说明', dataIndex: 'category_desc', width: 380, fixed: 'left' as const,
+      render: (_v, r) => {
+        const subs = matrixNodes
+          .filter((n) => n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3)
+          .map((n) => `${n.node_code}`)
+        return (
+          <Tooltip title={subs.join(' / ')} placement="topLeft">
+            <span style={{ color: '#595959', fontSize: 12 }}>
+              覆盖 {subs.length} 册：{subs.slice(0, 3).join(' / ')}{subs.length > 3 ? ' ...' : ''}
+            </span>
+          </Tooltip>
+        )
+      },
+    },
   ]
   const categoryMonthGroups: any[] = matrixDates.map((ym) => ({
     title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>{ym}</span>,
@@ -278,8 +300,9 @@ const BalanceSheet: React.FC = () => {
       <div className="page-title">
         <span className="page-title-icon" />
         <span>
-          资产负债表 <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal' }}>
-            · 账户册 × 月份 矩阵 · 二级表头
+          账户册总表（资产/负债/表外·按业务层级）
+          <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal', marginLeft: 8 }}>
+            ——余额：亿元；利率、资本占用比例、风险权重：%；平均利息收支：亿元/月
           </span>
         </span>
       </div>
@@ -393,7 +416,7 @@ const BalanceSheet: React.FC = () => {
                   rowKey="coa_node_id"
                   dataSource={accountRows}
                   columns={allCols as any}
-                  scroll={{ x: 310 + matrixDates.length * 7 * 110 + 80 }}
+                  scroll={{ x: 90 + 200 + 70 + 280 + matrixDates.length * 7 * 110 + 80 }}
                   pagination={{ pageSize: 30, showSizeChanger: true, showTotal: (t) => `共 ${t} 册` }}
                   bordered
                   locale={{ emptyText: <Empty description="该时间窗口无账户册月度数据" /> }}
@@ -413,7 +436,7 @@ const BalanceSheet: React.FC = () => {
                     { category: '表外', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_表外') && n.node_level === 3).length },
                   ]}
                   columns={allCatCols as any}
-                  scroll={{ x: 200 + matrixDates.length * 7 * 110 }}
+                  scroll={{ x: 100 + 100 + 380 + matrixDates.length * 7 * 110 }}
                   pagination={false}
                   bordered
                 />

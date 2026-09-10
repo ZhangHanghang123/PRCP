@@ -203,17 +203,25 @@ async def by_scheme_matrix(
     """
     # 1) 加载该方案下所有节点（按层级排序，方便按大类聚合）
     node_rows = db.execute(
-        text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path
+        text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path, description
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0
                 ORDER BY path, sort_order"""),
         {"s": scheme_id},
     ).fetchall()
 
-    nodes = [{
-        "coa_node_id": r[0], "node_code": r[1], "node_name": r[2],
-        "parent_id": r[3], "node_level": r[4], "node_type": r[5], "path": r[6],
-    } for r in node_rows]
+    nodes = []
+    for r in node_rows:
+        path = r[6] or ""
+        cat = ""
+        if "/" in path:
+            cat = path.split("/")[1].replace("L1_", "")
+        nodes.append({
+            "coa_node_id": r[0], "node_code": r[1], "node_name": r[2],
+            "parent_id": r[3], "node_level": r[4], "node_type": r[5], "path": r[6],
+            "category": cat,
+            "description": r[7] or "",
+        })
 
     # 计算月份列表（按月递增）
     from datetime import datetime
