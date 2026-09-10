@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Tabs, Tree, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
   Modal, message, Spin, Empty, DatePicker, Popconfirm, Row, Col,
-  Tooltip, Divider, Badge,
+  Tooltip, Divider, Badge, Upload,
 } from 'antd'
 import {
   DeleteOutlined, ReloadOutlined, PlusOutlined, EditOutlined,
   FundProjectionScreenOutlined, BankOutlined, RiseOutlined, FallOutlined,
-  PartitionOutlined,
+  PartitionOutlined, DownloadOutlined, UploadOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
@@ -92,6 +92,46 @@ const BalanceSheet: React.FC = () => {
     })
     setModalOpen(true)
   }
+  // 导出 Excel：直接用 fetch 拉后端二进制流，浏览器自动下载
+  const onExport = async () => {
+    if (!activeScheme) { message.warning('请先选择账户册方案'); return }
+    try {
+      const url = balanceApi.exportXlsxUrl(activeScheme, startMonth.format('YYYY-MM') + '-01', endMonth.format('YYYY-MM') + '-01')
+      const token = localStorage.getItem('prcp_token') || ''
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const blob = await res.blob()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `prcp_balance_${startMonth.format('YYYYMM')}-${endMonth.format('YYYYMM')}.xlsx`
+      a.click()
+      URL.revokeObjectURL(a.href)
+      message.success('导出成功')
+    } catch (e: any) {
+      message.error(`导出失败：${e.message}`)
+    }
+  }
+
+  // 导入 Excel
+  const onImport = async (file: File) => {
+    const hide = message.loading('导入中...', 0)
+    try {
+      const res = await balanceApi.importXlsx(file)
+      hide()
+      const msg = `导入完成：新增 ${res.inserted} 条，更新 ${res.updated} 条，跳过 ${res.skipped} 条` +
+        (res.total_errors > 0 ? `，错误 ${res.total_errors} 条` : '')
+      if (res.total_errors > 0) {
+        Modal.warning({ title: '部分导入失败', content: `${msg}\n\n前 20 条错误：\n${(res.errors || []).join('\n')}` })
+      } else {
+        message.success(msg)
+      }
+      loadMatrix()
+    } catch (e: any) {
+      hide()
+      message.error(`导入失败：${e?.response?.data?.detail || e.message}`)
+    }
+  }
+
   const onEditCell = (nodeId: number, ym: string) => {
     const node = matrixNodes.find((n) => n.coa_node_id === nodeId)
     const cell = matrix[String(nodeId)]?.[ym] || {}
@@ -365,6 +405,14 @@ const BalanceSheet: React.FC = () => {
           <Col>
             <Space>
               <Button icon={<ReloadOutlined />} onClick={loadMatrix}>刷新</Button>
+              <Button icon={<DownloadOutlined />} onClick={onExport}>导出 Excel</Button>
+              <Upload
+                accept=".xlsx"
+                showUploadList={false}
+                beforeUpload={(file) => { onImport(file); return false }}
+              >
+                <Button icon={<UploadOutlined />}>导入 Excel</Button>
+              </Upload>
               <Button type="primary" icon={<PlusOutlined />} onClick={() => onCreate()}>新增月度数据</Button>
             </Space>
           </Col>

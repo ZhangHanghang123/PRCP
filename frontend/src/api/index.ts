@@ -82,6 +82,16 @@ export const balanceApi = {
   // 二级表头矩阵：行=账户册 / 列=月份 / 单元格=7度量
   bySchemeMatrix: (scheme_id: number, start_date: string, end_date: string) =>
     http.get('/balance/by-scheme-matrix', { params: { scheme_id, start_date, end_date } }).then((r) => r.data),
+  // 导入导出
+  exportXlsxUrl: (scheme_id: number, start_date: string, end_date: string) =>
+    `/balance/export-xlsx?scheme_id=${scheme_id}&start_date=${start_date}&end_date=${end_date}`,
+  importXlsx: (file: File) => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return http.post('/balance/import-xlsx', fd, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data)
+  },
 }
 
 // 指标（v2：方案 + 定义 + 维护）

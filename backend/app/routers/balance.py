@@ -1,9 +1,16 @@
 """资产负债表 API — 单大表 + 24 月现金流缺口"""
+import io
+import re
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query
+from datetime import datetime
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+from openpyxl import Workbook, load_workbook
+from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, PatternFill, Alignment
 
 from app.database import get_db
 from app.auth import get_current_user
@@ -13,6 +20,17 @@ router = APIRouter(prefix="/balance", tags=["资产负债表"])
 GAP_COLS = [f"m{i}_gap" for i in range(1, 25)]
 MEASURE_COLS = ["begin_balance", "avg_balance", "interest_rate",
                "interest_amount", "capital_ratio", "risk_weight"]
+
+# 导出/导入字段顺序（与前端 MEASURES 一致）
+EXPORT_MEASURES = [
+    {"key": "begin_balance",   "name": "月初余额"},
+    {"key": "current_amount",  "name": "月末余额"},
+    {"key": "avg_balance",     "name": "平均余额"},
+    {"key": "interest_rate",   "name": "利率(%)"},
+    {"key": "interest_amount", "name": "利息收支"},
+    {"key": "capital_ratio",   "name": "资本占用(%)"},
+    {"key": "risk_weight",     "name": "风险权重(%)"},
+]
 
 
 class BalanceIn(BaseModel):
@@ -467,3 +485,249 @@ async def category_summary(
             "sum_24m": round(b["sum_24m"], 2),
         })
     return {"data_date": data_date, "items": items, "total": len(items)}
+
+
+@router.get("/export-xlsx")
+async def export_xlsx(
+    scheme_id: int = Query(...),
+    start_date: str = Query(..., description="YYYY-MM-DD 起始月"),
+    end_date: str = Query(..., description="YYYY-MM-DD 结束月"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """导出账户册矩阵为 Excel（月份 × 7 指标列）"""
+    scheme_row = db.execute(
+        text("SELECT scheme_code, scheme_name FROM prcp_coa_scheme WHERE id=:s"),
+        {"s": scheme_id},
+    ).first()
+    if not scheme_row:
+        raise HTTPException(404, "账户册方案不存在")
+    scheme_code, scheme_name = scheme_row[0], scheme_row[1]
+
+    node_rows = db.execute(
+        text("""SELECT id, node_code, node_name, parent_id, node_level, sort_order, description
+                FROM prcp_coa_node
+                WHERE scheme_id=:s AND is_deleted=0
+                ORDER BY sort_order, path"""),
+        {"s": scheme_id},
+    ).fetchall()
+
+    # 月份列表
+    start = datetime.strptime(start_date, "%Y-%m-%d").replace(day=1)
+    end = datetime.strptime(end_date, "%Y-%m-%d").replace(day=1)
+    dates: List[str] = []
+    cur = start
+    while cur <= end:
+        dates.append(cur.strftime("%Y-%m"))
+        if cur.month == 12:
+            cur = cur.replace(year=cur.year + 1, month=1)
+        else:
+            cur = cur.replace(month=cur.month + 1)
+
+    # 取数据
+    balance_rows = db.execute(
+        text("""SELECT coa_node_id, data_date, current_amount, begin_balance, avg_balance,
+                       interest_rate, interest_amount, capital_ratio, risk_weight
+                FROM prcp_data_balance
+                WHERE data_date BETWEEN :sd AND :ed AND is_deleted=0"""),
+        {"sd": start_date, "ed": end_date},
+    ).fetchall()
+
+    matrix: dict = {}
+    for r in balance_rows:
+        nid, dt = r[0], r[1]
+        ym = dt.strftime("%Y-%m") if hasattr(dt, "strftime") else str(dt)[:7]
+        matrix.setdefault(nid, {})[ym] = {
+            "current_amount": float(r[2] or 0),
+            "begin_balance": float(r[3] or 0),
+            "avg_balance": float(r[4] or 0),
+            "interest_rate": float(r[5] or 0),
+            "interest_amount": float(r[6] or 0),
+            "capital_ratio": float(r[7] or 0),
+            "risk_weight": float(r[8] or 0),
+        }
+
+    # 生成 xlsx
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"账户册矩阵"
+
+    bold = Font(bold=True)
+    blue_bold = Font(bold=True, color="1D39C4")
+    header_fill = PatternFill("solid", start_color="D9E1F2", end_color="D9E1F2")
+    center = Alignment(horizontal="center", vertical="center")
+
+    # 标题
+    title_cell = ws.cell(row=1, column=1,
+        value=f"账户册总表（{scheme_name}）—— 余额：亿元；利率、资本占用比例、风险权重：%；平均利息收支：亿元/月")
+    title_cell.font = bold
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=4 + len(dates) * 7)
+
+    # 一级表头：月份（合并 7 列）
+    for col_idx, h in enumerate(["账户册编码", "账户册名称", "大类", "业务口径说明"], 1):
+        c = ws.cell(row=2, column=col_idx, value=h)
+        c.font = bold
+        c.fill = header_fill
+        c.alignment = center
+    for ym_idx, ym in enumerate(dates):
+        start_col = 5 + ym_idx * 7
+        ws.merge_cells(start_row=2, start_column=start_col, end_row=2, end_column=start_col + 6)
+        mc = ws.cell(row=2, column=start_col, value=ym)
+        mc.font = blue_bold
+        mc.alignment = center
+
+    # 二级表头：7 指标
+    for ym_idx in range(len(dates)):
+        start_col = 5 + ym_idx * 7
+        for m_idx, m in enumerate(EXPORT_MEASURES):
+            c = ws.cell(row=3, column=start_col + m_idx, value=m["name"])
+            c.font = bold
+            c.alignment = center
+
+    # 数据行
+    parent_cat = {}  # parent_id -> name
+    for n in node_rows:
+        if n[4] == 1:  # level=1
+            parent_cat[n[0]] = n[2]
+
+    for row_idx, n in enumerate(node_rows, 4):
+        nid, code, name, parent_id, level, sort_o, desc = n
+        cat = ""
+        if level == 1:
+            cat = name
+        elif level == 2:
+            cat = parent_cat.get(parent_id, "")
+        ws.cell(row=row_idx, column=1, value=code)
+        ws.cell(row=row_idx, column=2, value=name)
+        ws.cell(row=row_idx, column=3, value=cat)
+        ws.cell(row=row_idx, column=4, value=desc or "")
+        for ym_idx, ym in enumerate(dates):
+            start_col = 5 + ym_idx * 7
+            cell = matrix.get(nid, {}).get(ym, {})
+            for m_idx, m in enumerate(EXPORT_MEASURES):
+                v = cell.get(m["key"])
+                if v is not None:
+                    ws.cell(row=row_idx, column=start_col + m_idx, value=v)
+
+    # 列宽
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 28
+    ws.column_dimensions['C'].width = 10
+    ws.column_dimensions['D'].width = 30
+    for ym_idx in range(len(dates)):
+        for m_idx in range(7):
+            col_letter = get_column_letter(5 + ym_idx * 7 + m_idx)
+            ws.column_dimensions[col_letter].width = 12
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    filename = f"prcp_balance_{scheme_code}_{start.strftime('%Y%m')}-{end.strftime('%Y%m')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}"},
+    )
+
+
+@router.post("/import-xlsx")
+async def import_xlsx(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """从 Excel 批量导入账户册月度数据
+    Excel 格式：第 1 行标题；第 2 行月份（一级，合并 7 列）；第 3 行指标（二级）；第 4 行起数据
+    列：A=账户册编码 B=账户册名称 C=大类 D=业务口径说明 E起=每个月 7 列
+    """
+    if not file.filename or not file.filename.lower().endswith(".xlsx"):
+        raise HTTPException(400, "仅支持 .xlsx 格式文件")
+
+    content = await file.read()
+    wb = load_workbook(io.BytesIO(content), data_only=True)
+    ws = wb.active
+
+    # 读第 2 行（合并格：月份）
+    header_row2 = [(c.value, c.column) for c in ws[2] if c.value]
+
+    # 解析月份列范围（合并格的左上角单元格 = 月份值）
+    ym_starts: list = []
+    for v, col in header_row2:
+        if v and re.match(r"^\d{4}-\d{2}$", str(v)):
+            ym_starts.append((str(v), col))
+
+    if not ym_starts:
+        raise HTTPException(400, "Excel 第 2 行缺少月份表头（格式 YYYY-MM）")
+
+    inserted = 0
+    updated = 0
+    skipped = 0
+    errors: list = []
+    uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+
+    # 预加载所有 node_code → id
+    code_to_id = {}
+    for r in db.execute(
+        text("SELECT id, node_code FROM prcp_coa_node WHERE is_deleted=0")
+    ).fetchall():
+        code_to_id[r[1]] = r[0]
+
+    for row in ws.iter_rows(min_row=4, values_only=False):
+        code_cell = row[0].value
+        if not code_cell:
+            continue
+        code = str(code_cell).strip()
+        # 跳过 L1/L2 节点（编码以 L 开头）
+        if code.startswith("L") and "_" in code:
+            skipped += 1
+            continue
+        node_id = code_to_id.get(code)
+        if not node_id:
+            errors.append(f"编码 {code} 不存在")
+            continue
+
+        for ym, start_col in ym_starts:
+            data = {}
+            for m_idx, m in enumerate(EXPORT_MEASURES):
+                col_idx = start_col + m_idx - 1  # 0-indexed
+                if col_idx < len(row):
+                    val = row[col_idx].value
+                    if val is not None and val != "":
+                        try:
+                            data[m["key"]] = float(val)
+                        except (TypeError, ValueError):
+                            pass
+            if not data:
+                continue
+
+            data_date = f"{ym}-01"
+            existing = db.execute(
+                text("SELECT id FROM prcp_data_balance WHERE coa_node_id=:n AND data_date=:d AND is_deleted=0"),
+                {"n": node_id, "d": data_date},
+            ).first()
+            if existing:
+                set_clauses = ", ".join(f"{k}=:{k}" for k in data)
+                params = {**data, "id": existing[0], "u": uid}
+                db.execute(
+                    text(f"UPDATE prcp_data_balance SET {set_clauses}, updated_by=:u WHERE id=:id"),
+                    params,
+                )
+                updated += 1
+            else:
+                cols = ["coa_node_id", "data_date"] + list(data.keys()) + ["created_by", "updated_by"]
+                placeholders = ", ".join(f":{c}" for c in cols)
+                params = {**data, "n": node_id, "d": data_date, "u": uid}
+                db.execute(
+                    text(f"INSERT INTO prcp_data_balance ({', '.join(cols)}) VALUES ({placeholders})"),
+                    params,
+                )
+                inserted += 1
+
+    db.commit()
+    return {
+        "inserted": inserted,
+        "updated": updated,
+        "skipped": skipped,
+        "errors": errors[:20],
+        "total_errors": len(errors),
+    }
