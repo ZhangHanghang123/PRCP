@@ -93,7 +93,7 @@ const BalanceSheet: React.FC = () => {
   }
   const onEditCell = (nodeId: number, ym: string) => {
     const node = matrixNodes.find((n) => n.coa_node_id === nodeId)
-    const cell = matrix[nodeId]?.[ym] || {}
+    const cell = matrix[String(nodeId)]?.[ym] || {}
     setEditing({ node_code: node?.node_code, node_name: node?.node_name, ym })
     form.setFieldsValue({
       coa_node_id: nodeId,
@@ -170,7 +170,7 @@ const BalanceSheet: React.FC = () => {
       align: 'right' as const,
       onHeaderCell: () => ({ style: { background: '#fafafa' } }),
       render: (_v: any, r: any) => {
-        const cell = matrix[r.coa_node_id]?.[ym] || {}
+        const cell = matrix[String(r.coa_node_id)]?.[ym] || {}
         const v = cell[m.key]
         if (v === undefined || v === null) {
           return <span style={{ color: '#ccc' }}>-</span>
