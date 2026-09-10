@@ -203,10 +203,10 @@ async def by_scheme_matrix(
     """
     # 1) 加载该方案下所有节点（按层级排序，方便按大类聚合）
     node_rows = db.execute(
-        text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path, description
+        text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, description
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0
-                ORDER BY path, sort_order"""),
+                ORDER BY sort_order, path"""),
         {"s": scheme_id},
     ).fetchall()
 
@@ -219,8 +219,9 @@ async def by_scheme_matrix(
         nodes.append({
             "coa_node_id": r[0], "node_code": r[1], "node_name": r[2],
             "parent_id": r[3], "node_level": r[4], "node_type": r[5], "path": r[6],
+            "sort_order": r[7] or 0,
             "category": cat,
-            "description": r[7] or "",
+            "description": r[8] or "",
         })
 
     # 计算月份列表（按月递增）
