@@ -385,8 +385,8 @@ const BalanceSheet: React.FC = () => {
                   rowKey="coa_node_id"
                   dataSource={accountRows}
                   columns={allCols as any}
-                  scroll={{ x: 110 + 380 + 80 + matrixDates.length * 7 * 110 + 80 }}
-                  pagination={{ pageSize: 30, showSizeChanger: true, showTotal: (t) => `共 ${t} 册` }}
+                  scroll={{ x: 110 + 380 + 80 + matrixDates.length * 7 * 110 + 80, y: 'calc(100vh - 380px)' }}
+                  pagination={false}
                   bordered
                   locale={{ emptyText: <Empty description="该时间窗口无账户册月度数据" /> }}
                 />
@@ -405,7 +405,7 @@ const BalanceSheet: React.FC = () => {
                     { category: '表外', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_表外') && n.node_level === 3).length },
                   ]}
                   columns={allCatCols as any}
-                  scroll={{ x: 110 + 100 + matrixDates.length * 7 * 110 }}
+                  scroll={{ x: 110 + 100 + matrixDates.length * 7 * 110, y: 'calc(100vh - 380px)' }}
                   pagination={false}
                   bordered
                 />
