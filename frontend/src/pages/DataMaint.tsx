@@ -32,11 +32,6 @@ const DataMaint: React.FC = () => {
   const category = (params.category || 'FINANCIAL').toUpperCase()
   const categoryMeta = CATEGORIES.find((c) => c.code === category) || CATEGORIES[0]
 
-  // BALANCE 类别（资产负债表）→ 直接渲染 BalanceSheet 组件（避开 :category 路由冲突）
-  if (category === 'BALANCE') {
-    return <BalanceSheet />
-  }
-
   const [loading, setLoading] = useState(false)
   const [treeData, setTreeData] = useState<any[]>([])
   const [valuesMap, setValuesMap] = useState<Record<number, any>>({})
@@ -318,6 +313,12 @@ const DataMaint: React.FC = () => {
     const withValue = flatRows.filter((r) => r._hasOwnValue).length
     return { total, withRule, withValue }
   }, [flatRows])
+
+  // BALANCE 类别（资产负债表）→ 直接渲染 BalanceSheet 组件（避开 :category 路由冲突）
+  // 放在所有 hooks 之后避免违反 hooks 规则
+  if (category === 'BALANCE') {
+    return <BalanceSheet />
+  }
 
   return (
     <Spin spinning={loading}>
