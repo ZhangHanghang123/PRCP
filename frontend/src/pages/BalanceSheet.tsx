@@ -20,9 +20,9 @@ const MEASURES = [
   { key: 'begin_balance',   name: '月初余额',     width: 90,  color: '#595959', precision: 2, isPercent: false },
   { key: 'current_amount',  name: '月末余额',     width: 95,  color: '#cf1322', precision: 2, isPercent: false },
   { key: 'avg_balance',     name: '平均余额',     width: 90,  color: '#1d39c4', precision: 2, isPercent: false },
-  { key: 'interest_rate',   name: '利率(%)',     width: 75,  color: '#fa8c16', precision: 4, isPercent: true  },
+  { key: 'interest_rate',   name: '利率(%)',     width: 60,  color: '#fa8c16', precision: 4, isPercent: true  },
   { key: 'interest_amount', name: '利息收支',     width: 90,  color: '#722ed1', precision: 2, isPercent: false },
-  { key: 'capital_ratio',   name: '资本占用(%)', width: 80,  color: '#13c2c2', precision: 4, isPercent: true  },
+  { key: 'capital_ratio',   name: '资本占用(%)', width: 70,  color: '#13c2c2', precision: 4, isPercent: true  },
   { key: 'risk_weight',     name: '风险权重(%)', width: 80,  color: '#eb2f96', precision: 4, isPercent: true  },
 ]
 
