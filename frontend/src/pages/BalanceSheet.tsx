@@ -7,6 +7,7 @@ import {
 import {
   DeleteOutlined, ReloadOutlined, PlusOutlined, EditOutlined,
   FundProjectionScreenOutlined, BankOutlined, RiseOutlined, FallOutlined,
+  PartitionOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'

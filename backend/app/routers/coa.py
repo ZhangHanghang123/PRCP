@@ -128,7 +128,7 @@ async def list_nodes(
                        path, sort_order, status, description
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0
-                ORDER BY path, sort_order"""),
+                ORDER BY sort_order, path"""),
         {"s": scheme_id},
     ).fetchall()
     return {
@@ -154,7 +154,7 @@ async def tree_nodes(
                        path, sort_order, status
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0
-                ORDER BY path, sort_order"""),
+                ORDER BY sort_order, path"""),
         {"s": scheme_id},
     ).fetchall()
 
