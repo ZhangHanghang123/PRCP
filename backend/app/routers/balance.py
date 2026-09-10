@@ -585,18 +585,29 @@ async def export_xlsx(
             c.alignment = center
 
     # 数据行
-    parent_cat = {}  # parent_id -> name
-    for n in node_rows:
-        if n[4] == 1:  # level=1
-            parent_cat[n[0]] = n[2]
+    # 父子映射
+    parent_map = {n[0]: n[3] for n in node_rows}  # id -> parent_id
+    id_to_name = {n[0]: n[2] for n in node_rows}
+
+    def resolve_cat(node_id: int) -> str:
+        """递归找到 L1 大类名"""
+        cur = node_id
+        while cur and parent_map.get(cur):
+            p = parent_map[cur]
+            # 检查 p 自己是不是 L1
+            for n in node_rows:
+                if n[0] == p and n[4] == 1:
+                    return n[2]
+            cur = p
+        return ""
 
     for row_idx, n in enumerate(node_rows, 4):
         nid, code, name, parent_id, level, sort_o, desc = n
         cat = ""
         if level == 1:
             cat = name
-        elif level == 2:
-            cat = parent_cat.get(parent_id, "")
+        elif level in (2, 3):
+            cat = resolve_cat(nid)
         ws.cell(row=row_idx, column=1, value=code)
         ws.cell(row=row_idx, column=2, value=name)
         ws.cell(row=row_idx, column=3, value=cat)
