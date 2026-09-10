@@ -133,15 +133,29 @@ const BalanceSheet: React.FC = () => {
     } catch (e: any) { message.error(e?.response?.data?.detail || '保存失败') }
   }
 
-  // 树形行：L1 大类 → L2 业务分组 → L3 账户册（按 sort_order 排序）
-  const accountRows = useMemo(() =>
-    matrixNodes
-      .filter((n) => n.node_level >= 1 && n.node_level <= 3)
-      .sort((a, b) => {
-        if (a.node_level !== b.node_level) return a.node_level - b.node_level
-        return (a.sort_order || 0) - (b.sort_order || 0)
-      }),
-    [matrixNodes])
+  // 树形行：L1 大类 → L2 业务分组 → L3 账户册（递归按层级排序）
+  const accountRows = useMemo(() => {
+    const nodes = matrixNodes.filter((n) => n.node_level >= 1 && n.node_level <= 3)
+    const byParent: Record<number, any[]> = {}
+    nodes.forEach((n) => {
+      const key = n.parent_id || 0
+      if (!byParent[key]) byParent[key] = []
+      byParent[key].push(n)
+    })
+    Object.values(byParent).forEach((arr) =>
+      arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+    )
+    const flat: any[] = []
+    const walk = (parentId: number | null) => {
+      const children = byParent[parentId || 0] || []
+      children.forEach((c) => {
+        flat.push(c)
+        if (c.node_level < 3) walk(c.coa_node_id)
+      })
+    }
+    walk(null)
+    return flat
+  }, [matrixNodes])
 
   // 表格列定义：固定列 + 二级表头（每个月 group 下挂 7 个指标）
   // 树形缩进：根据 node_level 加 paddingLeft
