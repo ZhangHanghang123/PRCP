@@ -12,6 +12,7 @@ import DataMaint from './pages/DataMaint'
 import System from './pages/System'
 import ModelManage from './pages/ModelManage'
 import ReverseCalc from './pages/ReverseCalc'
+import RateCurve from './pages/RateCurve'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -39,6 +40,7 @@ const App: React.FC = () => (
         <Route path="system" element={<System />} />
         <Route path="model" element={<ModelManage />} />
         <Route path="reverse" element={<ReverseCalc />} />
+        <Route path="rate" element={<RateCurve />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

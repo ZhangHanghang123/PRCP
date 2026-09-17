@@ -264,3 +264,27 @@ export const dataReverseApi = {
   exportXlsxUrl: (schemeCode: string, runId?: number) =>
     `/prcp/api/data-reverse/export-xlsx?scheme_code=${encodeURIComponent(schemeCode)}${runId ? `&run_id=${runId}` : ''}`,
 }
+
+export const rateApi = {
+  // 曲线方案
+  listSchemes: (params: any = {}) => http.get('/rate/schemes', { params }).then((r) => r.data),
+  createScheme: (data: any) => http.post('/rate/schemes', data).then((r) => r.data),
+  updateScheme: (id: number, data: any) => http.put(`/rate/schemes/${id}`, data).then((r) => r.data),
+  deleteScheme: (id: number) => http.delete(`/rate/schemes/${id}`).then((r) => r.data),
+  // 利率点
+  listPoints: (params: any = {}) => http.get('/rate/points', { params }).then((r) => r.data),
+  upsertPoint: (data: any) => http.post('/rate/points', data).then((r) => r.data),
+  deletePoint: (id: number) => http.delete(`/rate/points/${id}`).then((r) => r.data),
+  // 历史对比
+  compare: (curveCode: string, startDate?: string, endDate?: string) =>
+    http.get('/rate/compare', {
+      params: { curve_code: curveCode, start_date: startDate, end_date: endDate },
+    }).then((r) => r.data),
+  // 单一查询
+  lookup: (curveCode: string, dataDate: string, term: string) =>
+    http.get('/rate/lookup', {
+      params: { curve_code: curveCode, data_date: dataDate, term },
+    }).then((r) => r.data),
+  exportXlsxUrl: (curveCode: string) =>
+    `/prcp/api/rate/export-xlsx?curve_code=${encodeURIComponent(curveCode)}`,
+}
