@@ -477,6 +477,7 @@ async def export_xlsx(
     ALIGN_LEFT = Alignment(horizontal="left", vertical="center", indent=0)
 
     prev_l1_code = None  # 跟踪上一个 L1 编码，用于插入大类分隔空行
+    ri = 4
 
     for n in nodes:
         node_id = n[0]
