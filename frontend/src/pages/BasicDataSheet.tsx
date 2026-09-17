@@ -11,23 +11,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { basicApi, coaApi } from '../api'
-
-// 13 个期限桶（统一两端：原始 + 剩余）
-const BUCKETS = [
-  { key: 'd1',  name: '1日',  width: 60 },
-  { key: 'd7',  name: '7日',  width: 60 },
-  { key: 'm1',  name: '1M',   width: 65 },
-  { key: 'm3',  name: '3M',   width: 65 },
-  { key: 'm6',  name: '6M',   width: 65 },
-  { key: 'y1',  name: '1Y',   width: 65 },
-  { key: 'y2',  name: '2Y',   width: 65 },
-  { key: 'y3',  name: '3Y',   width: 65 },
-  { key: 'y5',  name: '5Y',   width: 65 },
-  { key: 'y10', name: '10Y',  width: 70 },
-  { key: 'y15', name: '15Y',  width: 70 },
-  { key: 'y20', name: '20Y',  width: 70 },
-  { key: 'y30', name: '30Y',  width: 75 },
-]
+import { BUCKETS } from '../constants/buckets'
 
 // 额外度量列
 const EXTRAS = [
@@ -152,8 +136,8 @@ const BasicDataSheet: React.FC = () => {
       data_date: dataDate,
       date_offset: dateOffset,
       offset_unit: offsetUnit,
-      orig: cell.orig || Array(13).fill(0),
-      rem: cell.rem || Array(13).fill(0),
+      orig: cell.orig || Array(58).fill(0),
+      rem: cell.rem || Array(58).fill(0),
       asf_rsf: cell.asf_rsf || '',
       hqla_factor: cell.hqla_factor || 0,
       current_balance: cell.current_balance || 0,
@@ -173,8 +157,8 @@ const BasicDataSheet: React.FC = () => {
       data_date: dataDate,
       date_offset: dateOffset,
       offset_unit: offsetUnit,
-      orig: Array(13).fill(0),
-      rem: Array(13).fill(0),
+      orig: Array(58).fill(0),
+      rem: Array(58).fill(0),
       asf_rsf: '',
       hqla_factor: 0,
       current_balance: 0,
@@ -617,27 +601,31 @@ const BasicDataSheet: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left" style={{ fontSize: 13 }}>原始期限金额（13 个期限桶）</Divider>
-          <Row gutter={[8, 8]}>
-            {BUCKETS.map((b, i) => (
-              <Col span={3} key={`orig-${b.key}`}>
-                <Form.Item name={['orig', i]} label={b.name} style={{ marginBottom: 8 }}>
-                  <InputNumber step={1000} style={{ width: '100%' }} />
-                </Form.Item>
-              </Col>
-            ))}
-          </Row>
+          <Divider orientation="left" style={{ fontSize: 13 }}>原始期限金额（58 个期限桶：5 年内按月，5 年后固定）</Divider>
+          <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4 }}>
+            <Row gutter={[6, 6]}>
+              {BUCKETS.map((b, i) => (
+                <Col span={2} key={`orig-${b.key}`}>
+                  <Form.Item name={['orig', i]} label={b.name} style={{ marginBottom: 6 }}>
+                    <InputNumber step={1000} style={{ width: '100%' }} size="small" />
+                  </Form.Item>
+                </Col>
+              ))}
+            </Row>
+          </div>
 
-          <Divider orientation="left" style={{ fontSize: 13 }}>剩余期限金额（13 个期限桶）</Divider>
-          <Row gutter={[8, 8]}>
-            {BUCKETS.map((b, i) => (
-              <Col span={3} key={`rem-${b.key}`}>
-                <Form.Item name={['rem', i]} label={b.name} style={{ marginBottom: 8 }}>
-                  <InputNumber step={1000} style={{ width: '100%' }} />
-                </Form.Item>
-              </Col>
-            ))}
-          </Row>
+          <Divider orientation="left" style={{ fontSize: 13 }}>剩余期限金额（58 个期限桶）</Divider>
+          <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4 }}>
+            <Row gutter={[6, 6]}>
+              {BUCKETS.map((b, i) => (
+                <Col span={2} key={`rem-${b.key}`}>
+                  <Form.Item name={['rem', i]} label={b.name} style={{ marginBottom: 6 }}>
+                    <InputNumber step={1000} style={{ width: '100%' }} size="small" />
+                  </Form.Item>
+                </Col>
+              ))}
+            </Row>
+          </div>
 
           <Divider orientation="left" style={{ fontSize: 13 }}>流动性 + 余额/利率</Divider>
           <Row gutter={16}>

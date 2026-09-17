@@ -8,23 +8,7 @@ import {
   DatabaseOutlined, ClockCircleOutlined,
 } from '@ant-design/icons'
 import { dataReverseApi } from '../api'
-
-// 13 个期限桶（统一两端：原始 + 剩余）
-const BUCKETS = [
-  { key: 'd1',  name: '1日',  width: 60 },
-  { key: 'd7',  name: '7日',  width: 60 },
-  { key: 'm1',  name: '1M',   width: 65 },
-  { key: 'm3',  name: '3M',   width: 65 },
-  { key: 'm6',  name: '6M',   width: 65 },
-  { key: 'y1',  name: '1Y',   width: 65 },
-  { key: 'y2',  name: '2Y',   width: 65 },
-  { key: 'y3',  name: '3Y',   width: 65 },
-  { key: 'y5',  name: '5Y',   width: 65 },
-  { key: 'y10', name: '10Y',  width: 70 },
-  { key: 'y15', name: '15Y',  width: 70 },
-  { key: 'y20', name: '20Y',  width: 70 },
-  { key: 'y30', name: '30Y',  width: 75 },
-]
+import { BUCKETS } from '../constants/buckets'
 
 // 度量列
 const EXTRAS = [
