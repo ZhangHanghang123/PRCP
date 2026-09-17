@@ -337,13 +337,34 @@ async def by_scheme_matrix(
     NUMERIC_KEYS = ORIG_FIELDS + REM_FIELDS + [
         "current_balance", "avg_balance", "weighted_rate", "interest_amount", "risk_weight",
     ]
+
+    def classify_category(node: dict) -> str:
+        """根据节点编码推断业务大类。
+        - COA_V6 风格 path = /L1_资产/... → '资产'
+        - ZXCOA_V1 风格 node_code = ZX_A001 → '资产' / ZX_L003 → '负债' / ZX_E005 → '权益'
+        """
+        code = node.get("node_code") or node.get("coa_cd") or ""
+        path = node.get("path") or ""
+        # ZXCOA_V1 编码风格
+        if code.startswith("ZX_A"):
+            return "资产"
+        if code.startswith("ZX_L"):
+            return "负债"
+        if code.startswith("ZX_E"):
+            return "权益"
+        # COA_V6 风格（从 path 第二段提取 L1_<name>）
+        parts = path.split("/")
+        if len(parts) >= 2 and parts[1].startswith("L1_"):
+            return parts[1][3:]  # 去掉 "L1_"
+        return "其他"
+
     categories: dict = {}
     node_by_id = {n["coa_node_id"]: n for n in nodes}
     for cid, m in matrix.items():
         n = node_by_id.get(cid)
-        if not n or not n["path"]:
+        if not n:
             continue
-        cat = n["path"].split("/")[1].replace("L1_", "") if "/" in n["path"] else "其他"
+        cat = classify_category(n)
         bucket = categories.setdefault(cat, {k: 0.0 for k in NUMERIC_KEYS})
         for k in NUMERIC_KEYS:
             bucket[k] += float(m.get(k) or 0)

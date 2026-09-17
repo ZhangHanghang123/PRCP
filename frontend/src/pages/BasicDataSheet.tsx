@@ -352,15 +352,27 @@ const BasicDataSheet: React.FC = () => {
   const allCols: ColumnsType<any> = [...baseCols, origGroup, remGroup, extraGroup, actionCol]
 
   // 大类汇总
-  const categoryRows = [
-    { category: '资产', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_资产') && n.node_level === 3).length },
-    { category: '负债', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_负债') && n.node_level === 3).length },
-    { category: '表外', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_表外') && n.node_level === 3).length },
-  ]
+  // 大类汇总行（动态从 categoriesAgg 的 key 生成）
+  const categoryNameOrder = ['资产', '负债', '权益', '表外', '其他']
+  const existingCategories = Object.keys(categoriesAgg).sort((a, b) => {
+    const ia = categoryNameOrder.indexOf(a); const ib = categoryNameOrder.indexOf(b)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+  })
+  const categoryRows = existingCategories.map((cat) => ({
+    category: cat,
+    account_count: matrixNodes.filter((n) => {
+      const code = n.node_code || ''
+      if (cat === '资产') return code.startsWith('ZX_A') || n.path?.startsWith('/L1_资产')
+      if (cat === '负债') return code.startsWith('ZX_L') || n.path?.startsWith('/L1_负债')
+      if (cat === '权益') return code.startsWith('ZX_E')
+      if (cat === '表外') return n.path?.startsWith('/L1_表外')
+      return false
+    }).length,
+  }))
   const categoryBaseCols: ColumnsType<any> = [
     { title: '大类', dataIndex: 'category', width: 100, fixed: 'left' as const,
       render: (v) => {
-        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
+        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : v === '权益' ? 'gold' : v === '表外' ? 'purple' : 'default'
         return <Tag color={color} style={{ fontSize: 14 }}>{v}</Tag>
       },
     },
@@ -527,7 +539,7 @@ const BasicDataSheet: React.FC = () => {
             },
             {
               key: 'category',
-              label: <span><FundProjectionScreenOutlined /> 大类汇总（资产/负债/表外）</span>,
+              label: <span><FundProjectionScreenOutlined /> 大类汇总（资产/负债/权益/表外）</span>,
               children: (
                 <Table
                   size="small"
