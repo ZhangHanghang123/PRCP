@@ -676,7 +676,10 @@ async def import_xlsx(
         ).first()
 
         params = {
-            "n": coa_node_id, "d": eff_data_date, "off": eff_offset, "u": eff_unit,
+            "coa_node_id": coa_node_id,
+            "data_date": eff_data_date,
+            "date_offset": eff_offset,
+            "offset_unit": eff_unit,
             "node_code": nr[0] if nr else node_code,
             "node_name": nr[1] if nr else "",
             "node_level": nr[2] if nr else 0,
@@ -690,8 +693,8 @@ async def import_xlsx(
             "weighted_rate": weighted_rate,
             "interest_amount": interest_amount,
             "risk_weight": risk_weight,
-            "calc_note": None,
-            "uid": uid,
+            "created_by": uid,
+            "updated_by": uid,
         }
         for i, k in enumerate(ORIG_FIELDS):
             params[k] = orig[i]
@@ -699,9 +702,10 @@ async def import_xlsx(
             params[k] = rem[i]
 
         existing = db.execute(
-            text("SELECT id FROM prcp_data_basic WHERE coa_node_id=:n AND data_date=:d "
-                 "AND date_offset=:off AND offset_unit=:u AND is_deleted=0"),
-            {"n": coa_node_id, "d": eff_data_date, "off": eff_offset, "u": eff_unit},
+            text("SELECT id FROM prcp_data_basic WHERE coa_node_id=:coa_node_id AND data_date=:data_date "
+                 "AND date_offset=:date_offset AND offset_unit=:offset_unit AND is_deleted=0"),
+            {"coa_node_id": coa_node_id, "data_date": eff_data_date,
+             "date_offset": eff_offset, "offset_unit": eff_unit},
         ).first()
 
         if existing:
@@ -711,7 +715,7 @@ async def import_xlsx(
             ])
             params["id"] = existing[0]
             db.execute(
-                text(f"UPDATE prcp_data_basic SET {set_clause}, updated_by=:uid WHERE id=:id"),
+                text(f"UPDATE prcp_data_basic SET {set_clause}, updated_by=:updated_by WHERE id=:id"),
                 params,
             )
             updated += 1
