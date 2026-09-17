@@ -82,9 +82,9 @@ export const balanceApi = {
   // 二级表头矩阵：行=账户册 / 列=月份 / 单元格=7度量
   bySchemeMatrix: (scheme_id: number, start_date: string, end_date: string) =>
     http.get('/balance/by-scheme-matrix', { params: { scheme_id, start_date, end_date } }).then((r) => r.data),
-  // 导入导出
+  // 导入导出（fetch 直接拉二进制流，必须用绝对路径避免 baseURL 丢失）
   exportXlsxUrl: (scheme_id: number, start_date: string, end_date: string) =>
-    `/balance/export-xlsx?scheme_id=${scheme_id}&start_date=${start_date}&end_date=${end_date}`,
+    `/prcp/api/balance/export-xlsx?scheme_id=${scheme_id}&start_date=${start_date}&end_date=${end_date}`,
   importXlsx: (file: File) => {
     const fd = new FormData()
     fd.append('file', file)
@@ -104,7 +104,7 @@ export const basicApi = {
   bySchemeMatrix: (scheme_id: number, data_date: string, date_offset = 0, offset_unit = 'D') =>
     http.get('/basic/by-scheme-matrix', { params: { scheme_id, data_date, date_offset, offset_unit } }).then((r) => r.data),
   exportXlsxUrl: (scheme_id: number, data_date: string, date_offset = 0, offset_unit = 'D') =>
-    `/basic/export-xlsx?scheme_id=${scheme_id}&data_date=${data_date}&date_offset=${date_offset}&offset_unit=${offset_unit}`,
+    `/prcp/api/basic/export-xlsx?scheme_id=${scheme_id}&data_date=${data_date}&date_offset=${date_offset}&offset_unit=${offset_unit}`,
   importXlsx: (file: File, scheme_id: number, data_date: string, date_offset = 0, offset_unit = 'D') => {
     const fd = new FormData()
     fd.append('file', file)
