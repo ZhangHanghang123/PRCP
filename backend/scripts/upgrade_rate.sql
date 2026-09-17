@@ -99,22 +99,20 @@ VALUES
 
 -- 4. 种子数据：CN_SOV_CNY 中国国债（2026-09-17 当日）
 INSERT IGNORE INTO prcp_rate_point
-  (curve_code, data_date, ccy, rate_d1, rate_d7, rate_m1, rate_m3, rate_m6,
+  (curve_id, curve_code, data_date, ccy, rate_d1, rate_d7, rate_m1, rate_m3, rate_m6,
    rate_y1, rate_y2, rate_y3, rate_y5, rate_y10, rate_y15, rate_y20, rate_y30,
    curve_slope, source_date, remark, created_by)
-VALUES
-  ('CN_SOV_CNY', '2026-09-17', 'CNY',
-   1.5000, 1.6500, 1.8500, 2.0500, 2.1500,
-   2.2500, 2.3500, 2.4500, 2.6000, 2.7500, 2.8500, 2.9500, 3.0500,
-   0.5000, '2026-09-17', '中国国债收益率曲线 · 初始化种子数据', 1);
+SELECT 1, 'CN_SOV_CNY', '2026-09-17', 'CNY',
+       1.5000, 1.6500, 1.8500, 2.0500, 2.1500,
+       2.2500, 2.3500, 2.4500, 2.6000, 2.7500, 2.8500, 2.9500, 3.0500,
+       0.5000, '2026-09-17', '中国国债收益率曲线 · 初始化种子数据', 1;
 
 -- 5. 种子数据：CN_FTP_CNY 内部 FTP（2026-09-17 当日）
 INSERT IGNORE INTO prcp_rate_point
-  (curve_code, data_date, ccy, rate_d1, rate_d7, rate_m1, rate_m3, rate_m6,
+  (curve_id, curve_code, data_date, ccy, rate_d1, rate_d7, rate_m1, rate_m3, rate_m6,
    rate_y1, rate_y2, rate_y3, rate_y5, rate_y10, rate_y15, rate_y20, rate_y30,
    curve_slope, source_date, remark, created_by)
-VALUES
-  ('CN_FTP_CNY', '2026-09-17', 'CNY',
-   1.8000, 2.0000, 2.2000, 2.4000, 2.5000,
-   2.6000, 2.7000, 2.8000, 3.0000, 3.1500, 3.2500, 3.3500, 3.4500,
-   0.5500, '2026-09-17', '内部 FTP 转移定价曲线 · 初始化种子数据', 1);
+SELECT 5, 'CN_FTP_CNY', '2026-09-17', 'CNY',
+       1.8000, 2.0000, 2.2000, 2.4000, 2.5000,
+       2.6000, 2.7000, 2.8000, 3.0000, 3.1500, 3.2500, 3.3500, 3.4500,
+       0.5500, '2026-09-17', '内部 FTP 转移定价曲线 · 初始化种子数据', 1;
