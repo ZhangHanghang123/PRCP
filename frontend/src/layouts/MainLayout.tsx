@@ -10,6 +10,7 @@ import {
   SettingOutlined,
   ThunderboltOutlined,
   ExperimentOutlined,
+  AimOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { clearToken } from '../api'
@@ -42,6 +43,7 @@ const MainLayout: React.FC = () => {
       ],
     },
     { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },
+    { key: '/reverse', icon: <AimOutlined />, label: '组合反算' },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 

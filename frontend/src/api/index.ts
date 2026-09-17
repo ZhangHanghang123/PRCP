@@ -224,3 +224,29 @@ export const modelApi = {
     http.get(`/model/trains/${id}/logs`, { params: { since_id: sinceId } }).then((r) => r.data),
   trainResult: (id: number) => http.get(`/model/trains/${id}/result`).then((r) => r.data),
 }
+
+// 组合反算：方案 / 目标 / 运行 / 结果
+export const reverseApi = {
+  // 算法
+  listAlgorithms: () => http.get('/reverse/algorithms').then((r) => r.data),
+  // 方案
+  listSchemes: (params: any = {}) => http.get('/reverse/schemes', { params }).then((r) => r.data),
+  createScheme: (data: any) => http.post('/reverse/schemes', data).then((r) => r.data),
+  updateScheme: (id: number, data: any) => http.put(`/reverse/schemes/${id}`, data).then((r) => r.data),
+  deleteScheme: (id: number) => http.delete(`/reverse/schemes/${id}`).then((r) => r.data),
+  // 目标
+  listTargets: (params: any = {}) => http.get('/reverse/targets', { params }).then((r) => r.data),
+  createTarget: (data: any) => http.post('/reverse/targets', data).then((r) => r.data),
+  updateTarget: (id: number, data: any) => http.put(`/reverse/targets/${id}`, data).then((r) => r.data),
+  deleteTarget: (id: number) => http.delete(`/reverse/targets/${id}`).then((r) => r.data),
+  kpiOptions: () => http.get('/reverse/kpi-options').then((r) => r.data),
+  // 运行
+  listRuns: (params: any = {}) => http.get('/reverse/runs', { params }).then((r) => r.data),
+  createRun: (data: any) => http.post('/reverse/runs', data).then((r) => r.data),
+  startRun: (id: number) => http.post(`/reverse/runs/${id}/start`).then((r) => r.data),
+  cancelRun: (id: number) => http.post(`/reverse/runs/${id}/cancel`).then((r) => r.data),
+  deleteRun: (id: number) => http.delete(`/reverse/runs/${id}`).then((r) => r.data),
+  runLogs: (id: number, sinceId = 0) =>
+    http.get(`/reverse/runs/${id}/logs`, { params: { since_id: sinceId } }).then((r) => r.data),
+  runResult: (id: number) => http.get(`/reverse/runs/${id}/result`).then((r) => r.data),
+}
