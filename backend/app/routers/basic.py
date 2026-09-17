@@ -333,7 +333,10 @@ async def by_scheme_matrix(
         m["interest_amount"] = float(r[32] or 0)
         m["risk_weight"] = float(r[33] or 0)
 
-    # 按大类汇总
+    # 按大类汇总（只汇总数值字段，跳过 asf_rsf 等非数值字段）
+    NUMERIC_KEYS = ORIG_FIELDS + REM_FIELDS + [
+        "current_balance", "avg_balance", "weighted_rate", "interest_amount", "risk_weight",
+    ]
     categories: dict = {}
     node_by_id = {n["coa_node_id"]: n for n in nodes}
     for cid, m in matrix.items():
@@ -341,9 +344,9 @@ async def by_scheme_matrix(
         if not n or not n["path"]:
             continue
         cat = n["path"].split("/")[1].replace("L1_", "") if "/" in n["path"] else "其他"
-        bucket = categories.setdefault(cat, {k: 0.0 for k in m.keys()})
-        for k, v in m.items():
-            bucket[k] += v
+        bucket = categories.setdefault(cat, {k: 0.0 for k in NUMERIC_KEYS})
+        for k in NUMERIC_KEYS:
+            bucket[k] += float(m.get(k) or 0)
     for cat in categories:
         for k in categories[cat]:
             categories[cat][k] = round(categories[cat][k], 4)
