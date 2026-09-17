@@ -321,9 +321,9 @@ async def by_scheme_matrix(
         cid = r[0]
         m = matrix.setdefault(cid, {})
         for i, k in enumerate(ORIG_FIELDS):
-            m[f"orig_{k}"] = float(r[i + 1] or 0)
+            m[k] = float(r[i + 1] or 0)  # k 已经是 'orig_d1' 这种完整字段名
         for i, k in enumerate(REM_FIELDS):
-            m[f"rem_{k}"] = float(r[i + 14] or 0)
+            m[k] = float(r[i + 14] or 0)
         m["current_balance"] = float(r[27] or 0)
         m["avg_balance"] = float(r[28] or 0)
         m["weighted_rate"] = float(r[29] or 0)
