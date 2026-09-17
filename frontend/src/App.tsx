@@ -10,6 +10,7 @@ import BalanceSheet from './pages/BalanceSheet'
 import KPI from './pages/KPI'
 import DataMaint from './pages/DataMaint'
 import System from './pages/System'
+import ModelManage from './pages/ModelManage'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -35,6 +36,7 @@ const App: React.FC = () => (
           <Route path=":category" element={<DataMaint />} />
         </Route>
         <Route path="system" element={<System />} />
+        <Route path="model" element={<ModelManage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

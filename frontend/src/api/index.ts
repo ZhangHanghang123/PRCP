@@ -191,3 +191,36 @@ export const dataMaintApi = {
   monthlyCalc: (data: any) => http.post('/data-maint/monthly-calc', data).then((r) => r.data),
   listMonths: () => http.get('/data-maint/months').then((r) => r.data),
 }
+
+// 模型管理：模型 / 版本 / 参数 / 训练
+export const modelApi = {
+  // 算法
+  listAlgorithms: () => http.get('/model/algorithms').then((r) => r.data),
+  // 模型
+  listModels: (params: any = {}) => http.get('/model/models', { params }).then((r) => r.data),
+  createModel: (data: any) => http.post('/model/models', data).then((r) => r.data),
+  updateModel: (id: number, data: any) => http.put(`/model/models/${id}`, data).then((r) => r.data),
+  deleteModel: (id: number) => http.delete(`/model/models/${id}`).then((r) => r.data),
+  // 版本
+  listVersions: (params: any = {}) => http.get('/model/versions', { params }).then((r) => r.data),
+  createVersion: (data: any) => http.post('/model/versions', data).then((r) => r.data),
+  updateVersion: (id: number, data: any) => http.put(`/model/versions/${id}`, data).then((r) => r.data),
+  deleteVersion: (id: number) => http.delete(`/model/versions/${id}`).then((r) => r.data),
+  copyVersion: (id: number, data: any) => http.post(`/model/versions/${id}/copy`, data).then((r) => r.data),
+  // 参数
+  listParams: (params: any = {}) => http.get('/model/params', { params }).then((r) => r.data),
+  createParam: (data: any) => http.post('/model/params', data).then((r) => r.data),
+  updateParam: (id: number, data: any) => http.put(`/model/params/${id}`, data).then((r) => r.data),
+  deleteParam: (id: number) => http.delete(`/model/params/${id}`).then((r) => r.data),
+  // KPI 下拉选项
+  kpiOptions: () => http.get('/model/kpi-options').then((r) => r.data),
+  // 训练
+  listTrains: (params: any = {}) => http.get('/model/trains', { params }).then((r) => r.data),
+  createTrain: (data: any) => http.post('/model/trains', data).then((r) => r.data),
+  startTrain: (id: number) => http.post(`/model/trains/${id}/start`).then((r) => r.data),
+  cancelTrain: (id: number) => http.post(`/model/trains/${id}/cancel`).then((r) => r.data),
+  deleteTrain: (id: number) => http.delete(`/model/trains/${id}`).then((r) => r.data),
+  trainLogs: (id: number, sinceId = 0) =>
+    http.get(`/model/trains/${id}/logs`, { params: { since_id: sinceId } }).then((r) => r.data),
+  trainResult: (id: number) => http.get(`/model/trains/${id}/result`).then((r) => r.data),
+}

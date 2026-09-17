@@ -9,6 +9,7 @@ import {
   LogoutOutlined,
   SettingOutlined,
   ThunderboltOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { clearToken } from '../api'
@@ -40,6 +41,7 @@ const MainLayout: React.FC = () => {
         { key: '/data-maint/BASIC',     label: '8. 基础数据表' },
       ],
     },
+    { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 
