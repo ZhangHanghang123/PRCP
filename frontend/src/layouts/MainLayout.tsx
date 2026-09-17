@@ -40,6 +40,7 @@ const MainLayout: React.FC = () => {
         { key: '/data-maint/RWA',       label: '6. 资本与RWA指标' },
         { key: '/data-maint/BALANCE',   label: '7. 资产负债表' },
         { key: '/data-maint/BASIC',     label: '8. 基础数据表' },
+        { key: '/data-maint/REVERSE',   label: '9. 反算结果查询' },
       ],
     },
     { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },

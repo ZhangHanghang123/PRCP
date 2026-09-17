@@ -250,3 +250,17 @@ export const reverseApi = {
     http.get(`/reverse/runs/${id}/logs`, { params: { since_id: sinceId } }).then((r) => r.data),
   runResult: (id: number) => http.get(`/reverse/runs/${id}/result`).then((r) => r.data),
 }
+
+export const dataReverseApi = {
+  schemes: () => http.get('/data-reverse/schemes').then((r) => r.data),
+  runs: (schemeCode?: string) =>
+    http.get('/data-reverse/runs', { params: { scheme_code: schemeCode } }).then((r) => r.data),
+  bySchemeMatrix: (params: {
+    scheme_code: string; run_id?: number;
+    data_date?: string; date_offset?: number; offset_unit?: string;
+  }) => http.get('/data-reverse/by-scheme-matrix', { params }).then((r) => r.data),
+  dates: (schemeCode: string, runId?: number) =>
+    http.get('/data-reverse/dates', { params: { scheme_code: schemeCode, run_id: runId } }).then((r) => r.data),
+  exportXlsxUrl: (schemeCode: string, runId?: number) =>
+    `/prcp/api/data-reverse/export-xlsx?scheme_code=${encodeURIComponent(schemeCode)}${runId ? `&run_id=${runId}` : ''}`,
+}

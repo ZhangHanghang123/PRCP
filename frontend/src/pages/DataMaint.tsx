@@ -15,6 +15,7 @@ import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { dataMaintApi, coaApi } from '../api'
 import BalanceSheet from './BalanceSheet'
 import BasicDataSheet from './BasicDataSheet'
+import ReverseResult from './ReverseResult'
 
 const CATEGORIES: Array<{ code: string; name: string; color: string; desc: string }> = [
   { code: 'FINANCIAL', name: '1. 账务结果指标',     color: '#667eea', desc: '资产负债表 + 利润表科目值' },
@@ -23,6 +24,7 @@ const CATEGORIES: Array<{ code: string; name: string; color: string; desc: strin
   { code: 'PRICE',     name: '4. 价格指标',         color: '#eb2f96', desc: 'FTP 利率 / 存贷利率 / 利差' },
   { code: 'FEE',       name: '5. 中收指标',         color: '#13c2c2', desc: '手续费及佣金收入' },
   { code: 'RWA',       name: '6. 资本与RWA指标',    color: '#722ed1', desc: '资本充足率 / 风险加权资产' },
+  { code: 'REVERSE',   name: '9. 反算结果查询',     color: '#fa8c16', desc: '反算引擎输出的未来 24 月预测（基础数据表结构）' },
 ]
 
 const DataMaint: React.FC = () => {
@@ -323,6 +325,9 @@ const DataMaint: React.FC = () => {
   }
   if (category === 'BASIC') {
     return <BasicDataSheet />
+  }
+  if (category === 'REVERSE') {
+    return <ReverseResult />
   }
 
   return (
