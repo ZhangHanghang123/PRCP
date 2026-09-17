@@ -290,7 +290,7 @@ async def by_scheme_matrix(
         text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, description
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0
-                ORDER BY sort_order, path"""),
+                ORDER BY path, sort_order"""),
         {"s": scheme_id},
     ).fetchall()
     nodes = []
@@ -406,7 +406,8 @@ async def export_xlsx(
     nodes = db.execute(
         text("""SELECT id, node_code, node_name, node_level, path, sort_order
                 FROM prcp_coa_node
-                WHERE scheme_id=:s AND is_deleted=0 ORDER BY sort_order, path"""),
+                WHERE scheme_id=:s AND is_deleted=0
+                ORDER BY path, sort_order"""),
         {"s": scheme_id},
     ).fetchall()
 
