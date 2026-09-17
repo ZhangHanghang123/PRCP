@@ -198,7 +198,9 @@ def run_train(train_id: int, db_factory):
             # 模拟训练耗时（让用户能看进度条）
             time.sleep(0.5)
 
-        predicted, metrics, periods, extras = algo_fn(params_dict, balance_data, _log_fn)
+        ret = algo_fn(params_dict, balance_data, _log_fn)
+        predicted, metrics, periods = ret[0], ret[1], ret[2]
+        extras = ret[3] if len(ret) >= 4 else None
 
         # 5. 写结果到 prcp_model_train_result
         _save_results(db, train_id, predicted, periods, extras)
