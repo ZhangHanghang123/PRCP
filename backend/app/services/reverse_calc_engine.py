@@ -111,34 +111,34 @@ def _log(db: Session, run_id: int, level: str, msg: str, progress: float):
 
 def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
     """加载 24 月现金流 + 当前资产负债节点值"""
-    # L1 + L2 + L3 节点 + current_amount
+    # L1 + L2 + L3 节点基本信息
     rows = db.execute(
-        text("""SELECT id, node_code, node_name, node_level, current_amount
+        text("""SELECT id, node_code, node_name, node_level
                 FROM prcp_coa_node
                 WHERE scheme_id=:sid AND is_deleted=0 AND node_level<=3
                 ORDER BY node_level, sort_order, path"""),
         {"sid": coa_scheme_id},
     ).fetchall()
-    nodes = [
-        {"id": r[0], "code": r[1], "name": r[2], "level": r[3], "current": float(r[4] or 0)}
-        for r in rows
-    ]
-    # 24 月现金流缺口（取 L1 节点聚合）
+    # 单独查 current_amount（按 data_date）
     bal_rows = db.execute(
-        text("""SELECT b.coa_node_id,
+        text("""SELECT b.coa_node_id, b.current_amount,
                       b.m1_gap, b.m2_gap, b.m3_gap, b.m4_gap, b.m5_gap, b.m6_gap,
                       b.m7_gap, b.m8_gap, b.m9_gap, b.m10_gap, b.m11_gap, b.m12_gap,
                       b.m13_gap, b.m14_gap, b.m15_gap, b.m16_gap, b.m17_gap, b.m18_gap,
                       b.m19_gap, b.m20_gap, b.m21_gap, b.m22_gap, b.m23_gap, b.m24_gap
                 FROM prcp_data_balance b
                 JOIN prcp_coa_node n ON n.id=b.coa_node_id
-                WHERE n.scheme_id=:sid AND n.node_level=1
-                      AND b.data_date=:d AND b.is_deleted=0"""),
+                WHERE n.scheme_id=:sid AND b.data_date=:d
+                      AND b.is_deleted=0 AND n.is_deleted=0"""),
         {"sid": coa_scheme_id, "d": data_date},
     ).fetchall()
-    gaps_map = {}
-    for r in bal_rows:
-        gaps_map[r[0]] = [float(r[i+1] or 0) for i in range(24)]
+    amount_map = {r[0]: float(r[1] or 0) for r in bal_rows}
+    gaps_map = {r[0]: [float(r[i+2] or 0) for i in range(24)] for r in bal_rows}
+    nodes = [
+        {"id": r[0], "code": r[1], "name": r[2], "level": r[3],
+         "current": amount_map.get(r[0], 0)}
+        for r in rows
+    ]
     return {"nodes": nodes, "gaps_map": gaps_map, "gaps": list(gaps_map.values()),
             "node_ids": [r[0] for r in rows]}
 
