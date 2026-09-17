@@ -395,75 +395,101 @@ async def export_xlsx(
 
     wb = Workbook()
     ws = wb.active
-    ws.title = "基础数据表"
+    ws.title = "基础数据"
 
-    # 双层表头
-    ws.cell(1, 1, "数据日期:")
-    ws.cell(1, 2, data_date)
-    ws.cell(2, 1, "日期偏移量:")
-    ws.cell(2, 2, f"{date_offset}{offset_unit}")
+    # === 按 docs/基础数据导出模版.xlsx 格式输出 ===
+    # row 1: 标题（col 3 = "账户册总表..."）
+    # row 2: 二级表头分组（col 11 = "原始期限(金额)", col 24 = "剩余期限（金额）"）
+    # row 3: 详细列名（col 1 = "ID（数据日期-账户册编码）", col 3 = "账户册编码"）
+    # row 4+: 数据行
 
-    # 二级表头：基础字段 + 原始期限 + 剩余期限
-    fixed_headers = ["账户册编码", "账户册名称", "账户册层级", "父级账户册编码",
-                     "是否末级", "大类", "日期偏移量", "偏移单位"]
-    bucket_names = [b["name"] for b in BUCKETS]
-    extra_headers = ["ASF/RSF", "HQLA折算系数", "当前余额", "平均余额",
-                     "加权平均利率", "平均利息收支", "风险权重"]
+    # row 1: 标题
+    ws.cell(1, 3, "账户册总表（资产 / 负债 / 表外 · 按业务层级）——余额：亿元；利率、资本占用比例、风险权重：%；平均利息收支：亿元/月")
 
-    # row 4 是二级表头分组
-    group_row = 4
-    detail_row = 5
-    col = 1
-    for h in fixed_headers:
-        ws.cell(group_row, col, "")
-        ws.cell(detail_row, col, h)
-        col += 1
-    ws.cell(group_row, col, "原始期限(金额)")
-    for k in bucket_names:
-        ws.cell(detail_row, col, k)
-        col += 1
-    ws.cell(group_row, col, "剩余期限(金额)")
-    for k in bucket_names:
-        ws.cell(detail_row, col, k)
-        col += 1
-    for h in extra_headers:
-        ws.cell(group_row, col, "")
-        ws.cell(detail_row, col, h)
-        col += 1
+    # row 2: 二级表头分组（保留与模板一致）
+    ws.cell(2, 11, "原始期限(金额)")
+    ws.cell(2, 24, "剩余期限（金额）")
 
-    # 数据行
-    for ri, n in enumerate(nodes, start=6):
+    # row 3: 详细列名（按模板 43 列顺序精确匹配）
+    detail_headers = [
+        "ID（数据日期-账户册编码）",                                    # col 1
+        "数据日期",                                                     # col 2
+        "账户册编码",                                                   # col 3
+        "账户册名称",                                                   # col 4
+        "账户册层级",                                                   # col 5
+        "父级账户册编码",                                               # col 6
+        "是否末级节点（0：否，1：是）",                                 # col 7
+        "大类（A：资产，L：负债）",                                     # col 8
+        "日期偏移量（正整数）",                                         # col 9
+        "日期偏移量单位（D：日，W：周，M：月,Y:年）",                   # col 10
+        "1日", "7日", "1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "10Y", "15Y", "20Y", "30Y",   # col 11-23 原始期限
+        "1日", "7日", "1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "10Y", "15Y", "20Y", "30Y",   # col 24-36 剩余期限
+        "ASF/RSF（可以放空）",                                         # col 37
+        "HQLA折算系数（可以放空）",                                     # col 38
+        "当前余额",                                                     # col 39
+        "平均余额（月）",                                               # col 40
+        "加权平均利率",                                                 # col 41
+        "平均利息收支",                                                 # col 42
+        "风险权重",                                                     # col 43
+    ]
+    for col, h in enumerate(detail_headers, start=1):
+        ws.cell(3, col, h)
+
+    # row 4+: 数据行（每个账户册节点一行）
+    for ri, n in enumerate(nodes, start=4):
         node_id = n[0]
         r = row_map.get(node_id)
-        ws.cell(ri, 1, n[1])  # node_code
-        ws.cell(ri, 2, n[2])  # node_name
-        ws.cell(ri, 3, n[3])  # node_level
-        if r:
-            ws.cell(ri, 4, r[4])  # parent_code
-            ws.cell(ri, 5, "是" if r[6] else "否")  # is_leaf
-            ws.cell(ri, 6, r[5])  # category
-        else:
-            ws.cell(ri, 4, "")
-            ws.cell(ri, 5, "")
-            ws.cell(ri, 6, "")
-        ws.cell(ri, 7, date_offset)
-        ws.cell(ri, 8, offset_unit)
+        node_code = n[1]
+        node_name = n[2]
+        node_level = n[3]
 
-        c = 9
+        # ID = data_date-node_code
+        ws.cell(ri, 1, f"{data_date}-{node_code}")
+        ws.cell(ri, 2, data_date)
+        ws.cell(ri, 3, node_code)
+        ws.cell(ri, 4, node_name)
+        ws.cell(ri, 5, node_level)
+
+        if r:
+            ws.cell(ri, 6, r[4] or "")           # parent_code
+            ws.cell(ri, 7, r[6] if r[6] is not None else 0)   # is_leaf (0/1)
+            ws.cell(ri, 8, r[5] or "")           # category (A/L)
+        else:
+            ws.cell(ri, 6, "")
+            ws.cell(ri, 7, 0)
+            ws.cell(ri, 8, "")
+
+        ws.cell(ri, 9, date_offset)              # 日期偏移量
+        ws.cell(ri, 10, offset_unit)             # 偏移单位
+
+        # col 11-23: 原始期限（13 列）
+        c = 11
         if r:
             for i in range(13):
                 ws.cell(ri, c + i, float(r[7 + i] or 0))
-            c += 13
+        # col 24-36: 剩余期限（13 列）
+        c = 24
+        if r:
             for i in range(13):
                 ws.cell(ri, c + i, float(r[20 + i] or 0))
-            c += 13
-            ws.cell(ri, c, r[32])  # asf_rsf
-            ws.cell(ri, c + 1, float(r[33] or 0) if r[33] is not None else "")
-            ws.cell(ri, c + 2, float(r[34] or 0))
-            ws.cell(ri, c + 3, float(r[35] or 0))
-            ws.cell(ri, c + 4, float(r[36] or 0))
-            ws.cell(ri, c + 5, float(r[37] or 0))
-            ws.cell(ri, c + 6, float(r[38] or 0))
+
+        # col 37: ASF/RSF
+        ws.cell(ri, 37, r[32] if r and r[32] is not None else "")
+        # col 38: HQLA折算系数
+        if r and r[33] is not None:
+            ws.cell(ri, 38, float(r[33]))
+        else:
+            ws.cell(ri, 38, "")
+        # col 39: 当前余额
+        ws.cell(ri, 39, float(r[34]) if r and r[34] is not None else 0)
+        # col 40: 平均余额（月）
+        ws.cell(ri, 40, float(r[35]) if r and r[35] is not None else 0)
+        # col 41: 加权平均利率
+        ws.cell(ri, 41, float(r[36]) if r and r[36] is not None else 0)
+        # col 42: 平均利息收支
+        ws.cell(ri, 42, float(r[37]) if r and r[37] is not None else 0)
+        # col 43: 风险权重
+        ws.cell(ri, 43, float(r[38]) if r and r[38] is not None else 0)
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -486,12 +512,26 @@ async def import_xlsx(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """导入 Excel：按 (coa_node_id, data_date, date_offset, offset_unit) upsert
+    """导入 Excel：按 docs/基础数据导出模版.xlsx 格式解析
 
-    期望表结构：
-    - 第 1 列：账户册编码（对应 prcp_coa_node.node_code）
-    - 第 3 列（offset=8）：原始期限金额起点
-    - 第 16 列（offset=21）：剩余期限金额起点
+    模板结构（43 列）：
+    - col 1: ID（数据日期-账户册编码）  → 冗余字段，可不读
+    - col 2: 数据日期  → 缺省时用 query 参数 data_date
+    - col 3: 账户册编码  → 必填
+    - col 4: 账户册名称  → 冗余字段，按 coa_node 补
+    - col 5: 账户册层级  → 冗余字段
+    - col 6: 父级账户册编码  → 冗余字段
+    - col 7: 是否末级节点  → 0/1
+    - col 8: 大类  → A/L
+    - col 9: 日期偏移量  → 缺省时用 query 参数 date_offset
+    - col 10: 日期偏移量单位  → 缺省时用 query 参数 offset_unit
+    - col 11-23: 原始期限金额（1日/7日/1M/3M/6M/1Y/2Y/3Y/5Y/10Y/15Y/20Y/30Y）
+    - col 24-36: 剩余期限金额（13 列，同上）
+    - col 37: ASF/RSF
+    - col 38: HQLA折算系数
+    - col 39-43: 当前余额/平均余额/月/加权平均利率/平均利息收支/风险权重
+
+    表头行定位：找包含 "账户册编码" 的行（默认 row 3）
     """
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
 
@@ -518,7 +558,8 @@ async def import_xlsx(
     if not header_row:
         raise HTTPException(400, "Excel 中找不到 '账户册编码' 表头行")
 
-    # 找原始期限列起点（含 "1日"）
+    # 找原始期限列起点（第一个 "1日"）和剩余期限列起点（第二个 "1日"）
+    # ws[row] 返回 generator，索引从 1 开始
     orig_col_start = None
     rem_col_start = None
     for cidx, v in enumerate(ws[header_row], start=1):
@@ -529,33 +570,102 @@ async def import_xlsx(
                 rem_col_start = cidx
                 break
 
+    if not orig_col_start or not rem_col_start:
+        raise HTTPException(400, "Excel 中找不到原始/剩余期限桶（缺少 '1日' 列）")
+
+    # 列转 0-indexed 用于 list 索引
+    # col 3 = 账户册编码 → row[2]
+    # col 11-23 = 原始期限 → row[10..22]
+    # col 24-36 = 剩余期限 → row[23..35]
+    # col 37 = ASF/RSF → row[36]
+    # col 38 = HQLA → row[37]
+    # col 39-43 = 度量 → row[38..42]
+    COL_NODE_CODE = 2           # row[2] = 账户册编码
+    COL_DATA_DATE = 1           # row[1] = 数据日期
+    COL_OFFSET = 8              # row[8] = 日期偏移量
+    COL_OFFSET_UNIT = 9         # row[9] = 日期偏移量单位
+    COL_ORIG_START = 10         # row[10] = 原始期限第一个（1日）
+    COL_REM_START = 23          # row[23] = 剩余期限第一个（1日）
+    COL_ASF_RSF = 36
+    COL_HQLA = 37
+    COL_CURRENT_BAL = 38
+    COL_AVG_BAL = 39
+    COL_WEIGHTED_RATE = 40
+    COL_INTEREST_AMOUNT = 41
+    COL_RISK_WEIGHT = 42
+
     inserted = updated = skipped = 0
     errors = []
     for ridx, row in enumerate(ws.iter_rows(min_row=header_row + 1, values_only=True), start=1):
-        if not row or not row[0]:
+        if not row or len(row) < 3:
             continue
-        node_code = str(row[0]).strip()
+        # 跳过空行（全 None 或 全空）
+        if not any(row[:3]):
+            continue
+
+        # node_code 在 col 3 (row[2])
+        node_code_raw = row[COL_NODE_CODE] if len(row) > COL_NODE_CODE else None
+        if not node_code_raw:
+            continue
+        node_code = str(node_code_raw).strip()
+        if not node_code:
+            continue
+
         coa_node_id = code_map.get(node_code)
         if not coa_node_id:
             skipped += 1
-            errors.append(f"行 {row-1}: 账户册编码 {node_code} 不存在")
+            errors.append(f"行 {header_row + ridx}: 账户册编码 {node_code} 不存在")
             continue
 
-        orig = [float(row[orig_col_start + i] or 0) for i in range(13)] if orig_col_start else [0] * 13
-        rem = [float(row[rem_col_start + i] or 0) for i in range(13)] if rem_col_start else [0] * 13
+        # 数据日期：Excel col 2 > query 参数
+        row_date = row[COL_DATA_DATE] if len(row) > COL_DATA_DATE else None
+        if row_date:
+            if hasattr(row_date, 'strftime'):
+                eff_data_date = row_date.strftime("%Y-%m-%d")
+            else:
+                eff_data_date = str(row_date).strip()
+        elif data_date:
+            eff_data_date = data_date
+        else:
+            skipped += 1
+            errors.append(f"行 {header_row + ridx}: 缺少数据日期")
+            continue
 
-        # 找到原始 + 剩余 + 余额字段的偏移列（按 extra_headers 顺序）
-        # extra_headers = ["ASF/RSF", "HQLA折算系数", "当前余额", "平均余额",
-        #                  "加权平均利率", "平均利息收支", "风险权重"]
-        # 起始列 = rem_col_start + 13
-        extra_col = (rem_col_start or 0) + 13
-        asf_rsf = row[extra_col] if extra_col < len(row) else None
-        hqla = row[extra_col + 1] if (extra_col + 1) < len(row) else None
-        current_balance = row[extra_col + 2] if (extra_col + 2) < len(row) else 0
-        avg_balance = row[extra_col + 3] if (extra_col + 3) < len(row) else 0
-        weighted_rate = row[extra_col + 4] if (extra_col + 4) < len(row) else 0
-        interest_amount = row[extra_col + 5] if (extra_col + 5) < len(row) else 0
-        risk_weight = row[extra_col + 6] if (extra_col + 6) < len(row) else 0
+        # 日期偏移量：Excel col 9 > query 参数
+        row_offset = row[COL_OFFSET] if len(row) > COL_OFFSET else None
+        eff_offset = int(row_offset) if row_offset is not None and str(row_offset).strip() != "" else date_offset
+
+        # 偏移单位
+        row_unit = row[COL_OFFSET_UNIT] if len(row) > COL_OFFSET_UNIT else None
+        eff_unit = str(row_unit).strip() if row_unit else offset_unit
+
+        # 原始期限 13 列（row[10..22]）
+        orig = []
+        for i in range(13):
+            v = row[COL_ORIG_START + i] if len(row) > COL_ORIG_START + i else None
+            orig.append(float(v) if v not in (None, "") else 0)
+
+        # 剩余期限 13 列（row[23..35]）
+        rem = []
+        for i in range(13):
+            v = row[COL_REM_START + i] if len(row) > COL_REM_START + i else None
+            rem.append(float(v) if v not in (None, "") else 0)
+
+        # ASF/RSF
+        asf_rsf_raw = row[COL_ASF_RSF] if len(row) > COL_ASF_RSF else None
+        asf_rsf = str(asf_rsf_raw).strip() if asf_rsf_raw not in (None, "") else None
+        # HQLA
+        hqla_raw = row[COL_HQLA] if len(row) > COL_HQLA else None
+        hqla_factor = float(hqla_raw) if hqla_raw not in (None, "") else None
+        # 度量
+        def _f(idx):
+            v = row[idx] if len(row) > idx else None
+            return float(v) if v not in (None, "") else 0
+        current_balance = _f(COL_CURRENT_BAL)
+        avg_balance = _f(COL_AVG_BAL)
+        weighted_rate = _f(COL_WEIGHTED_RATE)
+        interest_amount = _f(COL_INTEREST_AMOUNT)
+        risk_weight = _f(COL_RISK_WEIGHT)
 
         # 自动补维度
         nr = db.execute(
@@ -566,7 +676,7 @@ async def import_xlsx(
         ).first()
 
         params = {
-            "n": coa_node_id, "d": data_date, "off": date_offset, "u": offset_unit,
+            "n": coa_node_id, "d": eff_data_date, "off": eff_offset, "u": eff_unit,
             "node_code": nr[0] if nr else node_code,
             "node_name": nr[1] if nr else "",
             "node_level": nr[2] if nr else 0,
@@ -574,12 +684,12 @@ async def import_xlsx(
             "is_leaf": 0,
             "category": "",
             "asf_rsf": asf_rsf,
-            "hqla_factor": float(hqla) if hqla not in (None, "") else None,
-            "current_balance": float(current_balance or 0),
-            "avg_balance": float(avg_balance or 0),
-            "weighted_rate": float(weighted_rate or 0),
-            "interest_amount": float(interest_amount or 0),
-            "risk_weight": float(risk_weight or 0),
+            "hqla_factor": hqla_factor,
+            "current_balance": current_balance,
+            "avg_balance": avg_balance,
+            "weighted_rate": weighted_rate,
+            "interest_amount": interest_amount,
+            "risk_weight": risk_weight,
             "calc_note": None,
             "uid": uid,
         }
@@ -591,7 +701,7 @@ async def import_xlsx(
         existing = db.execute(
             text("SELECT id FROM prcp_data_basic WHERE coa_node_id=:n AND data_date=:d "
                  "AND date_offset=:off AND offset_unit=:u AND is_deleted=0"),
-            {"n": coa_node_id, "d": data_date, "off": date_offset, "u": offset_unit},
+            {"n": coa_node_id, "d": eff_data_date, "off": eff_offset, "u": eff_unit},
         ).first()
 
         if existing:
