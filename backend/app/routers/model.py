@@ -111,9 +111,9 @@ async def list_models(
                 "id": r[0], "model_code": r[1], "model_name": r[2], "model_type": r[3],
                 "biz_domain": r[4], "description": r[5],
                 "algo_config": json.loads(r[6]) if r[6] else None,
-                "status": r[7], "version_count": r[9],
+                "status": r[7], "version_count": r[10],
                 "created_at": r[8].isoformat() if r[8] else None,
-                "updated_at": r[10].isoformat() if r[10] else None,
+                "updated_at": r[9].isoformat() if r[9] else None,
             } for r in rows
         ]
     }
