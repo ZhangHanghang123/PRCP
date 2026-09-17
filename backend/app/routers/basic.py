@@ -11,6 +11,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from app.database import get_db
 from app.auth import get_current_user
@@ -466,19 +467,61 @@ async def export_xlsx(
         ws.cell(3, col, h)
 
     # row 4+: 数据行（每个账户册节点一行）
-    for ri, n in enumerate(nodes, start=4):
+    # === 层级样式 ===
+    FILL_L1 = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")  # 浅蓝
+    FILL_L2 = PatternFill(start_color="EAF1F8", end_color="EAF1F8", fill_type="solid")  # 更浅蓝
+    FILL_SEP = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")  # 浅灰（大类分隔）
+    FONT_L1 = Font(bold=True, size=11, color="1F4E78")  # 深蓝加粗
+    FONT_L2 = Font(bold=True, size=10)
+    FONT_NORMAL = Font(size=10)
+    ALIGN_LEFT = Alignment(horizontal="left", vertical="center", indent=0)
+
+    prev_l1_code = None  # 跟踪上一个 L1 编码，用于插入大类分隔空行
+
+    for n in nodes:
         node_id = n[0]
-        r = row_map.get(node_id)
         node_code = n[1]
         node_name = n[2]
-        node_level = n[3]
+        node_level = n[3] or 1
+
+        # === 大类切换时插入空行作为分隔 ===
+        if node_level == 1 and prev_l1_code is not None and node_code != prev_l1_code:
+            for col in range(1, 44):
+                cell = ws.cell(ri, col, "")
+                cell.fill = FILL_SEP
+            ri += 1
+        if node_level == 1:
+            prev_l1_code = node_code
+
+        r = row_map.get(node_id)
 
         # ID = data_date-node_code
         ws.cell(ri, 1, f"{data_date}-{node_code}")
         ws.cell(ri, 2, data_date)
         ws.cell(ri, 3, node_code)
-        ws.cell(ri, 4, node_name)
-        ws.cell(ri, 5, node_level)
+
+        # === 节点名称：按 level 加全角空格缩进，1 级不加，2 级 2 个，3 级 4 个 ... ===
+        indent = "　" * max(node_level - 1, 0)
+        name_cell = ws.cell(ri, 4, f"{indent}{node_name}")
+        # L1 加粗 + 浅蓝底色，L2 加粗，L3+ 普通
+        if node_level == 1:
+            name_cell.font = FONT_L1
+            name_cell.fill = FILL_L1
+        elif node_level == 2:
+            name_cell.font = FONT_L2
+            name_cell.fill = FILL_L2
+        else:
+            name_cell.font = FONT_NORMAL
+        name_cell.alignment = ALIGN_LEFT
+
+        lv_cell = ws.cell(ri, 5, node_level)
+        if node_level == 1:
+            lv_cell.font = FONT_L1
+            lv_cell.fill = FILL_L1
+        elif node_level == 2:
+            lv_cell.font = FONT_L2
+            lv_cell.fill = FILL_L2
+        lv_cell.alignment = Alignment(horizontal="center", vertical="center")
 
         if r:
             ws.cell(ri, 6, r[4] or "")           # parent_code
@@ -520,6 +563,44 @@ async def export_xlsx(
         ws.cell(ri, 42, float(r[38]) if r and r[38] is not None else 0)
         # col 43: 风险权重 (r[39])
         ws.cell(ri, 43, float(r[39]) if r and r[39] is not None else 0)
+
+        # === 给 L1/L2 行的其他数据单元格也加底色，保持视觉一致 ===
+        if node_level == 1:
+            for col in range(1, 44):
+                if not ws.cell(ri, col).fill or ws.cell(ri, col).fill.start_color.rgb in (None, "00000000"):
+                    ws.cell(ri, col).fill = FILL_L1
+        elif node_level == 2:
+            for col in range(1, 44):
+                if not ws.cell(ri, col).fill or ws.cell(ri, col).fill.start_color.rgb in (None, "00000000"):
+                    ws.cell(ri, col).fill = FILL_L2
+
+        ri += 1
+
+    # === 列宽自适应（让节点名称列更宽） ===
+    ws.column_dimensions["A"].width = 24  # ID
+    ws.column_dimensions["B"].width = 12  # 数据日期
+    ws.column_dimensions["C"].width = 12  # 账户册编码
+    ws.column_dimensions["D"].width = 38  # 账户册名称（缩进后）
+    ws.column_dimensions["E"].width = 8   # 层级
+    ws.column_dimensions["F"].width = 12  # 父级编码
+    ws.column_dimensions["G"].width = 12  # 是否末级
+    ws.column_dimensions["H"].width = 8   # 大类
+    ws.column_dimensions["I"].width = 10  # 日期偏移量
+    ws.column_dimensions["J"].width = 10  # 偏移单位
+    for col_letter in ["K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W"]:
+        ws.column_dimensions[col_letter].width = 8   # 13 列原始期限
+    for col_letter in ["X", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ"]:
+        ws.column_dimensions[col_letter].width = 8   # 13 列剩余期限
+    ws.column_dimensions["AK"].width = 10  # ASF/RSF
+    ws.column_dimensions["AL"].width = 10  # HQLA
+    ws.column_dimensions["AM"].width = 12  # 当前余额
+    ws.column_dimensions["AN"].width = 12  # 平均余额
+    ws.column_dimensions["AO"].width = 10  # 加权平均利率
+    ws.column_dimensions["AP"].width = 12  # 平均利息收支
+    ws.column_dimensions["AQ"].width = 10  # 风险权重
+
+    # === 冻结首行 + 节点名称列 ===
+    ws.freeze_panes = "E4"
 
     buf = io.BytesIO()
     wb.save(buf)
