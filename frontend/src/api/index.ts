@@ -94,6 +94,27 @@ export const balanceApi = {
   },
 }
 
+// 基础数据表（按账户册 + 数据日期 + 日期偏移量的二维矩阵）
+export const basicApi = {
+  list: (params: any = {}) => http.get('/basic/', { params }).then((r) => r.data),
+  upsert: (data: any) => http.post('/basic/', data).then((r) => r.data),
+  delete: (id: number) => http.delete(`/basic/${id}`).then((r) => r.data),
+  listDates: (scheme_id?: number) =>
+    http.get('/basic/dates', { params: scheme_id ? { scheme_id } : {} }).then((r) => r.data),
+  bySchemeMatrix: (scheme_id: number, data_date: string, date_offset = 0, offset_unit = 'D') =>
+    http.get('/basic/by-scheme-matrix', { params: { scheme_id, data_date, date_offset, offset_unit } }).then((r) => r.data),
+  exportXlsxUrl: (scheme_id: number, data_date: string, date_offset = 0, offset_unit = 'D') =>
+    `/basic/export-xlsx?scheme_id=${scheme_id}&data_date=${data_date}&date_offset=${date_offset}&offset_unit=${offset_unit}`,
+  importXlsx: (file: File, scheme_id: number, data_date: string, date_offset = 0, offset_unit = 'D') => {
+    const fd = new FormData()
+    fd.append('file', file)
+    return http.post('/basic/import-xlsx', fd, {
+      params: { scheme_id, data_date, date_offset, offset_unit },
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data)
+  },
+}
+
 // 指标（v2：方案 + 定义 + 维护）
 export const kpiApi = {
   // 方案

@@ -14,6 +14,7 @@ import dayjs, { Dayjs } from 'dayjs'
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom'
 import { dataMaintApi, coaApi } from '../api'
 import BalanceSheet from './BalanceSheet'
+import BasicDataSheet from './BasicDataSheet'
 
 const CATEGORIES: Array<{ code: string; name: string; color: string; desc: string }> = [
   { code: 'FINANCIAL', name: '1. 账务结果指标',     color: '#667eea', desc: '资产负债表 + 利润表科目值' },
@@ -315,9 +316,13 @@ const DataMaint: React.FC = () => {
   }, [flatRows])
 
   // BALANCE 类别（资产负债表）→ 直接渲染 BalanceSheet 组件（避开 :category 路由冲突）
+  // BASIC 类别（基础数据表）→ 直接渲染 BasicDataSheet
   // 放在所有 hooks 之后避免违反 hooks 规则
   if (category === 'BALANCE') {
     return <BalanceSheet />
+  }
+  if (category === 'BASIC') {
+    return <BasicDataSheet />
   }
 
   return (

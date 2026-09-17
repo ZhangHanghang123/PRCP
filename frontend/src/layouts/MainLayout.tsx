@@ -37,6 +37,7 @@ const MainLayout: React.FC = () => {
         { key: '/data-maint/FEE',       label: '5. 中收指标' },
         { key: '/data-maint/RWA',       label: '6. 资本与RWA指标' },
         { key: '/data-maint/BALANCE',   label: '7. 资产负债表' },
+        { key: '/data-maint/BASIC',     label: '8. 基础数据表' },
       ],
     },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },

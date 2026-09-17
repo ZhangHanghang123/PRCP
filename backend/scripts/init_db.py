@@ -177,6 +177,69 @@ DDLS = [
       INDEX idx_node (coa_node_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='资产负债表（24 月缺口）'
     """,
+    # ===== 基础数据表（按账户册 + 数据日期 + 日期偏移量 唯一） =====
+    """
+    CREATE TABLE IF NOT EXISTS prcp_data_basic (
+      id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+      data_date       DATE NOT NULL,
+      coa_node_id     BIGINT NOT NULL,
+      node_code       VARCHAR(32),
+      node_name       VARCHAR(64),
+      node_level      INT,
+      parent_code     VARCHAR(32),
+      is_leaf         TINYINT(1) DEFAULT 0,
+      category        VARCHAR(8),
+      date_offset     INT DEFAULT 0,
+      offset_unit     VARCHAR(2) DEFAULT 'D',
+      -- 原始期限金额（13 个期限桶）
+      orig_d1         DECIMAL(20,4) DEFAULT 0,
+      orig_d7         DECIMAL(20,4) DEFAULT 0,
+      orig_m1         DECIMAL(20,4) DEFAULT 0,
+      orig_m3         DECIMAL(20,4) DEFAULT 0,
+      orig_m6         DECIMAL(20,4) DEFAULT 0,
+      orig_y1         DECIMAL(20,4) DEFAULT 0,
+      orig_y2         DECIMAL(20,4) DEFAULT 0,
+      orig_y3         DECIMAL(20,4) DEFAULT 0,
+      orig_y5         DECIMAL(20,4) DEFAULT 0,
+      orig_y10        DECIMAL(20,4) DEFAULT 0,
+      orig_y15        DECIMAL(20,4) DEFAULT 0,
+      orig_y20        DECIMAL(20,4) DEFAULT 0,
+      orig_y30        DECIMAL(20,4) DEFAULT 0,
+      -- 剩余期限金额（13 个期限桶）
+      rem_d1          DECIMAL(20,4) DEFAULT 0,
+      rem_d7          DECIMAL(20,4) DEFAULT 0,
+      rem_m1          DECIMAL(20,4) DEFAULT 0,
+      rem_m3          DECIMAL(20,4) DEFAULT 0,
+      rem_m6          DECIMAL(20,4) DEFAULT 0,
+      rem_y1          DECIMAL(20,4) DEFAULT 0,
+      rem_y2          DECIMAL(20,4) DEFAULT 0,
+      rem_y3          DECIMAL(20,4) DEFAULT 0,
+      rem_y5          DECIMAL(20,4) DEFAULT 0,
+      rem_y10         DECIMAL(20,4) DEFAULT 0,
+      rem_y15         DECIMAL(20,4) DEFAULT 0,
+      rem_y20         DECIMAL(20,4) DEFAULT 0,
+      rem_y30         DECIMAL(20,4) DEFAULT 0,
+      -- 流动性指标（可空）
+      asf_rsf         VARCHAR(8),
+      hqla_factor     DECIMAL(8,4),
+      -- 余额/利率类指标
+      current_balance DECIMAL(20,4) DEFAULT 0,
+      avg_balance     DECIMAL(20,4) DEFAULT 0,
+      weighted_rate   DECIMAL(10,6) DEFAULT 0,
+      interest_amount DECIMAL(20,4) DEFAULT 0,
+      risk_weight     DECIMAL(10,6) DEFAULT 0,
+      calc_note       TEXT,
+      is_deleted      TINYINT(1) DEFAULT 0,
+      created_by      BIGINT,
+      updated_by      BIGINT,
+      created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      UNIQUE KEY uk_node_date_offset (coa_node_id, data_date, date_offset, offset_unit),
+      INDEX idx_date (data_date),
+      INDEX idx_node (coa_node_id),
+      INDEX idx_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='基础数据表（账户册+日期+偏移量，13+13 期限桶）'
+    """,
     # ===== 指标管理 =====
     """
     CREATE TABLE IF NOT EXISTS prcp_kpi_scheme (
