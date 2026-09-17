@@ -304,17 +304,18 @@ async def by_scheme_matrix(
             "sort_order": r[7] or 0, "category": cat, "description": r[8] or "",
         })
 
-    # 拉基础数据
+    # 拉基础数据（**JOIN 过滤 scheme_id**，避免取到其他方案的 coa_node_id）
     rows = db.execute(
-        text("""SELECT coa_node_id, orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-                      orig_y1, orig_y2, orig_y3, orig_y5, orig_y10, orig_y15, orig_y20, orig_y30,
-                      rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-                      rem_y1, rem_y2, rem_y3, rem_y5, rem_y10, rem_y15, rem_y20, rem_y30,
-                      asf_rsf, hqla_factor,
-                      current_balance, avg_balance, weighted_rate, interest_amount, risk_weight
-               FROM prcp_data_basic
-               WHERE data_date=:d AND date_offset=:off AND offset_unit=:u AND is_deleted=0"""),
-        {"d": data_date, "off": date_offset, "u": offset_unit},
+        text("""SELECT b.coa_node_id, b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6,
+                      b.orig_y1, b.orig_y2, b.orig_y3, b.orig_y5, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30,
+                      b.rem_d1, b.rem_d7, b.rem_m1, b.rem_m3, b.rem_m6,
+                      b.rem_y1, b.rem_y2, b.rem_y3, b.rem_y5, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30,
+                      b.asf_rsf, b.hqla_factor,
+                      b.current_balance, b.avg_balance, b.weighted_rate, b.interest_amount, b.risk_weight
+               FROM prcp_data_basic b
+               JOIN prcp_coa_node n ON n.id = b.coa_node_id
+               WHERE n.scheme_id=:s AND b.data_date=:d AND b.date_offset=:off AND b.offset_unit=:u AND b.is_deleted=0"""),
+        {"s": scheme_id, "d": data_date, "off": date_offset, "u": offset_unit},
     ).fetchall()
 
     matrix: dict = {}

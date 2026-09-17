@@ -62,8 +62,10 @@ const BasicDataSheet: React.FC = () => {
     const r = await coaApi.listSchemes()
     setSchemes(r.items || [])
     if (!activeScheme && r.items?.length) {
-      const v6 = r.items.find((s: any) => s.scheme_code === 'COA_V6') || r.items[0]
-      setActiveScheme(v6.id)
+      // 默认账户册方案：ZXCOA_V1 > COA_V6 > 第一个
+      const zx = r.items.find((s: any) => s.scheme_code === 'ZXCOA_V1')
+      const v6 = r.items.find((s: any) => s.scheme_code === 'COA_V6')
+      setActiveScheme((zx || v6 || r.items[0]).id)
     }
   }
   useEffect(() => { loadSchemes() }, [])
