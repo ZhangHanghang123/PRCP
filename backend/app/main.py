@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import engine, Base, SessionLocal
 from app.auth import init_admin
 from app.routers import auth, dashboard
-from app.routers import coa, reports, balance, basic, kpi, admin, data_maint, model, reverse, data_reverse
+from app.routers import coa, reports, balance, basic, kpi, admin, data_maint, model, reverse, data_reverse, rate
 
 logging.basicConfig(
     level=settings.LOG_LEVEL,
@@ -65,6 +65,7 @@ app.include_router(data_maint.router, prefix="/prcp/api")
 app.include_router(model.router, prefix="/prcp/api")
 app.include_router(reverse.router, prefix="/prcp/api")
 app.include_router(data_reverse.router, prefix="/prcp/api")
+app.include_router(rate.router, prefix="/prcp/api")
 
 
 if __name__ == "__main__":
