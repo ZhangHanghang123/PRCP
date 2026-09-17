@@ -310,6 +310,7 @@ async def by_scheme_matrix(
                       orig_y1, orig_y2, orig_y3, orig_y5, orig_y10, orig_y15, orig_y20, orig_y30,
                       rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
                       rem_y1, rem_y2, rem_y3, rem_y5, rem_y10, rem_y15, rem_y20, rem_y30,
+                      asf_rsf, hqla_factor,
                       current_balance, avg_balance, weighted_rate, interest_amount, risk_weight
                FROM prcp_data_basic
                WHERE data_date=:d AND date_offset=:off AND offset_unit=:u AND is_deleted=0"""),
@@ -324,11 +325,13 @@ async def by_scheme_matrix(
             m[k] = float(r[i + 1] or 0)  # k 已经是 'orig_d1' 这种完整字段名
         for i, k in enumerate(REM_FIELDS):
             m[k] = float(r[i + 14] or 0)
-        m["current_balance"] = float(r[27] or 0)
-        m["avg_balance"] = float(r[28] or 0)
-        m["weighted_rate"] = float(r[29] or 0)
-        m["interest_amount"] = float(r[30] or 0)
-        m["risk_weight"] = float(r[31] or 0)
+        m["asf_rsf"] = r[27] or ""
+        m["hqla_factor"] = float(r[28]) if r[28] is not None else None
+        m["current_balance"] = float(r[29] or 0)
+        m["avg_balance"] = float(r[30] or 0)
+        m["weighted_rate"] = float(r[31] or 0)
+        m["interest_amount"] = float(r[32] or 0)
+        m["risk_weight"] = float(r[33] or 0)
 
     # 按大类汇总
     categories: dict = {}
