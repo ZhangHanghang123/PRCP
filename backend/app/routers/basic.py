@@ -343,7 +343,7 @@ async def by_scheme_matrix(
         - COA_V6 风格 path = /L1_资产/... → '资产'
         - ZXCOA_V1 风格 node_code = ZX_A001 → '资产' / ZX_L003 → '负债' / ZX_E005 → '权益'
         """
-        code = node.get("node_code") or node.get("coa_cd") or ""
+        code = node.get("node_code") or ""
         path = node.get("path") or ""
         # ZXCOA_V1 编码风格
         if code.startswith("ZX_A"):
@@ -360,10 +360,18 @@ async def by_scheme_matrix(
 
     categories: dict = {}
     node_by_id = {n["coa_node_id"]: n for n in nodes}
+    # 大类汇总策略：COA_V6 L1 节点无数据 → 累加所有节点（实际只有 L3 有数据）
+    # ZXCOA_V1 L1 节点有数据 → 只累加 L1 节点（避免子节点重复累加）
+    l1_cids = {n["coa_node_id"] for n in nodes if n.get("node_level") == 1}
+    l1_has_data = any(
+        matrix.get(cid, {}).get("current_balance", 0)
+        for cid in l1_cids
+    )
+    target_cids = l1_cids if l1_has_data else set(matrix.keys())
     for cid, m in matrix.items():
-        n = node_by_id.get(cid)
-        if not n:
+        if cid not in target_cids:
             continue
+        n = node_by_id.get(cid)
         cat = classify_category(n)
         bucket = categories.setdefault(cat, {k: 0.0 for k in NUMERIC_KEYS})
         for k in NUMERIC_KEYS:
