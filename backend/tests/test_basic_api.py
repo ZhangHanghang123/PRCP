@@ -17,7 +17,7 @@ print(f"matrix: status={r.status_code}")
 d = r.json()
 print(f"  matrix keys: {len(d['matrix'])}, categories: {list(d['categories'].keys())}")
 m = d["matrix"][list(d["matrix"].keys())[0]]
-print(f"  first node code: {m['node_code']}")
+print(f"  first node cid: {list(d['matrix'].keys())[0]}")
 print(f"  has orig_m30? {('orig_m30' in m)}, orig_m30={m.get('orig_m30', 'N/A')}")
 print(f"  has orig_y2? {('orig_y2' in m)}")
 print(f"  has orig_y5? {('orig_y5' in m)}")
