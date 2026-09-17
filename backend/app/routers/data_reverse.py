@@ -16,27 +16,13 @@ from openpyxl.styles import Font, PatternFill, Alignment
 
 from app.database import get_db
 from app.auth import get_current_user
+from app.services.buckets import BUCKETS, ORIG_COLS, REM_COLS
 
 router = APIRouter(prefix="/data-reverse", tags=["反算结果查询"])
 
-# 与 prcp_data_basic 一致的 13 个期限桶
-BUCKETS = [
-    {"key": "d1",  "name": "1日",  "col": "D1"},
-    {"key": "d7",  "name": "7日",  "col": "D7"},
-    {"key": "m1",  "name": "1M",   "col": "M1"},
-    {"key": "m3",  "name": "3M",   "col": "M3"},
-    {"key": "m6",  "name": "6M",   "col": "M6"},
-    {"key": "y1",  "name": "1Y",   "col": "Y1"},
-    {"key": "y2",  "name": "2Y",   "col": "Y2"},
-    {"key": "y3",  "name": "3Y",   "col": "Y3"},
-    {"key": "y5",  "name": "5Y",   "col": "Y5"},
-    {"key": "y10", "name": "10Y",  "col": "Y10"},
-    {"key": "y15", "name": "15Y",  "col": "Y15"},
-    {"key": "y20", "name": "20Y",  "col": "Y20"},
-    {"key": "y30", "name": "30Y",  "col": "Y30"},
-]
-ORIG_FIELDS = [f"orig_{b['key']}" for b in BUCKETS]
-REM_FIELDS = [f"rem_{b['key']}" for b in BUCKETS]
+# 58 个期限桶（与 prcp_data_basic 完全一致）
+ORIG_FIELDS = ORIG_COLS
+REM_FIELDS = REM_COLS
 NUMERIC_KEYS = ORIG_FIELDS + REM_FIELDS + [
     "current_balance", "avg_balance", "weighted_rate",
     "interest_amount", "risk_weight",
@@ -188,9 +174,21 @@ async def by_scheme_matrix(
     rows = db.execute(text(f"""
         SELECT coa_node_id, node_code, node_name, node_level, parent_code, category, is_leaf,
                orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-               orig_y1, orig_y2, orig_y3, orig_y5, orig_y10, orig_y15, orig_y20, orig_y30,
+               orig_m13, orig_m14, orig_m15, orig_m16, orig_m17, orig_m18, orig_m19, orig_m20,
+               orig_m21, orig_m22, orig_m23, orig_m24, orig_m25, orig_m26, orig_m27, orig_m28,
+               orig_m29, orig_m30, orig_m31, orig_m32, orig_m33, orig_m34, orig_m35, orig_m36,
+               orig_m37, orig_m38, orig_m39, orig_m40, orig_m41, orig_m42, orig_m43, orig_m44,
+               orig_m45, orig_m46, orig_m47, orig_m48, orig_m49, orig_m50, orig_m51, orig_m52,
+               orig_m53, orig_m54, orig_m55, orig_m56, orig_m57, orig_m58, orig_m59, orig_m60,
+               orig_y1, orig_y10, orig_y15, orig_y20, orig_y30,
                rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-               rem_y1, rem_y2, rem_y3, rem_y5, rem_y10, rem_y15, rem_y20, rem_y30,
+               rem_m13, rem_m14, rem_m15, rem_m16, rem_m17, rem_m18, rem_m19, rem_m20,
+               rem_m21, rem_m22, rem_m23, rem_m24, rem_m25, rem_m26, rem_m27, rem_m28,
+               rem_m29, rem_m30, rem_m31, rem_m32, rem_m33, rem_m34, rem_m35, rem_m36,
+               rem_m37, rem_m38, rem_m39, rem_m40, rem_m41, rem_m42, rem_m43, rem_m44,
+               rem_m45, rem_m46, rem_m47, rem_m48, rem_m49, rem_m50, rem_m51, rem_m52,
+               rem_m53, rem_m54, rem_m55, rem_m56, rem_m57, rem_m58, rem_m59, rem_m60,
+               rem_y1, rem_y10, rem_y15, rem_y20, rem_y30,
                asf_rsf, hqla_factor, current_balance, avg_balance,
                weighted_rate, interest_amount, risk_weight, calc_note,
                data_date, date_offset, record_id
@@ -199,32 +197,37 @@ async def by_scheme_matrix(
     """), params).fetchall()
 
     # 5. 构建 matrix（coa_node_id -> row dict）
+    # SELECT 列顺序：
+    #   0=coa_node_id, 1=node_code, 2=node_name, 3=node_level, 4=parent_code, 5=category, 6=is_leaf,
+    #   7-64=orig (58 列), 65-122=rem (58 列), 123=asf_rsf, 124=hqla_factor,
+    #   125=current_balance, 126=avg_balance, 127=weighted_rate, 128=interest_amount, 129=risk_weight,
+    #   130=calc_note, 131=data_date, 132=date_offset, 133=record_id
+    n_b = len(ORIG_FIELDS)  # 58
     matrix: dict = {}
     for r in rows:
         m = {}
-        # 注意：列顺序对应上面 SELECT 列表
-        idx = 0
-        m["coa_node_id"] = r[idx]; idx += 1
-        m["node_code"] = r[idx]; idx += 1
-        m["node_name"] = r[idx]; idx += 1
-        m["node_level"] = r[idx]; idx += 1
-        m["parent_code"] = r[idx]; idx += 1
-        m["category"] = r[idx]; idx += 1
-        m["is_leaf"] = r[idx]; idx += 1
-        # 13 + 13 = 26 buckets
-        for k in ORIG_FIELDS + REM_FIELDS:
-            m[k] = float(r[idx] or 0); idx += 1
-        m["asf_rsf"] = r[idx]; idx += 1
-        m["hqla_factor"] = float(r[idx]) if r[idx] is not None else None; idx += 1
-        m["current_balance"] = float(r[idx] or 0); idx += 1
-        m["avg_balance"] = float(r[idx] or 0); idx += 1
-        m["weighted_rate"] = float(r[idx] or 0); idx += 1
-        m["interest_amount"] = float(r[idx] or 0); idx += 1
-        m["risk_weight"] = float(r[idx] or 0); idx += 1
-        m["calc_note"] = r[idx]; idx += 1
-        m["data_date"] = str(r[idx]) if r[idx] else None; idx += 1
-        m["date_offset"] = r[idx]; idx += 1
-        m["record_id"] = r[idx]; idx += 1
+        m["coa_node_id"] = r[0]
+        m["node_code"] = r[1]
+        m["node_name"] = r[2]
+        m["node_level"] = r[3]
+        m["parent_code"] = r[4]
+        m["category"] = r[5]
+        m["is_leaf"] = r[6]
+        for i, k in enumerate(ORIG_FIELDS):
+            m[k] = float(r[i + 7] or 0)
+        for i, k in enumerate(REM_FIELDS):
+            m[k] = float(r[i + 7 + n_b] or 0)
+        m["asf_rsf"] = r[7 + 2 * n_b]
+        m["hqla_factor"] = float(r[7 + 2 * n_b + 1]) if r[7 + 2 * n_b + 1] is not None else None
+        m["current_balance"] = float(r[7 + 2 * n_b + 2] or 0)
+        m["avg_balance"] = float(r[7 + 2 * n_b + 3] or 0)
+        m["weighted_rate"] = float(r[7 + 2 * n_b + 4] or 0)
+        m["interest_amount"] = float(r[7 + 2 * n_b + 5] or 0)
+        m["risk_weight"] = float(r[7 + 2 * n_b + 6] or 0)
+        m["calc_note"] = r[7 + 2 * n_b + 7]
+        m["data_date"] = str(r[7 + 2 * n_b + 8]) if r[7 + 2 * n_b + 8] else None
+        m["date_offset"] = r[7 + 2 * n_b + 9]
+        m["record_id"] = r[7 + 2 * n_b + 10]
         matrix[m["coa_node_id"]] = m
 
     # 6. 大类汇总
@@ -321,9 +324,21 @@ async def export_xlsx(
         SELECT coa_node_id, data_date, date_offset, node_code, node_name, node_level,
                parent_code, category, is_leaf,
                orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-               orig_y1, orig_y2, orig_y3, orig_y5, orig_y10, orig_y15, orig_y20, orig_y30,
+               orig_m13, orig_m14, orig_m15, orig_m16, orig_m17, orig_m18, orig_m19, orig_m20,
+               orig_m21, orig_m22, orig_m23, orig_m24, orig_m25, orig_m26, orig_m27, orig_m28,
+               orig_m29, orig_m30, orig_m31, orig_m32, orig_m33, orig_m34, orig_m35, orig_m36,
+               orig_m37, orig_m38, orig_m39, orig_m40, orig_m41, orig_m42, orig_m43, orig_m44,
+               orig_m45, orig_m46, orig_m47, orig_m48, orig_m49, orig_m50, orig_m51, orig_m52,
+               orig_m53, orig_m54, orig_m55, orig_m56, orig_m57, orig_m58, orig_m59, orig_m60,
+               orig_y1, orig_y10, orig_y15, orig_y20, orig_y30,
                rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-               rem_y1, rem_y2, rem_y3, rem_y5, rem_y10, rem_y15, rem_y20, rem_y30,
+               rem_m13, rem_m14, rem_m15, rem_m16, rem_m17, rem_m18, rem_m19, rem_m20,
+               rem_m21, rem_m22, rem_m23, rem_m24, rem_m25, rem_m26, rem_m27, rem_m28,
+               rem_m29, rem_m30, rem_m31, rem_m32, rem_m33, rem_m34, rem_m35, rem_m36,
+               rem_m37, rem_m38, rem_m39, rem_m40, rem_m41, rem_m42, rem_m43, rem_m44,
+               rem_m45, rem_m46, rem_m47, rem_m48, rem_m49, rem_m50, rem_m51, rem_m52,
+               rem_m53, rem_m54, rem_m55, rem_m56, rem_m57, rem_m58, rem_m59, rem_m60,
+               rem_y1, rem_y10, rem_y15, rem_y20, rem_y30,
                asf_rsf, hqla_factor, current_balance, avg_balance,
                weighted_rate, interest_amount, risk_weight, calc_note,
                record_id
@@ -331,6 +346,16 @@ async def export_xlsx(
         WHERE scheme_code=:sc AND run_id=:rid AND is_deleted=0
     """), {"sc": scheme_code, "rid": run_id}).fetchall()
     row_map = {(r[0], str(r[1]), r[2]): r for r in rows}
+
+    # SELECT 列顺序：0=coa_node_id, 1=data_date, 2=date_offset, 3=node_code, 4=node_name, 5=node_level,
+    #   6=parent_code, 7=category, 8=is_leaf,
+    #   9-66=orig (58 列), 67-124=rem (58 列), 125=asf_rsf, 126=hqla_factor,
+    #   127=current_balance, 128=avg_balance, 129=weighted_rate, 130=interest_amount, 131=risk_weight,
+    #   132=calc_note, 133=record_id
+    n_b = len(ORIG_FIELDS)  # 58
+    orig_offset = 9
+    rem_offset = orig_offset + n_b  # 67
+    asf_offset = rem_offset + n_b  # 125
 
     wb = Workbook()
     ws = wb.active
@@ -340,14 +365,15 @@ async def export_xlsx(
     ws.cell(1, 3, f"反算结果 — {scheme_code} ({scheme_name}) · Run#{run_id} · 余额：亿元；利率：%")
 
     # row 2: 二级表头分组
+    n_buckets = len(BUCKETS)
     ws.cell(2, 11, "原始期限(金额)")
-    ws.cell(2, 24, "剩余期限（金额）")
+    ws.cell(2, 11 + n_buckets, "剩余期限（金额）")
 
     # row 3: 详细列名（与基础数据表基本一致，但 ID = scheme_code_自增id）
     # col 1=ID, col 2=数据日期, col 3=月份, col 4=编码, col 5=名称, col 6=层级
     # col 7=父级编码, col 8=是否末级, col 9=大类, col 10=偏移量, col 11=偏移单位
-    # col 12-24 = orig 13 buckets, col 25-37 = rem 13 buckets
-    # col 38=ASF/RSF, col 39=HQLA, col 40-44 = 度量, col 45=备注
+    # col 12-69 = orig 58 buckets, col 70-127 = rem 58 buckets
+    # col 128=ASF/RSF, col 129=HQLA, col 130-134 = 度量, col 135=备注
     detail_headers = ["ID（方案编码_自增ID）", "数据日期", "月份(M)",
                       "账户册编码", "账户册名称", "账户册层级",
                       "父级账户册编码", "是否末级节点", "大类",
@@ -397,7 +423,7 @@ async def export_xlsx(
         for nr in node_rows_for_n:
             data_date_val = str(nr[1])
             date_offset_val = nr[2]
-            record_id = nr[43]  # record_id 是第 44 个字段（idx 43）
+            record_id = nr[asf_offset + 8]  # record_id 在 SELECT 末尾（asf_offset+8）
 
             # ID = scheme_code_自增id（业务拼接 ID）
             ws.cell(ri, 1, record_id)
@@ -417,26 +443,26 @@ async def export_xlsx(
             ws.cell(ri, 9, nr[7] or "")
             ws.cell(ri, 10, date_offset_val)
             ws.cell(ri, 11, "M")
-            # col 12-24: orig buckets
-            for i in range(13):
-                ws.cell(ri, 12 + i, float(nr[9 + i] or 0))
-            # col 25-37: rem buckets
-            for i in range(13):
-                ws.cell(ri, 25 + i, float(nr[22 + i] or 0))
-            # col 38: ASF/RSF
-            ws.cell(ri, 38, nr[35] if nr[35] is not None else "")
-            # col 39: HQLA
-            if nr[36] is not None:
-                ws.cell(ri, 39, float(nr[36]))
+            # col 12-69: orig buckets (58 列)
+            for i in range(n_buckets):
+                ws.cell(ri, 12 + i, float(nr[orig_offset + i] or 0))
+            # col 70-127: rem buckets (58 列)
+            for i in range(n_buckets):
+                ws.cell(ri, 12 + n_buckets + i, float(nr[rem_offset + i] or 0))
+            # col 128: ASF/RSF
+            ws.cell(ri, 12 + 2 * n_buckets, nr[asf_offset] if nr[asf_offset] is not None else "")
+            # col 129: HQLA
+            if nr[asf_offset + 1] is not None:
+                ws.cell(ri, 12 + 2 * n_buckets + 1, float(nr[asf_offset + 1]))
             else:
-                ws.cell(ri, 39, "")
-            # col 40-44: 度量
-            ws.cell(ri, 40, float(nr[37]) if nr[37] is not None else 0)
-            ws.cell(ri, 41, float(nr[38]) if nr[38] is not None else 0)
-            ws.cell(ri, 42, float(nr[39]) if nr[39] is not None else 0)
-            ws.cell(ri, 43, float(nr[40]) if nr[40] is not None else 0)
-            ws.cell(ri, 44, float(nr[41]) if nr[41] is not None else 0)
-            ws.cell(ri, 45, nr[42] or "")
+                ws.cell(ri, 12 + 2 * n_buckets + 1, "")
+            # col 130-134: 度量
+            ws.cell(ri, 12 + 2 * n_buckets + 2, float(nr[asf_offset + 2]) if nr[asf_offset + 2] is not None else 0)
+            ws.cell(ri, 12 + 2 * n_buckets + 3, float(nr[asf_offset + 3]) if nr[asf_offset + 3] is not None else 0)
+            ws.cell(ri, 12 + 2 * n_buckets + 4, float(nr[asf_offset + 4]) if nr[asf_offset + 4] is not None else 0)
+            ws.cell(ri, 12 + 2 * n_buckets + 5, float(nr[asf_offset + 5]) if nr[asf_offset + 5] is not None else 0)
+            ws.cell(ri, 12 + 2 * n_buckets + 6, float(nr[asf_offset + 6]) if nr[asf_offset + 6] is not None else 0)
+            ws.cell(ri, 12 + 2 * n_buckets + 7, nr[asf_offset + 7] or "")
 
             # L1 整行底色
             if node_level == 1:
