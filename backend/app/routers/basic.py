@@ -373,7 +373,7 @@ async def export_xlsx(
 ):
     """导出 Excel：每账户册 × 13+13 期限桶的二维表"""
     nodes = db.execute(
-        text("""SELECT id, node_code, node_name, node_level, category, path, sort_order
+        text("""SELECT id, node_code, node_name, node_level, path, sort_order
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0 ORDER BY sort_order, path"""),
         {"s": scheme_id},
@@ -473,23 +473,23 @@ async def export_xlsx(
             for i in range(13):
                 ws.cell(ri, c + i, float(r[20 + i] or 0))
 
-        # col 37: ASF/RSF
-        ws.cell(ri, 37, r[32] if r and r[32] is not None else "")
-        # col 38: HQLA折算系数
-        if r and r[33] is not None:
-            ws.cell(ri, 38, float(r[33]))
+        # col 37: ASF/RSF (rows 中 r[33])
+        ws.cell(ri, 37, r[33] if r and r[33] is not None else "")
+        # col 38: HQLA折算系数 (r[34])
+        if r and r[34] is not None:
+            ws.cell(ri, 38, float(r[34]))
         else:
             ws.cell(ri, 38, "")
-        # col 39: 当前余额
-        ws.cell(ri, 39, float(r[34]) if r and r[34] is not None else 0)
-        # col 40: 平均余额（月）
-        ws.cell(ri, 40, float(r[35]) if r and r[35] is not None else 0)
-        # col 41: 加权平均利率
-        ws.cell(ri, 41, float(r[36]) if r and r[36] is not None else 0)
-        # col 42: 平均利息收支
-        ws.cell(ri, 42, float(r[37]) if r and r[37] is not None else 0)
-        # col 43: 风险权重
-        ws.cell(ri, 43, float(r[38]) if r and r[38] is not None else 0)
+        # col 39: 当前余额 (r[35])
+        ws.cell(ri, 39, float(r[35]) if r and r[35] is not None else 0)
+        # col 40: 平均余额（月） (r[36])
+        ws.cell(ri, 40, float(r[36]) if r and r[36] is not None else 0)
+        # col 41: 加权平均利率 (r[37])
+        ws.cell(ri, 41, float(r[37]) if r and r[37] is not None else 0)
+        # col 42: 平均利息收支 (r[38])
+        ws.cell(ri, 42, float(r[38]) if r and r[38] is not None else 0)
+        # col 43: 风险权重 (r[39])
+        ws.cell(ri, 43, float(r[39]) if r and r[39] is not None else 0)
 
     buf = io.BytesIO()
     wb.save(buf)
