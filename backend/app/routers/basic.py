@@ -559,10 +559,10 @@ async def import_xlsx(
         raise HTTPException(400, "Excel 中找不到 '账户册编码' 表头行")
 
     # 找原始期限列起点（第一个 "1日"）和剩余期限列起点（第二个 "1日"）
-    # ws[row] 返回 generator，索引从 1 开始
     orig_col_start = None
     rem_col_start = None
-    for cidx, v in enumerate(ws[header_row], start=1):
+    for cidx in range(1, 50):
+        v = ws.cell(header_row, cidx).value
         if v and "1日" in str(v):
             if orig_col_start is None:
                 orig_col_start = cidx
