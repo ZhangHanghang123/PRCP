@@ -15,33 +15,18 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from app.database import get_db
 from app.auth import get_current_user
+from app.services.buckets import BUCKETS, KEYS, NAMES, ORIG_COLS, REM_COLS, all_select_sql
 
 router = APIRouter(prefix="/basic", tags=["基础数据表"])
 
-# 13 个期限桶（统一两端：原始 + 剩余）
-BUCKETS = [
-    {"key": "d1",  "name": "1日",  "col": "D1"},
-    {"key": "d7",  "name": "7日",  "col": "D7"},
-    {"key": "m1",  "name": "1M",   "col": "M1"},
-    {"key": "m3",  "name": "3M",   "col": "M3"},
-    {"key": "m6",  "name": "6M",   "col": "M6"},
-    {"key": "y1",  "name": "1Y",   "col": "Y1"},
-    {"key": "y2",  "name": "2Y",   "col": "Y2"},
-    {"key": "y3",  "name": "3Y",   "col": "Y3"},
-    {"key": "y5",  "name": "5Y",   "col": "Y5"},
-    {"key": "y10", "name": "10Y",  "col": "Y10"},
-    {"key": "y15", "name": "15Y",  "col": "Y15"},
-    {"key": "y20", "name": "20Y",  "col": "Y20"},
-    {"key": "y30", "name": "30Y",  "col": "Y30"},
-]
-
 # 数值字段（原值/剩余值 + 余额/利率）
-ORIG_FIELDS = [f"orig_{b['key']}" for b in BUCKETS]
-REM_FIELDS = [f"rem_{b['key']}" for b in BUCKETS]
+ORIG_FIELDS = ORIG_COLS
+REM_FIELDS = REM_COLS
 ALL_NUM_FIELDS = ORIG_FIELDS + REM_FIELDS + [
     "current_balance", "avg_balance", "weighted_rate",
     "interest_amount", "risk_weight",
 ]
+N_BUCKETS = len(BUCKETS)  # 58
 
 
 class BasicIn(BaseModel):
@@ -56,7 +41,7 @@ class BasicIn(BaseModel):
     parent_code: Optional[str] = None
     is_leaf: Optional[int] = 0
     category: Optional[str] = None
-    # 13+13 期限桶
+    # 58+58 期限桶（短端5 + 中端按月48 + 长端5，含 y1）
     orig: Optional[List[float]] = None
     rem: Optional[List[float]] = None
     # 流动性指标
@@ -72,9 +57,16 @@ class BasicIn(BaseModel):
 
 
 def _row_to_dict(r) -> dict:
-    """将 SQL 行转 dict（含 orig[13]/rem[13] 数组）"""
-    orig = [float(r[i] or 0) for i in range(15, 28)]  # orig_d1..orig_y30
-    rem = [float(r[i] or 0) for i in range(28, 41)]   # rem_d1..rem_y30
+    """将 SQL 行转 dict（含 orig[58]/rem[58] 数组）"""
+    # col 0-13 公共字段, col 14 起为 orig_*, rem_*
+    # SELECT 顺序：id, data_date, coa_node_id, node_code, node_name, node_level,
+    # parent_code, is_leaf, category, date_offset, offset_unit,
+    # orig_d1..y30 (13 列), rem_d1..y30 (13 列), 度量
+    # 改用动态列偏移
+    n_b = 58
+    base = 14
+    orig = [float(r[base + i] or 0) for i in range(n_b)]
+    rem = [float(r[base + n_b + i] or 0) for i in range(n_b)]
     return {
         "id": r[0],
         "data_date": r[1].isoformat() if r[1] else None,
@@ -132,10 +124,22 @@ async def list_basic(
 
     select_cols = "b.id, b.data_date, b.coa_node_id, b.node_code, b.node_name, b.node_level, " \
                   "b.parent_code, b.is_leaf, b.category, b.date_offset, b.offset_unit, " \
-                  "b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6, b.orig_y1, b.orig_y2, b.orig_y3, " \
-                  "b.orig_y5, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30, " \
-                  "b.rem_d1, b.rem_d7, b.rem_m1, b.rem_m3, b.rem_m6, b.rem_y1, b.rem_y2, b.rem_y3, " \
-                  "b.rem_y5, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30, " \
+                  "b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6, " \
+                  "b.orig_m13, b.orig_m14, b.orig_m15, b.orig_m16, b.orig_m17, b.orig_m18, b.orig_m19, b.orig_m20, " \
+                  "b.orig_m21, b.orig_m22, b.orig_m23, b.orig_m24, b.orig_m25, b.orig_m26, b.orig_m27, b.orig_m28, " \
+                  "b.orig_m29, b.orig_m30, b.orig_m31, b.orig_m32, b.orig_m33, b.orig_m34, b.orig_m35, b.orig_m36, " \
+                  "b.orig_m37, b.orig_m38, b.orig_m39, b.orig_m40, b.orig_m41, b.orig_m42, b.orig_m43, b.orig_m44, " \
+                  "b.orig_m45, b.orig_m46, b.orig_m47, b.orig_m48, b.orig_m49, b.orig_m50, b.orig_m51, b.orig_m52, " \
+                  "b.orig_m53, b.orig_m54, b.orig_m55, b.orig_m56, b.orig_m57, b.orig_m58, b.orig_m59, b.orig_m60, " \
+                  "b.orig_y1, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30, " \
+                  "b.rem_d1, b.rem_d7, b.rem_m1, b.rem_m3, b.rem_m6, " \
+                  "b.rem_m13, b.rem_m14, b.rem_m15, b.rem_m16, b.rem_m17, b.rem_m18, b.rem_m19, b.rem_m20, " \
+                  "b.rem_m21, b.rem_m22, b.rem_m23, b.rem_m24, b.rem_m25, b.rem_m26, b.rem_m27, b.rem_m28, " \
+                  "b.rem_m29, b.rem_m30, b.rem_m31, b.rem_m32, b.rem_m33, b.rem_m34, b.rem_m35, b.rem_m36, " \
+                  "b.rem_m37, b.rem_m38, b.rem_m39, b.rem_m40, b.rem_m41, b.rem_m42, b.rem_m43, b.rem_m44, " \
+                  "b.rem_m45, b.rem_m46, b.rem_m47, b.rem_m48, b.rem_m49, b.rem_m50, b.rem_m51, b.rem_m52, " \
+                  "b.rem_m53, b.rem_m54, b.rem_m55, b.rem_m56, b.rem_m57, b.rem_m58, b.rem_m59, b.rem_m60, " \
+                  "b.rem_y1, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30, " \
                   "b.asf_rsf, b.hqla_factor, b.current_balance, b.avg_balance, " \
                   "b.weighted_rate, b.interest_amount, b.risk_weight, b.calc_note, b.created_at"
 
@@ -307,10 +311,23 @@ async def by_scheme_matrix(
 
     # 拉基础数据（**JOIN 过滤 scheme_id**，避免取到其他方案的 coa_node_id）
     rows = db.execute(
-        text("""SELECT b.coa_node_id, b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6,
-                      b.orig_y1, b.orig_y2, b.orig_y3, b.orig_y5, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30,
+        text("""SELECT b.coa_node_id,
+                      b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6,
+                      b.orig_m13, b.orig_m14, b.orig_m15, b.orig_m16, b.orig_m17, b.orig_m18, b.orig_m19, b.orig_m20,
+                      b.orig_m21, b.orig_m22, b.orig_m23, b.orig_m24, b.orig_m25, b.orig_m26, b.orig_m27, b.orig_m28,
+                      b.orig_m29, b.orig_m30, b.orig_m31, b.orig_m32, b.orig_m33, b.orig_m34, b.orig_m35, b.orig_m36,
+                      b.orig_m37, b.orig_m38, b.orig_m39, b.orig_m40, b.orig_m41, b.orig_m42, b.orig_m43, b.orig_m44,
+                      b.orig_m45, b.orig_m46, b.orig_m47, b.orig_m48, b.orig_m49, b.orig_m50, b.orig_m51, b.orig_m52,
+                      b.orig_m53, b.orig_m54, b.orig_m55, b.orig_m56, b.orig_m57, b.orig_m58, b.orig_m59, b.orig_m60,
+                      b.orig_y1, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30,
                       b.rem_d1, b.rem_d7, b.rem_m1, b.rem_m3, b.rem_m6,
-                      b.rem_y1, b.rem_y2, b.rem_y3, b.rem_y5, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30,
+                      b.rem_m13, b.rem_m14, b.rem_m15, b.rem_m16, b.rem_m17, b.rem_m18, b.rem_m19, b.rem_m20,
+                      b.rem_m21, b.rem_m22, b.rem_m23, b.rem_m24, b.rem_m25, b.rem_m26, b.rem_m27, b.rem_m28,
+                      b.rem_m29, b.rem_m30, b.rem_m31, b.rem_m32, b.rem_m33, b.rem_m34, b.rem_m35, b.rem_m36,
+                      b.rem_m37, b.rem_m38, b.rem_m39, b.rem_m40, b.rem_m41, b.rem_m42, b.rem_m43, b.rem_m44,
+                      b.rem_m45, b.rem_m46, b.rem_m47, b.rem_m48, b.rem_m49, b.rem_m50, b.rem_m51, b.rem_m52,
+                      b.rem_m53, b.rem_m54, b.rem_m55, b.rem_m56, b.rem_m57, b.rem_m58, b.rem_m59, b.rem_m60,
+                      b.rem_y1, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30,
                       b.asf_rsf, b.hqla_factor,
                       b.current_balance, b.avg_balance, b.weighted_rate, b.interest_amount, b.risk_weight
                FROM prcp_data_basic b
@@ -319,21 +336,24 @@ async def by_scheme_matrix(
         {"s": scheme_id, "d": data_date, "off": date_offset, "u": offset_unit},
     ).fetchall()
 
+    # SELECT 顺序：1=coa_node_id, 2-59=orig(58), 60-117=rem(58), 118=asf_rsf, 119=hqla,
+    #                120=current_balance, 121=avg_balance, 122=weighted_rate, 123=interest_amount, 124=risk_weight
     matrix: dict = {}
+    n_buckets = len(ORIG_FIELDS)  # 58
     for r in rows:
         cid = r[0]
         m = matrix.setdefault(cid, {})
         for i, k in enumerate(ORIG_FIELDS):
-            m[k] = float(r[i + 1] or 0)  # k 已经是 'orig_d1' 这种完整字段名
+            m[k] = float(r[i + 1] or 0)
         for i, k in enumerate(REM_FIELDS):
-            m[k] = float(r[i + 14] or 0)
-        m["asf_rsf"] = r[27] or ""
-        m["hqla_factor"] = float(r[28]) if r[28] is not None else None
-        m["current_balance"] = float(r[29] or 0)
-        m["avg_balance"] = float(r[30] or 0)
-        m["weighted_rate"] = float(r[31] or 0)
-        m["interest_amount"] = float(r[32] or 0)
-        m["risk_weight"] = float(r[33] or 0)
+            m[k] = float(r[i + 1 + n_buckets] or 0)
+        m["asf_rsf"] = r[1 + 2 * n_buckets] or ""
+        m["hqla_factor"] = float(r[2 + 2 * n_buckets]) if r[2 + 2 * n_buckets] is not None else None
+        m["current_balance"] = float(r[3 + 2 * n_buckets] or 0)
+        m["avg_balance"] = float(r[4 + 2 * n_buckets] or 0)
+        m["weighted_rate"] = float(r[5 + 2 * n_buckets] or 0)
+        m["interest_amount"] = float(r[6 + 2 * n_buckets] or 0)
+        m["risk_weight"] = float(r[7 + 2 * n_buckets] or 0)
 
     # 按大类汇总（只汇总数值字段，跳过 asf_rsf 等非数值字段）
     NUMERIC_KEYS = ORIG_FIELDS + REM_FIELDS + [
@@ -414,9 +434,21 @@ async def export_xlsx(
     rows = db.execute(
         text("""SELECT coa_node_id, node_code, node_name, node_level, parent_code, category, is_leaf,
                       orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-                      orig_y1, orig_y2, orig_y3, orig_y5, orig_y10, orig_y15, orig_y20, orig_y30,
+                      orig_m13, orig_m14, orig_m15, orig_m16, orig_m17, orig_m18, orig_m19, orig_m20,
+                      orig_m21, orig_m22, orig_m23, orig_m24, orig_m25, orig_m26, orig_m27, orig_m28,
+                      orig_m29, orig_m30, orig_m31, orig_m32, orig_m33, orig_m34, orig_m35, orig_m36,
+                      orig_m37, orig_m38, orig_m39, orig_m40, orig_m41, orig_m42, orig_m43, orig_m44,
+                      orig_m45, orig_m46, orig_m47, orig_m48, orig_m49, orig_m50, orig_m51, orig_m52,
+                      orig_m53, orig_m54, orig_m55, orig_m56, orig_m57, orig_m58, orig_m59, orig_m60,
+                      orig_y1, orig_y10, orig_y15, orig_y20, orig_y30,
                       rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-                      rem_y1, rem_y2, rem_y3, rem_y5, rem_y10, rem_y15, rem_y20, rem_y30,
+                      rem_m13, rem_m14, rem_m15, rem_m16, rem_m17, rem_m18, rem_m19, rem_m20,
+                      rem_m21, rem_m22, rem_m23, rem_m24, rem_m25, rem_m26, rem_m27, rem_m28,
+                      rem_m29, rem_m30, rem_m31, rem_m32, rem_m33, rem_m34, rem_m35, rem_m36,
+                      rem_m37, rem_m38, rem_m39, rem_m40, rem_m41, rem_m42, rem_m43, rem_m44,
+                      rem_m45, rem_m46, rem_m47, rem_m48, rem_m49, rem_m50, rem_m51, rem_m52,
+                      rem_m53, rem_m54, rem_m55, rem_m56, rem_m57, rem_m58, rem_m59, rem_m60,
+                      rem_y1, rem_y10, rem_y15, rem_y20, rem_y30,
                       asf_rsf, hqla_factor, current_balance, avg_balance,
                       weighted_rate, interest_amount, risk_weight, calc_note
                FROM prcp_data_basic
@@ -442,7 +474,8 @@ async def export_xlsx(
     ws.cell(2, 11, "原始期限(金额)")
     ws.cell(2, 24, "剩余期限（金额）")
 
-    # row 3: 详细列名（按模板 43 列顺序精确匹配）
+    # row 3: 详细列名（动态生成 58 + 58 + 7 = 123 列）
+    n_buckets = len(BUCKETS)
     detail_headers = [
         "ID（数据日期-账户册编码）",                                    # col 1
         "数据日期",                                                     # col 2
@@ -454,16 +487,24 @@ async def export_xlsx(
         "大类（A：资产，L：负债）",                                     # col 8
         "日期偏移量（正整数）",                                         # col 9
         "日期偏移量单位（D：日，W：周，M：月,Y:年）",                   # col 10
-        "1日", "7日", "1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "10Y", "15Y", "20Y", "30Y",   # col 11-23 原始期限
-        "1日", "7日", "1M", "3M", "6M", "1Y", "2Y", "3Y", "5Y", "10Y", "15Y", "20Y", "30Y",   # col 24-36 剩余期限
-        "ASF/RSF（可以放空）",                                         # col 37
-        "HQLA折算系数（可以放空）",                                     # col 38
-        "当前余额",                                                     # col 39
-        "平均余额（月）",                                               # col 40
-        "加权平均利率",                                                 # col 41
-        "平均利息收支",                                                 # col 42
-        "风险权重",                                                     # col 43
     ]
+    # col 11-68: 原始期限（58 列）
+    for b in BUCKETS:
+        detail_headers.append(f"orig_{b['name']}")
+    # col 69-126: 剩余期限（58 列）
+    for b in BUCKETS:
+        detail_headers.append(f"rem_{b['name']}")
+    # col 127-133: 度量
+    detail_headers += [
+        "ASF/RSF（可以放空）",                                         # col 127
+        "HQLA折算系数（可以放空）",                                     # col 128
+        "当前余额",                                                     # col 129
+        "平均余额（月）",                                               # col 130
+        "加权平均利率",                                                 # col 131
+        "平均利息收支",                                                 # col 132
+        "风险权重",                                                     # col 133
+    ]
+    n_cols = len(detail_headers)  # 133
     for col, h in enumerate(detail_headers, start=1):
         ws.cell(3, col, h)
 
@@ -488,7 +529,7 @@ async def export_xlsx(
 
         # === 大类切换时插入空行作为分隔 ===
         if node_level == 1 and prev_l1_code is not None and node_code != prev_l1_code:
-            for col in range(1, 44):
+            for col in range(1, n_cols + 1):
                 cell = ws.cell(ri, col, "")
                 cell.fill = FILL_SEP
             ri += 1
@@ -537,48 +578,53 @@ async def export_xlsx(
         ws.cell(ri, 9, date_offset)              # 日期偏移量
         ws.cell(ri, 10, offset_unit)             # 偏移单位
 
-        # col 11-23: 原始期限（13 列）
-        c = 11
+        # col 11-68: 原始期限（58 列，r[7]..r[64]）
         if r:
-            for i in range(13):
-                ws.cell(ri, c + i, float(r[7 + i] or 0))
-        # col 24-36: 剩余期限（13 列）
-        c = 24
+            for i in range(n_buckets):
+                ws.cell(ri, 11 + i, float(r[7 + i] or 0))
+        # col 69-126: 剩余期限（58 列，r[65]..r[122]）
         if r:
-            for i in range(13):
-                ws.cell(ri, c + i, float(r[20 + i] or 0))
+            for i in range(n_buckets):
+                ws.cell(ri, 11 + n_buckets + i, float(r[7 + n_buckets + i] or 0))
 
-        # col 37: ASF/RSF (rows 中 r[33])
-        ws.cell(ri, 37, r[33] if r and r[33] is not None else "")
-        # col 38: HQLA折算系数 (r[34])
-        if r and r[34] is not None:
-            ws.cell(ri, 38, float(r[34]))
+        # col 127: ASF/RSF (rows 中 r[123])
+        ws.cell(ri, 11 + 2 * n_buckets, r[7 + 2 * n_buckets] if r and r[7 + 2 * n_buckets] is not None else "")
+        # col 128: HQLA折算系数 (r[124])
+        offset_hqla = 7 + 2 * n_buckets + 1
+        if r and r[offset_hqla] is not None:
+            ws.cell(ri, 11 + 2 * n_buckets + 1, float(r[offset_hqla]))
         else:
-            ws.cell(ri, 38, "")
-        # col 39: 当前余额 (r[35])
-        ws.cell(ri, 39, float(r[35]) if r and r[35] is not None else 0)
-        # col 40: 平均余额（月） (r[36])
-        ws.cell(ri, 40, float(r[36]) if r and r[36] is not None else 0)
-        # col 41: 加权平均利率 (r[37])
-        ws.cell(ri, 41, float(r[37]) if r and r[37] is not None else 0)
-        # col 42: 平均利息收支 (r[38])
-        ws.cell(ri, 42, float(r[38]) if r and r[38] is not None else 0)
-        # col 43: 风险权重 (r[39])
-        ws.cell(ri, 43, float(r[39]) if r and r[39] is not None else 0)
+            ws.cell(ri, 11 + 2 * n_buckets + 1, "")
+        # col 129: 当前余额 (r[125])
+        offset_cb = 7 + 2 * n_buckets + 2
+        ws.cell(ri, 11 + 2 * n_buckets + 2, float(r[offset_cb]) if r and r[offset_cb] is not None else 0)
+        # col 130: 平均余额（月） (r[126])
+        offset_ab = 7 + 2 * n_buckets + 3
+        ws.cell(ri, 11 + 2 * n_buckets + 3, float(r[offset_ab]) if r and r[offset_ab] is not None else 0)
+        # col 131: 加权平均利率 (r[127])
+        offset_wr = 7 + 2 * n_buckets + 4
+        ws.cell(ri, 11 + 2 * n_buckets + 4, float(r[offset_wr]) if r and r[offset_wr] is not None else 0)
+        # col 132: 平均利息收支 (r[128])
+        offset_ia = 7 + 2 * n_buckets + 5
+        ws.cell(ri, 11 + 2 * n_buckets + 5, float(r[offset_ia]) if r and r[offset_ia] is not None else 0)
+        # col 133: 风险权重 (r[129])
+        offset_rw = 7 + 2 * n_buckets + 6
+        ws.cell(ri, 11 + 2 * n_buckets + 6, float(r[offset_rw]) if r and r[offset_rw] is not None else 0)
 
         # === 给 L1/L2 行的其他数据单元格也加底色，保持视觉一致 ===
         if node_level == 1:
-            for col in range(1, 44):
+            for col in range(1, n_cols + 1):
                 if not ws.cell(ri, col).fill or ws.cell(ri, col).fill.start_color.rgb in (None, "00000000"):
                     ws.cell(ri, col).fill = FILL_L1
         elif node_level == 2:
-            for col in range(1, 44):
+            for col in range(1, n_cols + 1):
                 if not ws.cell(ri, col).fill or ws.cell(ri, col).fill.start_color.rgb in (None, "00000000"):
                     ws.cell(ri, col).fill = FILL_L2
 
         ri += 1
 
     # === 列宽自适应（让节点名称列更宽） ===
+    from openpyxl.utils import get_column_letter
     ws.column_dimensions["A"].width = 24  # ID
     ws.column_dimensions["B"].width = 12  # 数据日期
     ws.column_dimensions["C"].width = 12  # 账户册编码
@@ -589,17 +635,14 @@ async def export_xlsx(
     ws.column_dimensions["H"].width = 8   # 大类
     ws.column_dimensions["I"].width = 10  # 日期偏移量
     ws.column_dimensions["J"].width = 10  # 偏移单位
-    for col_letter in ["K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W"]:
-        ws.column_dimensions[col_letter].width = 8   # 13 列原始期限
-    for col_letter in ["X", "Y", "Z", "AA", "AB", "AC", "AD", "AE", "AF", "AG", "AH", "AI", "AJ"]:
-        ws.column_dimensions[col_letter].width = 8   # 13 列剩余期限
-    ws.column_dimensions["AK"].width = 10  # ASF/RSF
-    ws.column_dimensions["AL"].width = 10  # HQLA
-    ws.column_dimensions["AM"].width = 12  # 当前余额
-    ws.column_dimensions["AN"].width = 12  # 平均余额
-    ws.column_dimensions["AO"].width = 10  # 加权平均利率
-    ws.column_dimensions["AP"].width = 12  # 平均利息收支
-    ws.column_dimensions["AQ"].width = 10  # 风险权重
+    # 58 列原始期限 + 58 列剩余期限 = 116 列
+    for i in range(n_buckets):
+        ws.column_dimensions[get_column_letter(11 + i)].width = 7
+    for i in range(n_buckets):
+        ws.column_dimensions[get_column_letter(11 + n_buckets + i)].width = 7
+    # 度量列
+    for i in range(7):
+        ws.column_dimensions[get_column_letter(11 + 2 * n_buckets + i)].width = 10
 
     # === 冻结首行 + 节点名称列 ===
     ws.freeze_panes = "E4"
@@ -698,9 +741,10 @@ async def import_xlsx(
     COL_OFFSET = 8              # row[8] = 日期偏移量
     COL_OFFSET_UNIT = 9         # row[9] = 日期偏移量单位
     COL_ORIG_START = 10         # row[10] = 原始期限第一个（1日）
-    COL_REM_START = 23          # row[23] = 剩余期限第一个（1日）
-    COL_ASF_RSF = 36
-    COL_HQLA = 37
+    N_BUCKETS_IMPORT = 58        # 5 + 48 + 5（新结构）
+    COL_REM_START = COL_ORIG_START + N_BUCKETS_IMPORT  # 68 = 剩余期限第一个（1日）
+    COL_ASF_RSF = COL_REM_START + N_BUCKETS_IMPORT  # 126
+    COL_HQLA = COL_ASF_RSF + 1   # 127
     COL_CURRENT_BAL = 38
     COL_AVG_BAL = 39
     COL_WEIGHTED_RATE = 40
@@ -752,15 +796,15 @@ async def import_xlsx(
         row_unit = row[COL_OFFSET_UNIT] if len(row) > COL_OFFSET_UNIT else None
         eff_unit = str(row_unit).strip() if row_unit else offset_unit
 
-        # 原始期限 13 列（row[10..22]）
+        # 原始期限 58 列（row[10..67]）
         orig = []
-        for i in range(13):
+        for i in range(N_BUCKETS_IMPORT):
             v = row[COL_ORIG_START + i] if len(row) > COL_ORIG_START + i else None
             orig.append(float(v) if v not in (None, "") else 0)
 
-        # 剩余期限 13 列（row[23..35]）
+        # 剩余期限 58 列（row[68..125]）
         rem = []
-        for i in range(13):
+        for i in range(N_BUCKETS_IMPORT):
             v = row[COL_REM_START + i] if len(row) > COL_REM_START + i else None
             rem.append(float(v) if v not in (None, "") else 0)
 
