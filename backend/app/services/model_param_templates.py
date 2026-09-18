@@ -4,11 +4,12 @@
 作为初始参数集，用户可在此基础上修改、补充。
 
 分类：
-- DATA_ESG：数据日期 / ESG 参数（含收益率曲线模拟）
-- NEURAL_NETWORK：神经网络参数（编码/隐藏层/激活函数）
-- LOSS_FUNCTION：损失函数参数（目标/违约惩罚/权重）
-- TRAINING：训练参数（轮次/情景/批大小）
-- OPTIMIZER：模型优化参数（优化器/学习率/梯度裁剪）
+- DATA_DATE       数据日期（模型运行/预测基准日）
+- DATA_ESG        数据 / ESG 参数（含收益率曲线模拟）
+- NEURAL_NETWORK  神经网络参数（编码/隐藏层/激活函数）
+- LOSS_FUNCTION   损失函数参数（目标/违约惩罚/权重）
+- TRAINING        训练参数（轮次/情景/批大小）
+- OPTIMIZER       模型优化参数（优化器/学习率/梯度裁剪）
 
 每个参数：
 - code：参数编码（唯一）
@@ -21,21 +22,31 @@
 - desc：说明
 """
 from __future__ import annotations
+from datetime import date
 from typing import List, Dict, Any
 
 
 # 参数分类元信息
 CATEGORIES = [
-    {"code": "DATA_ESG",      "name": "数据日期 / ESG 参数", "icon": "📊", "color": "blue"},
-    {"code": "NEURAL_NETWORK", "name": "神经网络参数",       "icon": "🧠", "color": "purple"},
-    {"code": "LOSS_FUNCTION",  "name": "损失函数参数",       "icon": "🎯", "color": "red"},
-    {"code": "TRAINING",       "name": "训练参数",           "icon": "🏋️", "color": "cyan"},
-    {"code": "OPTIMIZER",      "name": "模型优化参数",       "icon": "⚡", "color": "gold"},
+    {"code": "DATA_DATE",       "name": "数据日期",         "icon": "📅", "color": "geekblue"},
+    {"code": "DATA_ESG",        "name": "数据 / ESG 参数",  "icon": "📊", "color": "blue"},
+    {"code": "NEURAL_NETWORK",  "name": "神经网络参数",     "icon": "🧠", "color": "purple"},
+    {"code": "LOSS_FUNCTION",   "name": "损失函数参数",     "icon": "🎯", "color": "red"},
+    {"code": "TRAINING",        "name": "训练参数",         "icon": "🏋️", "color": "cyan"},
+    {"code": "OPTIMIZER",       "name": "模型优化参数",     "icon": "⚡", "color": "gold"},
 ]
 
 
-# 超参数模板
+# 超参数模板（按 image#1 校验更新 2026-09-18）
 TEMPLATES: Dict[str, List[Dict[str, Any]]] = {
+    "DATA_DATE": [
+        {
+            "code": "DATA_DATE_CURRENT", "name": "当前数据日期",
+            "value": str(date.today()), "unit": None, "type": "BASE",
+            "required": True,
+            "desc": "模型运行/预测的基准数据日期（如 2026-08-31），所有 KPI 抽取/训练/反算均以此日期为准",
+        },
+    ],
     "DATA_ESG": [
         {
             "code": "YIELD_CURVE_MODEL", "name": "收益率曲线模拟",
@@ -59,76 +70,74 @@ TEMPLATES: Dict[str, List[Dict[str, Any]]] = {
             "desc": "HJM-PCA 保留的主成分数量，默认 3 个（可解释 90%+ 方差）",
         },
         {
-            "code": "PCA_HISTORY_WINDOW", "name": "PCA 主成分历史利率时间区间",
-            "value": "5Y", "unit": None, "type": "BASE",
+            "code": "PCA_POLY_DEGREE", "name": "PCA 多项式阶数",
+            "value": 3, "unit": "阶", "type": "BASE",
             "required": True,
-            "options": [
-                {"value": "1Y",  "label": "近 1 年"},
-                {"value": "2Y",  "label": "近 2 年"},
-                {"value": "3Y",  "label": "近 3 年"},
-                {"value": "5Y",  "label": "近 5 年（推荐）"},
-                {"value": "7Y",  "label": "近 7 年"},
-                {"value": "10Y", "label": "近 10 年"},
-                {"value": "15Y", "label": "近 15 年"},
-                {"value": "ALL", "label": "全部历史"},
-            ],
-            "desc": "用于估计主成分的历史利率窗口，越长越稳定但反应越慢",
+            "options": [{"value": i, "label": f"{i} 阶"} for i in range(1, 7)],
+            "desc": "HJM 拟合利率曲线所用的多项式阶数（Degree of polynomials），常用 3 阶",
+        },
+        {
+            "code": "PCA_HISTORY_WINDOW", "name": "PCA 历史利率数据区间",
+            "value": "01.01.2005 - 15.07.2022", "unit": None, "type": "BASE",
+            "required": True,
+            "desc": "用于估计主成分的历史利率窗口（数据源：SNB），例如 01.01.2005 - 15.07.2022",
         },
     ],
     "NEURAL_NETWORK": [
         {
             "code": "NN_ENCODER_LAYERS", "name": "隐藏编码层维度",
-            "value": "[64, 32]", "unit": None, "type": "BASE",
+            "value": 64, "unit": "维", "type": "BASE",
             "required": True,
-            "desc": "编码器隐藏层维度序列，例：[64, 32] 表示 2 层，维度依次 64→32",
+            "options": [{"value": v, "label": f"{v}"} for v in [16, 32, 64, 128, 256, 512]],
+            "desc": "编码器隐藏层维度（单值），如 64",
         },
         {
             "code": "NN_LATENT_DIM", "name": "编码维度",
-            "value": 16, "unit": "维", "type": "BASE",
+            "value": 32, "unit": "维", "type": "BASE",
             "required": True,
             "options": [{"value": i, "label": f"{i} 维"} for i in [4, 8, 16, 32, 64, 128]],
             "desc": "潜在空间维度，决定编码压缩率",
         },
         {
-            "code": "NN_HIDDEN_DIMS", "name": "隐藏层维度",
-            "value": "[128, 64, 32]", "unit": None, "type": "BASE",
+            "code": "NN_HIDDEN_DIMS", "name": "隐藏层维度序列",
+            "value": "[512, 512, 256, 128]", "unit": None, "type": "BASE",
             "required": True,
-            "desc": "下游网络隐藏层维度序列，例：[128, 64, 32] 表示 3 层，维度依次 128→64→32",
+            "desc": "下游网络隐藏层维度序列，例：[512, 512, 256, 128] 表示 4 层，维度依次 512→512→256→128",
         },
         {
             "code": "NN_ACTIVATION", "name": "激活函数",
-            "value": "RELU", "unit": None, "type": "BASE",
+            "value": "ELU", "unit": None, "type": "BASE",
             "required": True,
             "options": [
-                {"value": "RELU",    "label": "ReLU（推荐）"},
+                {"value": "RELU",       "label": "ReLU"},
                 {"value": "LEAKY_RELU", "label": "Leaky ReLU"},
-                {"value": "GELU",    "label": "GELU"},
-                {"value": "TANH",    "label": "Tanh"},
-                {"value": "SIGMOID", "label": "Sigmoid"},
-                {"value": "ELU",     "label": "ELU"},
-                {"value": "SWISH",   "label": "Swish"},
+                {"value": "GELU",       "label": "GELU"},
+                {"value": "TANH",       "label": "Tanh"},
+                {"value": "SIGMOID",    "label": "Sigmoid"},
+                {"value": "ELU",        "label": "ELU（推荐）"},
+                {"value": "SWISH",      "label": "Swish"},
             ],
             "desc": "神经网络隐藏层激活函数",
         },
     ],
     "LOSS_FUNCTION": [
         {
-            "code": "LOSS_MU", "name": "目标参数 µ（均值目标）",
-            "value": 0.0, "unit": None, "type": "BASE",
+            "code": "LOSS_MU", "name": "目标参数 [μ^d, μ^nd]",
+            "value": "[2%, 7%], ~ 4%", "unit": None, "type": "BASE",
             "required": True,
-            "desc": "目标分布均值，用于将预测值往目标值上推/拉",
+            "desc": "目标分布均值 [μ^d / μ^nd]，约 4%（含默认值与上下限）",
         },
         {
-            "code": "LOSS_SIGMA", "name": "违约惩罚系数 σ",
-            "value": 1.5, "unit": None, "type": "STRESS",
+            "code": "LOSS_SIGMA", "name": "惩罚系数 σ_i（LCR/NSFR/CMR/E/RWA/IRS/EYR）",
+            "value": "[1.0, 0.2, 1.0, 2.5, 2.0, 0.002]", "unit": None, "type": "BASE",
             "required": True,
-            "desc": "违约/尾部事件的标准差系数，越大越惩罚",
+            "desc": "各子指标违约惩罚系数 σ_i 序列，依次为 LCR / NSFR / CMR / E/RWA / IRS / EYR",
         },
         {
-            "code": "LOSS_LAMBDA", "name": "惩罚权重 λ",
-            "value": 0.1, "unit": None, "type": "BASE",
+            "code": "LOSS_LAMBDA", "name": "惩罚权重 [λ^d, λ^nd], λ^en",
+            "value": "[0.05, 25.0], 3.5", "unit": None, "type": "BASE",
             "required": True,
-            "desc": "正则化/约束项的权重系数",
+            "desc": "正则化/约束项的权重系数 [λ^d / λ^nd] 与 λ^en（增强项）",
         },
     ],
     "TRAINING": [
@@ -140,18 +149,17 @@ TEMPLATES: Dict[str, List[Dict[str, Any]]] = {
             "desc": "模型完整遍历训练集的次数",
         },
         {
-            "code": "TRAIN_SCENARIO", "name": "训练情景 Scenario",
-            "value": "BASE", "unit": None, "type": "BASE",
+            "code": "TRAIN_SCENARIO", "name": "训练情景数 Scenarios",
+            "value": 40000, "unit": "个", "type": "BASE",
             "required": True,
             "options": [
-                {"value": "BASE",     "label": "基准情景"},
-                {"value": "OPTIMISTIC", "label": "乐观情景"},
-                {"value": "PESSIMISTIC", "label": "悲观情景"},
-                {"value": "STRESS_LIGHT", "label": "轻度压力"},
-                {"value": "STRESS_HEAVY", "label": "重度压力"},
-                {"value": "REVERSE",   "label": "反算情景"},
+                {"value": 1000,  "label": "1,000 个（轻量）"},
+                {"value": 5000,  "label": "5,000 个"},
+                {"value": 10000, "label": "10,000 个"},
+                {"value": 40000, "label": "40,000 个（推荐）"},
+                {"value": 100000, "label": "100,000 个（精细）"},
             ],
-            "desc": "选择训练使用的情景方案",
+            "desc": "蒙特卡洛/情景生成的数量（Training scenarios 40,000）",
         },
         {
             "code": "TRAIN_BATCH_SIZE", "name": "批大小 Batch Size",
@@ -164,13 +172,14 @@ TEMPLATES: Dict[str, List[Dict[str, Any]]] = {
     "OPTIMIZER": [
         {
             "code": "OPTIM_TYPE", "name": "优化器",
-            "value": "ADAM", "unit": None, "type": "BASE",
+            "value": "RAdam", "unit": None, "type": "BASE",
             "required": True,
             "options": [
                 {"value": "SGD",       "label": "SGD 随机梯度下降"},
                 {"value": "MOMENTUM",  "label": "SGD + Momentum"},
-                {"value": "ADAM",      "label": "Adam（推荐）"},
+                {"value": "ADAM",      "label": "Adam"},
                 {"value": "ADAMW",     "label": "AdamW（带权重衰减）"},
+                {"value": "RADAM",     "label": "RAdam（推荐，Rectified Adam）"},
                 {"value": "RMSPROP",   "label": "RMSProp"},
                 {"value": "ADAGRAD",   "label": "AdaGrad"},
                 {"value": "LAMB",      "label": "LAMB（大 batch）"},
@@ -179,25 +188,19 @@ TEMPLATES: Dict[str, List[Dict[str, Any]]] = {
         },
         {
             "code": "OPTIM_LEARNING_RATE", "name": "学习率",
-            "value": 0.001, "unit": None, "type": "BASE",
+            "value": "cyclic scheduler on [5e-4, 5e-3]", "unit": None, "type": "BASE",
             "required": True,
-            "options": [
-                {"value": 0.1,   "label": "0.1"},
-                {"value": 0.01,  "label": "0.01"},
-                {"value": 0.001, "label": "0.001（推荐）"},
-                {"value": 0.0001, "label": "0.0001"},
-                {"value": 0.00001, "label": "0.00001"},
-            ],
-            "desc": "学习率（learning rate），Adam 默认 0.001",
+            "desc": "学习率调度方式：固定值（如 0.001）或 cyclic scheduler on [下界, 上界] 区间循环",
         },
         {
             "code": "OPTIM_GRAD_CLIP", "name": "梯度裁剪值",
-            "value": 1.0, "unit": None, "type": "BASE",
+            "value": 0.2, "unit": None, "type": "BASE",
             "required": True,
             "options": [
                 {"value": 0.1, "label": "0.1（严格）"},
+                {"value": 0.2, "label": "0.2（推荐）"},
                 {"value": 0.5, "label": "0.5"},
-                {"value": 1.0, "label": "1.0（推荐）"},
+                {"value": 1.0, "label": "1.0"},
                 {"value": 5.0, "label": "5.0"},
                 {"value": 0,   "label": "不裁剪"},
             ],

@@ -447,12 +447,13 @@ const ModelManage: React.FC = () => {
   ]
 
   const CATEGORY_LABELS: Record<string, { name: string; icon: string; color: string }> = {
-  DATA_ESG:       { name: '数据/ESG', icon: '📊', color: 'blue' },
-  NEURAL_NETWORK: { name: '神经网络', icon: '🧠', color: 'purple' },
-  LOSS_FUNCTION:  { name: '损失函数', icon: '🎯', color: 'red' },
-  TRAINING:       { name: '训练',     icon: '🏋️', color: 'cyan' },
-  OPTIMIZER:      { name: '优化器',   icon: '⚡', color: 'gold' },
-  KPI_DRIVEN:     { name: 'KPI 驱动', icon: '📈', color: 'geekblue' },
+  DATA_DATE:      { name: '数据日期',  icon: '📅', color: 'geekblue' },
+  DATA_ESG:       { name: '数据/ESG',  icon: '📊', color: 'blue' },
+  NEURAL_NETWORK: { name: '神经网络',  icon: '🧠', color: 'purple' },
+  LOSS_FUNCTION:  { name: '损失函数',  icon: '🎯', color: 'red' },
+  TRAINING:       { name: '训练',      icon: '🏋️', color: 'cyan' },
+  OPTIMIZER:      { name: '优化器',    icon: '⚡', color: 'gold' },
+  KPI_DRIVEN:     { name: 'KPI 驱动',  icon: '📈', color: 'default' },
 }
 
 const paramColumns = [

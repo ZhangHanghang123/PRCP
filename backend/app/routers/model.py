@@ -434,7 +434,7 @@ async def list_params(
                 WHERE {' AND '.join(where)}
                 ORDER BY p.version_id,
                          FIELD(p.param_category,
-                               'DATA_ESG','NEURAL_NETWORK','LOSS_FUNCTION','TRAINING','OPTIMIZER','KPI_DRIVEN'),
+                               'DATA_DATE','DATA_ESG','NEURAL_NETWORK','LOSS_FUNCTION','TRAINING','OPTIMIZER','KPI_DRIVEN'),
                          p.sort_order, p.id"""),
         params,
     ).fetchall()
