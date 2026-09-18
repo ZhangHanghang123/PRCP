@@ -58,13 +58,11 @@ class BasicIn(BaseModel):
 
 def _row_to_dict(r) -> dict:
     """将 SQL 行转 dict（含 orig[17]/rem[17] 数组）"""
-    # col 0-13 公共字段, col 14 起为 orig_*, rem_*
-    # SELECT 顺序：id, data_date, coa_node_id, node_code, node_name, node_level,
-    # parent_code, is_leaf, category, date_offset, offset_unit,
-    # orig_m1..y30 (17 列), rem_m1..y30 (17 列), 度量
-    # 改用动态列偏移
+    # 公共字段共 11 列：id, data_date, coa_node_id, node_code, node_name, node_level,
+    # parent_code, is_leaf, category, date_offset, offset_unit
+    # col 11 起为 orig_*, col 28 起为 rem_*, col 45 起为度量
     n_b = len(ORIG_FIELDS)  # 17（v2 后）
-    base = 14
+    base = 11
     orig = [float(r[base + i] or 0) for i in range(n_b)]
     rem = [float(r[base + n_b + i] or 0) for i in range(n_b)]
     return {
@@ -306,10 +304,9 @@ async def by_scheme_matrix(
         {"s": scheme_id, "d": data_date, "off": date_offset, "u": offset_unit},
     ).fetchall()
 
-    # SELECT 顺序：1=coa_node_id, 2-59=orig(58), 60-117=rem(58), 118=asf_rsf, 119=hqla,
-    #                120=current_balance, 121=avg_balance, 122=weighted_rate, 123=interest_amount, 124=risk_weight
+    # SELECT 顺序：1=coa_node_id, 2-18=orig(17), 19-35=rem(17), 36+=asf_rsf, hqla, 度量
     matrix: dict = {}
-    n_buckets = len(ORIG_FIELDS)  # 58
+    n_buckets = len(ORIG_FIELDS)  # 17（v2 后）
     for r in rows:
         cid = r[0]
         m = matrix.setdefault(cid, {})
