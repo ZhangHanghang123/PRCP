@@ -26,6 +26,7 @@ class SchemeIn(BaseModel):
     data_date: str
     horizon_months: int = 24
     algorithm: str = "CVXPY_QP"
+    model_id: Optional[int] = None     # 关联的计量模型 prcp_model.id（可空）
     description: Optional[str] = None
     status: str = "DRAFT"
 
@@ -69,12 +70,15 @@ async def list_schemes(
     rows = db.execute(
         text(f"""SELECT s.id, s.scheme_code, s.scheme_name, s.scheme_type,
                        s.coa_scheme_id, s.data_date, s.horizon_months, s.algorithm,
+                       s.model_id,
                        s.description, s.status, s.created_at, s.updated_at,
                        cs.scheme_code AS coa_code, cs.scheme_name AS coa_name,
+                       m.model_code AS model_code, m.model_name AS model_name, m.model_type AS model_type,
                        (SELECT COUNT(*) FROM prcp_reverse_target t WHERE t.scheme_id=s.id AND t.is_deleted=0) AS target_count,
                        (SELECT COUNT(*) FROM prcp_reverse_run r WHERE r.scheme_id=s.id AND r.is_deleted=0) AS run_count
                 FROM prcp_reverse_scheme s
                 LEFT JOIN prcp_coa_scheme cs ON cs.id=s.coa_scheme_id
+                LEFT JOIN prcp_model m ON m.id=s.model_id AND m.is_deleted=0
                 WHERE {' AND '.join(where)}
                 ORDER BY s.id DESC"""),
         params,
@@ -85,11 +89,13 @@ async def list_schemes(
                 "id": r[0], "scheme_code": r[1], "scheme_name": r[2], "scheme_type": r[3],
                 "coa_scheme_id": r[4], "data_date": r[5].isoformat() if r[5] else None,
                 "horizon_months": r[6], "algorithm": r[7],
-                "description": r[8], "status": r[9],
-                "coa_code": r[11], "coa_name": r[12],
-                "target_count": r[13], "run_count": r[14],
-                "created_at": r[10].isoformat() if r[10] else None,
-                "updated_at": r[10+1].isoformat() if r[10+1] else None,
+                "model_id": r[8],
+                "description": r[9], "status": r[10],
+                "coa_code": r[13], "coa_name": r[14],
+                "model_code": r[15], "model_name": r[16], "model_type": r[17],
+                "target_count": r[18], "run_count": r[19],
+                "created_at": r[11].isoformat() if r[11] else None,
+                "updated_at": r[12].isoformat() if r[12] else None,
             } for r in rows
         ]
     }
@@ -98,38 +104,76 @@ async def list_schemes(
 @router.post("/schemes")
 async def create_scheme(p: SchemeIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    # 校验 model_id 存在（若提供）
+    if p.model_id is not None:
+        m = db.execute(
+            text("SELECT id FROM prcp_model WHERE id=:id AND is_deleted=0"),
+            {"id": p.model_id},
+        ).first()
+        if not m:
+            raise HTTPException(400, "关联的计量模型不存在")
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_reverse_scheme
                 (scheme_code, scheme_name, scheme_type, coa_scheme_id, data_date,
-                 horizon_months, algorithm, description, status, created_by, updated_by)
-                VALUES (:c, :n, :st, :coa, :d, :h, :algo, :desc, :s, :u, :u)"""),
+                 horizon_months, algorithm, model_id, description, status, created_by, updated_by)
+                VALUES (:c, :n, :st, :coa, :d, :h, :algo, :mid, :desc, :s, :u, :u)"""),
             {"c": p.scheme_code, "n": p.scheme_name, "st": p.scheme_type,
              "coa": p.coa_scheme_id, "d": p.data_date, "h": p.horizon_months,
-             "algo": p.algorithm, "desc": p.description, "s": p.status, "u": uid},
+             "algo": p.algorithm, "mid": p.model_id,
+             "desc": p.description, "s": p.status, "u": uid},
         ).lastrowid
     except Exception as e:
         raise HTTPException(400, f"创建失败：{e}")
-    return {"id": rid, "scheme_code": p.scheme_code}
+    return {"id": rid, "scheme_code": p.scheme_code, "model_id": p.model_id}
 
 
 @router.put("/schemes/{sid}")
 async def update_scheme(sid: int, p: SchemeIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    if p.model_id is not None:
+        m = db.execute(
+            text("SELECT id FROM prcp_model WHERE id=:id AND is_deleted=0"),
+            {"id": p.model_id},
+        ).first()
+        if not m:
+            raise HTTPException(400, "关联的计量模型不存在")
     r = db.execute(
         text("""UPDATE prcp_reverse_scheme SET
             scheme_code=:c, scheme_name=:n, scheme_type=:st, coa_scheme_id=:coa,
-            data_date=:d, horizon_months=:h, algorithm=:algo,
+            data_date=:d, horizon_months=:h, algorithm=:algo, model_id=:mid,
             description=:desc, status=:s, updated_by=:u
             WHERE id=:id AND is_deleted=0"""),
         {"c": p.scheme_code, "n": p.scheme_name, "st": p.scheme_type,
          "coa": p.coa_scheme_id, "d": p.data_date, "h": p.horizon_months,
-         "algo": p.algorithm, "desc": p.description, "s": p.status,
+         "algo": p.algorithm, "mid": p.model_id,
+         "desc": p.description, "s": p.status,
          "u": uid, "id": sid},
     )
     if r.rowcount == 0:
         raise HTTPException(404, "方案不存在")
     return {"ok": True}
+
+
+# ============== 计量模型下拉选项 ==============
+@router.get("/model-options")
+async def model_options(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """给反算方案下拉用：列出所有 ACTIVE 模型"""
+    rows = db.execute(
+        text("""SELECT id, model_code, model_name, model_type, biz_domain, status
+                FROM prcp_model
+                WHERE is_deleted=0 AND status='ACTIVE'
+                ORDER BY id DESC LIMIT 500"""),
+    ).fetchall()
+    return {
+        "items": [
+            {
+                "id": r[0], "model_code": r[1], "model_name": r[2],
+                "model_type": r[3], "biz_domain": r[4], "status": r[5],
+            }
+            for r in rows
+        ]
+    }
 
 
 @router.delete("/schemes/{sid}")

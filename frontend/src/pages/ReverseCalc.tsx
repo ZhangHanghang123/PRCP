@@ -35,6 +35,7 @@ const ReverseCalc: React.FC = () => {
   const [targets, setTargets] = useState<any[]>([])
   const [runs, setRuns] = useState<any[]>([])
   const [kpiOpts, setKpiOpts] = useState<any[]>([])
+  const [modelOpts, setModelOpts] = useState<any[]>([])
 
   const [activeSchemeId, setActiveSchemeId] = useState<number | null>(null)
   const [activeRunId, setActiveRunId] = useState<number | null>(null)
@@ -79,10 +80,15 @@ const ReverseCalc: React.FC = () => {
     const r = await reverseApi.kpiOptions()
     setKpiOpts(r.items || [])
   }
+  const loadModelOpts = async () => {
+    const r = await reverseApi.modelOptions()
+    setModelOpts(r.items || [])
+  }
 
   useEffect(() => {
     loadSchemes()
     loadKpiOpts()
+    loadModelOpts()
     loadRuns()
   }, [])
 
@@ -134,19 +140,29 @@ const ReverseCalc: React.FC = () => {
     schemeForm.setFieldsValue({
       scheme_type: 'OPTIMIZE', algorithm: 'CVXPY_QP', coa_scheme_id: 6,
       data_date: '2025-12-31', horizon_months: 24, status: 'DRAFT',
+      model_id: undefined,
     })
+    loadModelOpts()
     setSchemeModal(true)
   }
   const onEditScheme = (s: any) => {
     setEditingScheme(s)
-    schemeForm.setFieldsValue({ ...s, data_date: s.data_date?.substring(0, 10) })
+    schemeForm.setFieldsValue({
+      ...s, data_date: s.data_date?.substring(0, 10),
+      model_id: s.model_id ?? undefined,
+    })
+    loadModelOpts()
     setSchemeModal(true)
   }
   const onSaveScheme = async () => {
     const v = await schemeForm.validateFields()
+    const payload = {
+      ...v,
+      model_id: v.model_id === '' || v.model_id === undefined ? null : v.model_id,
+    }
     try {
-      if (editingScheme) await reverseApi.updateScheme(editingScheme.id, v)
-      else await reverseApi.createScheme(v)
+      if (editingScheme) await reverseApi.updateScheme(editingScheme.id, payload)
+      else await reverseApi.createScheme(payload)
       message.success('已保存')
       setSchemeModal(false)
       loadSchemes()
@@ -251,6 +267,10 @@ const ReverseCalc: React.FC = () => {
     { title: '方案名称', dataIndex: 'scheme_name', key: 'sn' },
     { title: '算法', dataIndex: 'algorithm', key: 'algo', width: 110,
       render: (v: string) => <Tag color="purple">{ALGO_LABELS[v] || v}</Tag> },
+    { title: '计量模型', key: 'model', width: 200,
+      render: (_: any, r: any) => r.model_id
+        ? <Tag color="geekblue" icon={<ExperimentOutlined />}>{r.model_code} · {r.model_name}</Tag>
+        : <span style={{ color: '#bbb' }}>未关联</span> },
     { title: '账户册', key: 'coa', width: 140,
       render: (_: any, r: any) => r.coa_code ? <Tag color="cyan">{r.coa_code}</Tag> : '-' },
     { title: '数据日期', dataIndex: 'data_date', key: 'dd', width: 110 },
@@ -514,6 +534,16 @@ const ReverseCalc: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item label="计量模型（关联模型管理）" name="model_id"
+            extra="绑定后，反算引擎可读取该模型下的超参数作为求解约束">
+            <Select
+              allowClear showSearch optionFilterProp="label" placeholder="选择计量模型（可空）"
+              options={modelOpts.map((m: any) => ({
+                value: m.id,
+                label: `${m.model_code} · ${m.model_name}（${m.model_type || ''}）`,
+              }))}
+            />
+          </Form.Item>
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="预测期数" name="horizon_months">

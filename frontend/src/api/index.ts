@@ -241,6 +241,8 @@ export const reverseApi = {
   createScheme: (data: any) => http.post('/reverse/schemes', data).then((r) => r.data),
   updateScheme: (id: number, data: any) => http.put(`/reverse/schemes/${id}`, data).then((r) => r.data),
   deleteScheme: (id: number) => http.delete(`/reverse/schemes/${id}`).then((r) => r.data),
+  // 计量模型下拉
+  modelOptions: () => http.get('/reverse/model-options').then((r) => r.data),
   // 目标
   listTargets: (params: any = {}) => http.get('/reverse/targets', { params }).then((r) => r.data),
   createTarget: (data: any) => http.post('/reverse/targets', data).then((r) => r.data),
