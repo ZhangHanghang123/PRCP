@@ -502,28 +502,57 @@ async def create_param(p: ParamIn, db: Session = Depends(get_db), user=Depends(g
         if not k:
             raise HTTPException(404, "KPI 不存在")
         kpi_code_resolved = kpi_code_resolved or k[0]
-    try:
-        rid = db.execute(
-            text("""INSERT INTO prcp_model_param
-                (version_id, kpi_id, kpi_code, param_code, param_name, param_type, param_category,
-                 param_value, param_value_str, unit, formula, formula_desc, sort_order, description, created_by, updated_by)
-                VALUES (:vid, :kid, :kc, :pc, :pn, :pt, :pcat,
-                 :pv, :pvs, :u2, :f, :fd, :so, :d, :u, :u)"""),
-            {"vid": p.version_id, "kid": p.kpi_id, "kc": kpi_code_resolved,
-             "pc": p.param_code, "pn": p.param_name, "pt": p.param_type, "pcat": p.param_category,
-             "pv": p.param_value, "pvs": p.param_value_str, "u2": p.unit,
-             "f": p.formula, "fd": p.formula_desc,
-             "so": p.sort_order, "d": p.description, "u": uid},
-        ).lastrowid
-        # 更新版本的 param_count
+    # 检查同名 param_code：active 行 → 409；软删除行 → 复活
+    ex_active = db.execute(
+        text("SELECT id FROM prcp_model_param WHERE version_id=:v AND param_code=:c AND is_deleted=0"),
+        {"v": p.version_id, "c": p.param_code},
+    ).first()
+    if ex_active:
+        raise HTTPException(409, f"该版本下已存在参数 {p.param_code}")
+    ex_deleted = db.execute(
+        text("SELECT id FROM prcp_model_param WHERE version_id=:v AND param_code=:c AND is_deleted=1"),
+        {"v": p.version_id, "c": p.param_code},
+    ).first()
+    if ex_deleted:
+        # 复活
         db.execute(
-            text("""UPDATE prcp_model_version SET param_count=(
-                SELECT COUNT(*) FROM prcp_model_param WHERE version_id=:vid AND is_deleted=0
-            ) WHERE id=:vid"""),
-            {"vid": p.version_id},
+            text("""UPDATE prcp_model_param SET
+                is_deleted=0, kpi_id=:kid, kpi_code=:kc, param_name=:pn,
+                param_type=:pt, param_category=:pcat,
+                param_value=:pv, param_value_str=:pvs, unit=:u2,
+                formula=:f, formula_desc=:fd, sort_order=:so, description=:d,
+                created_by=:u, updated_by=:u, created_at=NOW(), updated_at=NOW()
+                WHERE id=:id"""),
+            {"kid": p.kpi_id, "kc": kpi_code_resolved, "pn": p.param_name,
+             "pt": p.param_type, "pcat": p.param_category,
+             "pv": p.param_value, "pvs": p.param_value_str, "u2": p.unit,
+             "f": p.formula, "fd": p.formula_desc, "so": p.sort_order,
+             "d": p.description, "u": uid, "id": ex_deleted[0]},
         )
-    except Exception as e:
-        raise HTTPException(400, f"创建失败：{e}")
+        rid = ex_deleted[0]
+    else:
+        try:
+            rid = db.execute(
+                text("""INSERT INTO prcp_model_param
+                    (version_id, kpi_id, kpi_code, param_code, param_name, param_type, param_category,
+                     param_value, param_value_str, unit, formula, formula_desc, sort_order, description, created_by, updated_by)
+                    VALUES (:vid, :kid, :kc, :pc, :pn, :pt, :pcat,
+                     :pv, :pvs, :u2, :f, :fd, :so, :d, :u, :u)"""),
+                {"vid": p.version_id, "kid": p.kpi_id, "kc": kpi_code_resolved,
+                 "pc": p.param_code, "pn": p.param_name, "pt": p.param_type, "pcat": p.param_category,
+                 "pv": p.param_value, "pvs": p.param_value_str, "u2": p.unit,
+                 "f": p.formula, "fd": p.formula_desc,
+                 "so": p.sort_order, "d": p.description, "u": uid},
+            ).lastrowid
+        except Exception as e:
+            raise HTTPException(400, f"创建失败：{e}")
+    # 更新版本的 param_count
+    db.execute(
+        text("""UPDATE prcp_model_version SET param_count=(
+            SELECT COUNT(*) FROM prcp_model_param WHERE version_id=:vid AND is_deleted=0
+        ) WHERE id=:vid"""),
+        {"vid": p.version_id},
+    )
     return {"id": rid, "param_code": p.param_code, "param_category": p.param_category}
 
 
@@ -633,14 +662,19 @@ async def apply_param_template(vid: int, payload: dict,
                 pvs, pv = None, float(raw_value)
             else:
                 pvs, pv = str(raw_value), 0.0
-            # 已有同名 param_code 处理
-            ex = db.execute(
+            # 查同名 param_code（含软删除行）
+            ex_active = db.execute(
                 text("SELECT id FROM prcp_model_param WHERE version_id=:v AND param_code=:c AND is_deleted=0"),
                 {"v": vid, "c": t["code"]},
             ).first()
-            if ex and not overwrite:
+            ex_deleted = db.execute(
+                text("SELECT id FROM prcp_model_param WHERE version_id=:v AND param_code=:c AND is_deleted=1"),
+                {"v": vid, "c": t["code"]},
+            ).first()
+            # 已有 active 行：跳过或更新
+            if ex_active and not overwrite:
                 continue
-            if ex:
+            if ex_active:
                 db.execute(
                     text("""UPDATE prcp_model_param SET
                         param_name=:pn, param_type=:pt, param_category=:cat,
@@ -648,7 +682,20 @@ async def apply_param_template(vid: int, payload: dict,
                         WHERE id=:id"""),
                     {"pn": t["name"], "pt": t.get("type", "BASE"), "cat": cat,
                      "pv": pv, "pvs": pvs, "u": t.get("unit"), "d": t.get("desc", ""),
-                     "u2": uid, "id": ex[0]},
+                     "u2": uid, "id": ex_active[0]},
+                )
+                updated += 1
+            elif ex_deleted:
+                # 复活同名软删除行
+                db.execute(
+                    text("""UPDATE prcp_model_param SET
+                        is_deleted=0, param_name=:pn, param_type=:pt, param_category=:cat,
+                        param_value=:pv, param_value_str=:pvs, unit=:u, description=:d,
+                        updated_by=:u2, created_by=:u2, updated_at=NOW(), created_at=NOW()
+                        WHERE id=:id"""),
+                    {"pn": t["name"], "pt": t.get("type", "BASE"), "cat": cat,
+                     "pv": pv, "pvs": pvs, "u": t.get("unit"), "d": t.get("desc", ""),
+                     "u2": uid, "id": ex_deleted[0]},
                 )
                 updated += 1
             else:
