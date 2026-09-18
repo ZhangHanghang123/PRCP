@@ -121,9 +121,27 @@ const ModelManage: React.FC = () => {
   }
 
   const onOpenTemplateModal = async () => {
-    if (!activeVersionId) {
-      message.warning('请先在版本列表中选择一个版本')
+    if (!activeModelId) {
+      message.warning('请先选择一个模型（左侧版本列表上方）')
       return
+    }
+    // 若没选中版本，自动创建一个 V1_BASELINE
+    if (!activeVersionId) {
+      try {
+        const r = await modelApi.createVersion({
+          model_id: activeModelId,
+          version_code: 'V1_BASELINE',
+          version_name: '基准情景',
+          description: '通过应用超参数模板自动创建',
+          status: 'DRAFT',
+        })
+        message.success(`已自动创建版本 V1_BASELINE（id=${r.id}）`)
+        await loadVersions(activeModelId)
+        setActiveVersionId(r.id)
+      } catch (e: any) {
+        message.error('自动创建版本失败：' + (e?.response?.data?.detail || '请前往「参数版本维护」Tab 手动新建'))
+        return
+      }
     }
     if (!paramTemplates) await loadParamTemplates()
     setSelectedCats((paramTemplates?.templates || []).map((t: any) => t.category))
@@ -645,9 +663,17 @@ const paramColumns = [
                 extra={
                   <Space>
                     <Button icon={<ReloadOutlined />} onClick={() => loadParams(activeVersionId)}>刷新</Button>
-                    <Button icon={<ThunderboltOutlined />} onClick={onOpenTemplateModal} disabled={!activeVersionId}>
-                      ⚡ 应用超参数模板
-                    </Button>
+                    <Tooltip
+                      title={!activeModelId
+                        ? '请先在「参数版本维护」Tab 选择一个模型'
+                        : !activeVersionId
+                          ? '点击后将自动创建 V1_BASELINE 版本并应用模板'
+                          : '将超参数模板注入当前选中的版本'}
+                    >
+                      <Button icon={<ThunderboltOutlined />} onClick={onOpenTemplateModal} disabled={!activeModelId}>
+                        ⚡ 应用超参数模板
+                      </Button>
+                    </Tooltip>
                     <Button type="primary" icon={<PlusOutlined />} onClick={onCreateParam} disabled={!activeVersionId}>
                       新增参数
                     </Button>
