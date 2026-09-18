@@ -217,6 +217,10 @@ export const modelApi = {
   kpiOptions: () => http.get('/model/kpi-options').then((r) => r.data),
   // 指标方案下拉选项
   schemeOptions: () => http.get('/model/scheme-options').then((r) => r.data),
+  // 超参数模板
+  listParamTemplates: () => http.get('/model/param-templates').then((r) => r.data),
+  applyParamTemplate: (versionId: number, payload: any) =>
+    http.post(`/model/versions/${versionId}/apply-template`, payload).then((r) => r.data),
   // 训练
   listTrains: (params: any = {}) => http.get('/model/trains', { params }).then((r) => r.data),
   createTrain: (data: any) => http.post('/model/trains', data).then((r) => r.data),

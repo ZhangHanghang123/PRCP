@@ -12,6 +12,9 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.auth import get_current_user
 from app.services.model_train_engine import run_train
+from app.services.model_param_templates import (
+    get_all_categories, get_templates_by_category, get_all_flat, get_summary,
+)
 
 router = APIRouter(prefix="/model", tags=["模型管理"])
 
@@ -39,11 +42,12 @@ class VersionIn(BaseModel):
 
 class ParamIn(BaseModel):
     version_id: int
-    kpi_id: int
+    kpi_id: Optional[int] = None     # 支持无 KPI 关联的纯算法超参数
     kpi_code: Optional[str] = None
     param_code: str
     param_name: str
     param_type: str = "BASE"
+    param_category: Optional[str] = None   # DATA_ESG / NEURAL_NETWORK / LOSS_FUNCTION / TRAINING / OPTIMIZER / KPI_DRIVEN
     param_value: float
     unit: Optional[str] = None
     formula: Optional[str] = None
@@ -420,26 +424,31 @@ async def list_params(
         params["vid"] = version_id
     rows = db.execute(
         text(f"""SELECT p.id, p.version_id, p.kpi_id, p.kpi_code, p.param_code, p.param_name,
-                       p.param_type, p.param_value, p.unit, p.formula, p.formula_desc,
+                       p.param_type, p.param_category, p.param_value, p.unit,
+                       p.formula, p.formula_desc,
                        p.sort_order, p.description, p.created_at, p.updated_at,
                        k.kpi_name AS ref_kpi_name, k.formula AS ref_formula
                 FROM prcp_model_param p
                 LEFT JOIN prcp_kpi_definition k ON k.id=p.kpi_id AND k.is_deleted=0
                 WHERE {' AND '.join(where)}
-                ORDER BY p.version_id, p.sort_order, p.id"""),
+                ORDER BY p.version_id,
+                         FIELD(p.param_category,
+                               'DATA_ESG','NEURAL_NETWORK','LOSS_FUNCTION','TRAINING','OPTIMIZER','KPI_DRIVEN'),
+                         p.sort_order, p.id"""),
         params,
     ).fetchall()
     return {
         "items": [
             {
                 "id": r[0], "version_id": r[1], "kpi_id": r[2], "kpi_code": r[3],
-                "param_code": r[4], "param_name": r[5], "param_type": r[6],
-                "param_value": float(r[7]), "unit": r[8],
-                "formula": r[9], "formula_desc": r[10],
-                "sort_order": r[11], "description": r[12],
-                "ref_kpi_name": r[15], "ref_formula": r[16],
-                "created_at": r[13].isoformat() if r[13] else None,
-                "updated_at": r[14].isoformat() if r[14] else None,
+                "param_code": r[4], "param_name": r[5],
+                "param_type": r[6], "param_category": r[7],
+                "param_value": float(r[8]), "unit": r[9],
+                "formula": r[10], "formula_desc": r[11],
+                "sort_order": r[12], "description": r[13],
+                "ref_kpi_name": r[16], "ref_formula": r[17],
+                "created_at": r[14].isoformat() if r[14] else None,
+                "updated_at": r[15].isoformat() if r[15] else None,
             } for r in rows
         ]
     }
@@ -455,21 +464,25 @@ async def create_param(p: ParamIn, db: Session = Depends(get_db), user=Depends(g
     ).first()
     if not v:
         raise HTTPException(404, "版本不存在")
-    # 校验 KPI 存在
-    k = db.execute(
-        text("SELECT kpi_code FROM prcp_kpi_definition WHERE id=:id AND is_deleted=0"),
-        {"id": p.kpi_id},
-    ).first()
-    if not k:
-        raise HTTPException(404, "KPI 不存在")
+    # 校验 KPI 存在（仅当提供时）
+    kpi_code_resolved = p.kpi_code
+    if p.kpi_id is not None:
+        k = db.execute(
+            text("SELECT kpi_code FROM prcp_kpi_definition WHERE id=:id AND is_deleted=0"),
+            {"id": p.kpi_id},
+        ).first()
+        if not k:
+            raise HTTPException(404, "KPI 不存在")
+        kpi_code_resolved = kpi_code_resolved or k[0]
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_model_param
-                (version_id, kpi_id, kpi_code, param_code, param_name, param_type,
+                (version_id, kpi_id, kpi_code, param_code, param_name, param_type, param_category,
                  param_value, unit, formula, formula_desc, sort_order, description, created_by, updated_by)
-                VALUES (:vid, :kid, :kc, :pc, :pn, :pt, :pv, :u2, :f, :fd, :so, :d, :u, :u)"""),
-            {"vid": p.version_id, "kid": p.kpi_id, "kc": p.kpi_code or k[0],
-             "pc": p.param_code, "pn": p.param_name, "pt": p.param_type,
+                VALUES (:vid, :kid, :kc, :pc, :pn, :pt, :pcat,
+                 :pv, :u2, :f, :fd, :so, :d, :u, :u)"""),
+            {"vid": p.version_id, "kid": p.kpi_id, "kc": kpi_code_resolved,
+             "pc": p.param_code, "pn": p.param_name, "pt": p.param_type, "pcat": p.param_category,
              "pv": p.param_value, "u2": p.unit, "f": p.formula, "fd": p.formula_desc,
              "so": p.sort_order, "d": p.description, "u": uid},
         ).lastrowid
@@ -482,7 +495,7 @@ async def create_param(p: ParamIn, db: Session = Depends(get_db), user=Depends(g
         )
     except Exception as e:
         raise HTTPException(400, f"创建失败：{e}")
-    return {"id": rid, "param_code": p.param_code}
+    return {"id": rid, "param_code": p.param_code, "param_category": p.param_category}
 
 
 @router.put("/params/{pid}")
@@ -490,12 +503,14 @@ async def update_param(pid: int, p: ParamIn, db: Session = Depends(get_db), user
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
     r = db.execute(
         text("""UPDATE prcp_model_param SET
-            kpi_id=:kid, kpi_code=:kc, param_code=:pc, param_name=:pn, param_type=:pt,
+            kpi_id=:kid, kpi_code=:kc, param_code=:pc, param_name=:pn,
+            param_type=:pt, param_category=:pcat,
             param_value=:pv, unit=:u2, formula=:f, formula_desc=:fd,
             sort_order=:so, description=:d, updated_by=:u
             WHERE id=:id AND is_deleted=0"""),
         {"kid": p.kpi_id, "kc": p.kpi_code, "pc": p.param_code, "pn": p.param_name,
-         "pt": p.param_type, "pv": p.param_value, "u2": p.unit,
+         "pt": p.param_type, "pcat": p.param_category,
+         "pv": p.param_value, "u2": p.unit,
          "f": p.formula, "fd": p.formula_desc, "so": p.sort_order,
          "d": p.description, "u": uid, "id": pid},
     )
@@ -541,6 +556,86 @@ async def kpi_options(db: Session = Depends(get_db), user=Depends(get_current_us
             for r in rows
         ]
     }
+
+
+# ============================================================
+# 超参数模板
+# ============================================================
+@router.get("/param-templates")
+async def list_param_templates(user=Depends(get_current_user)):
+    """列出所有超参数模板（按分类组织）"""
+    return get_summary()
+
+
+@router.get("/param-templates/flat")
+async def list_param_templates_flat(user=Depends(get_current_user)):
+    """扁平列表（含 category）"""
+    return {"items": get_all_flat()}
+
+
+@router.post("/versions/{vid}/apply-template")
+async def apply_param_template(vid: int, payload: dict,
+                                db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """一键把所选分类的模板参数插入到指定版本下
+    payload: {"categories": ["DATA_ESG", "NEURAL_NETWORK", ...]}  # 缺省 = 全部
+             {"overwrite": true/false}  # 已存在 param_code 是否覆盖
+    """
+    from app.services.model_param_templates import TEMPLATES, CATEGORIES
+    uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    cats = payload.get("categories") or list(TEMPLATES.keys())
+    overwrite = bool(payload.get("overwrite", False))
+    # 校验版本
+    if not db.execute(
+        text("SELECT id FROM prcp_model_version WHERE id=:id AND is_deleted=0"),
+        {"id": vid},
+    ).first():
+        raise HTTPException(404, "版本不存在")
+    inserted = 0
+    updated = 0
+    sort_base = 0
+    for cat in cats:
+        if cat not in TEMPLATES:
+            continue
+        for idx, t in enumerate(TEMPLATES[cat]):
+            # 已有同名 param_code 处理
+            ex = db.execute(
+                text("SELECT id FROM prcp_model_param WHERE version_id=:v AND param_code=:c AND is_deleted=0"),
+                {"v": vid, "c": t["code"]},
+            ).first()
+            if ex and not overwrite:
+                continue
+            if ex:
+                db.execute(
+                    text("""UPDATE prcp_model_param SET
+                        param_name=:pn, param_type=:pt, param_category=:cat,
+                        param_value=:pv, unit=:u, description=:d, updated_by=:u2
+                        WHERE id=:id"""),
+                    {"pn": t["name"], "pt": t.get("type", "BASE"), "cat": cat,
+                     "pv": t["value"], "u": t.get("unit"), "d": t.get("desc", ""),
+                     "u2": uid, "id": ex[0]},
+                )
+                updated += 1
+            else:
+                db.execute(
+                    text("""INSERT INTO prcp_model_param
+                        (version_id, param_code, param_name, param_type, param_category,
+                         param_value, unit, description, sort_order, created_by, updated_by)
+                        VALUES (:v, :pc, :pn, :pt, :cat, :pv, :u, :d, :so, :u2, :u2)"""),
+                    {"v": vid, "pc": t["code"], "pn": t["name"], "pt": t.get("type", "BASE"),
+                     "cat": cat, "pv": t["value"], "u": t.get("unit"),
+                     "d": t.get("desc", ""), "so": sort_base * 100 + idx, "u2": uid},
+                )
+                inserted += 1
+        sort_base += 1
+    # 更新版本的 param_count
+    db.execute(
+        text("""UPDATE prcp_model_version SET param_count=(
+            SELECT COUNT(*) FROM prcp_model_param WHERE version_id=:vid AND is_deleted=0
+        ) WHERE id=:vid"""),
+        {"vid": vid},
+    )
+    return {"inserted": inserted, "updated": updated,
+            "categories": cats, "version_id": vid}
 
 
 # ============================================================

@@ -2,12 +2,12 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Card, Row, Col, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
   Modal, message, Spin, Empty, DatePicker, Popconfirm, Alert, Tooltip, Tabs,
-  Progress, Descriptions, Drawer, Statistic,
+  Progress, Descriptions, Drawer, Statistic, Checkbox,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined, CopyOutlined,
   PlayCircleOutlined, PauseCircleOutlined, EyeOutlined,
-  ExperimentOutlined, RocketOutlined, FunctionOutlined,
+  ExperimentOutlined, RocketOutlined, FunctionOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { modelApi } from '../api'
@@ -65,6 +65,10 @@ const ModelManage: React.FC = () => {
   const [paramModal, setParamModal] = useState(false)
   const [editingParam, setEditingParam] = useState<any>(null)
   const [paramForm] = Form.useForm()
+  // 超参数模板
+  const [templateModal, setTemplateModal] = useState(false)
+  const [paramTemplates, setParamTemplates] = useState<any>(null)
+  const [selectedCats, setSelectedCats] = useState<string[]>([])
   const [trainModal, setTrainModal] = useState(false)
   const [trainForm] = Form.useForm()
 
@@ -110,6 +114,38 @@ const ModelManage: React.FC = () => {
   const loadSchemeOpts = async () => {
     const r = await modelApi.schemeOptions()
     setSchemeOpts(r.items || [])
+  }
+  const loadParamTemplates = async () => {
+    const r = await modelApi.listParamTemplates()
+    setParamTemplates(r)
+  }
+
+  const onOpenTemplateModal = async () => {
+    if (!activeVersionId) {
+      message.warning('请先在版本列表中选择一个版本')
+      return
+    }
+    if (!paramTemplates) await loadParamTemplates()
+    setSelectedCats((paramTemplates?.templates || []).map((t: any) => t.category))
+    setTemplateModal(true)
+  }
+  const onApplyTemplate = async () => {
+    if (!activeVersionId || selectedCats.length === 0) {
+      message.warning('请至少选择一个分类')
+      return
+    }
+    try {
+      const r = await modelApi.applyParamTemplate(activeVersionId, {
+        categories: selectedCats,
+        overwrite: false,
+      })
+      message.success(`模板已注入：新增 ${r.inserted} 个，更新 ${r.updated} 个`)
+      setTemplateModal(false)
+      loadParams(activeVersionId)
+      loadVersions(activeModelId)
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '应用失败')
+    }
   }
 
   useEffect(() => {
@@ -278,11 +314,13 @@ const ModelManage: React.FC = () => {
   }
   const onSaveParam = async () => {
     const v = await paramForm.validateFields()
+    // kpi_id 为空时置 null
+    const payload = { ...v, kpi_id: v.kpi_id === '' || v.kpi_id === undefined ? null : v.kpi_id }
     try {
       if (editingParam) {
-        await modelApi.updateParam(editingParam.id, v)
+        await modelApi.updateParam(editingParam.id, payload)
       } else {
-        await modelApi.createParam(v)
+        await modelApi.createParam(payload)
       }
       message.success('已保存')
       setParamModal(false)
@@ -408,11 +446,27 @@ const ModelManage: React.FC = () => {
     )},
   ]
 
-  const paramColumns = [
-    { title: '参数编码', dataIndex: 'param_code', key: 'pc', width: 140,
+  const CATEGORY_LABELS: Record<string, { name: string; icon: string; color: string }> = {
+  DATA_ESG:       { name: '数据/ESG', icon: '📊', color: 'blue' },
+  NEURAL_NETWORK: { name: '神经网络', icon: '🧠', color: 'purple' },
+  LOSS_FUNCTION:  { name: '损失函数', icon: '🎯', color: 'red' },
+  TRAINING:       { name: '训练',     icon: '🏋️', color: 'cyan' },
+  OPTIMIZER:      { name: '优化器',   icon: '⚡', color: 'gold' },
+  KPI_DRIVEN:     { name: 'KPI 驱动', icon: '📈', color: 'geekblue' },
+}
+
+const paramColumns = [
+    { title: '参数编码', dataIndex: 'param_code', key: 'pc', width: 150,
       render: (v: string) => <code style={{ background: '#f0f4ff', padding: '2px 6px', borderRadius: 3 }}>{v}</code> },
     { title: '参数名称', dataIndex: 'param_name', key: 'pn' },
-    { title: '类型', dataIndex: 'param_type', key: 'pt', width: 90,
+    { title: '分类', dataIndex: 'param_category', key: 'pcat', width: 120,
+      render: (v: string) => {
+        const cfg = CATEGORY_LABELS[v]
+        return cfg
+          ? <Tag color={cfg.color}>{cfg.icon} {cfg.name}</Tag>
+          : <Tag color="default">-</Tag>
+      } },
+    { title: '类型', dataIndex: 'param_type', key: 'pt', width: 80,
       render: (v: string) => {
         const colors: any = { BASE: 'blue', SCENARIO: 'purple', STRESS: 'red', SENSITIVITY: 'cyan' }
         const labels: any = { BASE: '基准', SCENARIO: '情景', STRESS: '压力', SENSITIVITY: '敏感度' }
@@ -420,8 +474,8 @@ const ModelManage: React.FC = () => {
       } },
     { title: '关联 KPI', dataIndex: 'kpi_code', key: 'kc', width: 130,
       render: (v: string, r: any) => v ? <Tooltip title={r.ref_formula}><Tag color="geekblue">{v}</Tag></Tooltip> : '-' },
-    { title: '参数值', dataIndex: 'param_value', key: 'pv', width: 100,
-      render: (v: number, r: any) => <strong>{v.toFixed(4)} {r.unit}</strong> },
+    { title: '参数值', dataIndex: 'param_value', key: 'pv', width: 110,
+      render: (v: number, r: any) => <strong>{typeof v === 'number' ? v.toFixed(4) : v} {r.unit}</strong> },
     { title: '排序', dataIndex: 'sort_order', key: 'so', width: 60 },
     { title: '描述', dataIndex: 'description', key: 'd', ellipsis: true },
     { title: '操作', key: 'op', width: 100, render: (_: any, r: any) => (
@@ -583,6 +637,9 @@ const ModelManage: React.FC = () => {
                 extra={
                   <Space>
                     <Button icon={<ReloadOutlined />} onClick={() => loadParams(activeVersionId)}>刷新</Button>
+                    <Button icon={<ThunderboltOutlined />} onClick={onOpenTemplateModal} disabled={!activeVersionId}>
+                      ⚡ 应用超参数模板
+                    </Button>
                     <Button type="primary" icon={<PlusOutlined />} onClick={onCreateParam} disabled={!activeVersionId}>
                       新增参数
                     </Button>
@@ -765,6 +822,72 @@ const ModelManage: React.FC = () => {
         </Form>
       </Modal>
 
+      {/* 超参数模板 Modal */}
+      <Modal
+        open={templateModal}
+        title="⚡ 应用超参数模板（按分类勾选，一键注入参数）"
+        onCancel={() => setTemplateModal(false)}
+        onOk={onApplyTemplate}
+        width={780}
+        okText="应用模板"
+      >
+        {paramTemplates && (
+          <div>
+            <Alert
+              type="info" showIcon style={{ marginBottom: 16 }}
+              message={`共 ${paramTemplates.total_params || 0} 个预置参数，按 ${(paramTemplates.templates || []).length} 个分类组织`}
+              description="已存在的 param_code 不会覆盖（默认跳过），未存在的会插入"
+            />
+            <div style={{ marginBottom: 8 }}>
+              <Checkbox
+                indeterminate={selectedCats.length > 0 && selectedCats.length < (paramTemplates.templates || []).length}
+                checked={selectedCats.length === (paramTemplates.templates || []).length}
+                onChange={(e) => {
+                  setSelectedCats(e.target.checked ? (paramTemplates.templates || []).map((t: any) => t.category) : [])
+                }}
+              >
+                <strong>全选</strong>
+              </Checkbox>
+              <span style={{ marginLeft: 12, color: '#999' }}>
+                已选 {selectedCats.length} / {paramTemplates.templates?.length || 0} 个分类
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {(paramTemplates.templates || []).map((cat: any) => {
+                const cfg = CATEGORY_LABELS[cat.category] || { name: cat.category_name, icon: '·', color: 'default' }
+                return (
+                  <Card
+                    key={cat.category}
+                    size="small"
+                    title={<span>{cfg.icon} {cat.category_name} <Tag color={cfg.color}>{cat.items.length} 项</Tag></span>}
+                    style={{ borderColor: selectedCats.includes(cat.category) ? '#667eea' : '#f0f0f0' }}
+                  >
+                    <Checkbox
+                      checked={selectedCats.includes(cat.category)}
+                      onChange={(e) => {
+                        if (e.target.checked) setSelectedCats([...selectedCats, cat.category])
+                        else setSelectedCats(selectedCats.filter(c => c !== cat.category))
+                      }}
+                    >
+                      启用此分类
+                    </Checkbox>
+                    <ul style={{ marginTop: 8, marginBottom: 0, paddingLeft: 20, fontSize: 12, color: '#666' }}>
+                      {cat.items.map((it: any) => (
+                        <li key={it.code}>
+                          <code style={{ background: '#f5f5f5', padding: '1px 4px', borderRadius: 3 }}>{it.code}</code>
+                          <span> {it.name}</span>
+                          <span style={{ color: '#999' }}> · 默认 <code>{String(it.value)}</code></span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )
+              })}
+            </div>
+          </div>
+        )}
+      </Modal>
+
       {/* 参数 Modal */}
       <Modal
         open={paramModal}
@@ -778,7 +901,7 @@ const ModelManage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="参数编码" name="param_code" rules={[{ required: true }]}>
-                <Input placeholder="如 K_NIM_001" />
+                <Input placeholder="如 K_NIM_001 或 PCA_NUM_COMPONENTS" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -787,13 +910,26 @@ const ModelManage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
-          <Form.Item label="关联 KPI" name="kpi_id" rules={[{ required: true }]}>
-            <Select showSearch optionFilterProp="children" placeholder="选择 KPI 定义">
-              {kpiOpts.map((k: any) => (
-                <Select.Option key={k.id} value={k.id}>{k.kpi_code} · {k.kpi_name}</Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item label="参数分类" name="param_category">
+                <Select allowClear placeholder="选择参数分类（可空）">
+                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
+                    <Select.Option key={k} value={k}>{v.icon} {v.name}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="关联 KPI（纯算法超参可不选）" name="kpi_id">
+                <Select showSearch allowClear optionFilterProp="children" placeholder="选择 KPI 定义（可空）">
+                  {kpiOpts.map((k: any) => (
+                    <Select.Option key={k.id} value={k.id}>{k.kpi_code} · {k.kpi_name}</Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+            </Col>
+          </Row>
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item label="参数类型" name="param_type">
