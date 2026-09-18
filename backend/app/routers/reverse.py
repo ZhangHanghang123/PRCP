@@ -279,16 +279,65 @@ async def delete_target(tid: int, db: Session = Depends(get_db), user=Depends(ge
 
 
 @router.get("/kpi-options")
-async def kpi_options(db: Session = Depends(get_db), user=Depends(get_current_user)):
+async def kpi_options(
+    model_id: Optional[int] = None,
+    scheme_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """目标 KPI 下拉：默认仅返回 反算方案→计量模型→指标方案 链上的 KPI
+
+    - 传 model_id：自动读取 prcp_model.kpi_scheme_id，再用其过滤 KPI
+    - 传 scheme_id：直接用其过滤 KPI
+    - 都不传：返回全部 KPI（向后兼容，老数据/未关联模型的场景）
+    """
+    resolved_scheme_id: Optional[int] = scheme_id
+    resolved_model_code: Optional[str] = None
+    resolved_scheme_code: Optional[str] = None
+    if model_id is not None and scheme_id is None:
+        m = db.execute(
+            text("""SELECT m.kpi_scheme_id, m.model_code, ks.scheme_code
+                    FROM prcp_model m
+                    LEFT JOIN prcp_kpi_scheme ks ON ks.id=m.kpi_scheme_id AND ks.is_deleted=0
+                    WHERE m.id=:id AND m.is_deleted=0"""),
+            {"id": model_id},
+        ).first()
+        if m:
+            resolved_scheme_id = m[0]
+            resolved_model_code = m[1]
+            resolved_scheme_code = m[2]
+
+    where = ["d.is_deleted=0"]
+    params: dict = {}
+    if resolved_scheme_id is not None:
+        where.append("d.scheme_id=:s")
+        params["s"] = resolved_scheme_id
+
     rows = db.execute(
-        text("""SELECT id, kpi_code, kpi_name, formula, calc_unit
-                FROM prcp_kpi_definition WHERE is_deleted=0 ORDER BY id DESC LIMIT 500"""),
+        text(f"""SELECT d.id, d.scheme_id, d.kpi_code, d.kpi_name, d.formula, d.calc_unit,
+                       d.indicator_type,
+                       s.scheme_code AS scheme_code, s.scheme_name AS scheme_name
+                FROM prcp_kpi_definition d
+                LEFT JOIN prcp_kpi_scheme s ON s.id=d.scheme_id
+                WHERE {' AND '.join(where)}
+                ORDER BY d.scheme_id, d.id DESC LIMIT 500"""),
+        params,
     ).fetchall()
     return {
         "items": [
-            {"id": r[0], "kpi_code": r[1], "kpi_name": r[2], "formula": r[3], "calc_unit": r[4]}
-            for r in rows
-        ]
+            {
+                "id": r[0], "scheme_id": r[1],
+                "kpi_code": r[2], "kpi_name": r[3],
+                "formula": r[4], "calc_unit": r[5],
+                "indicator_type": int(r[6] or 1),
+                "scheme_code": r[7], "scheme_name": r[8],
+            } for r in rows
+        ],
+        "model_id": model_id,
+        "scheme_id": resolved_scheme_id,
+        "model_code": resolved_model_code,
+        "scheme_code": resolved_scheme_code,
+        "filtered": model_id is not None or scheme_id is not None,
     }
 
 

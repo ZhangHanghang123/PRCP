@@ -240,7 +240,8 @@ export const reverseApi = {
   createTarget: (data: any) => http.post('/reverse/targets', data).then((r) => r.data),
   updateTarget: (id: number, data: any) => http.put(`/reverse/targets/${id}`, data).then((r) => r.data),
   deleteTarget: (id: number) => http.delete(`/reverse/targets/${id}`).then((r) => r.data),
-  kpiOptions: () => http.get('/reverse/kpi-options').then((r) => r.data),
+  // KPI 下拉：params 可传 { model_id } / { scheme_id } / 空 → 全部
+  kpiOptions: (params: any = {}) => http.get('/reverse/kpi-options', { params }).then((r) => r.data),
   // 运行
   listRuns: (params: any = {}) => http.get('/reverse/runs', { params }).then((r) => r.data),
   createRun: (data: any) => http.post('/reverse/runs', data).then((r) => r.data),

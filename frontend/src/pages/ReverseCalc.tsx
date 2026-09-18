@@ -24,6 +24,7 @@ const ReverseCalc: React.FC = () => {
   const [targets, setTargets] = useState<any[]>([])
   const [runs, setRuns] = useState<any[]>([])
   const [kpiOpts, setKpiOpts] = useState<any[]>([])
+  const [kpiScope, setKpiScope] = useState<any>(null)   // 后端返回的链路上文（model/scheme）
   const [modelOpts, setModelOpts] = useState<any[]>([])
 
   const [activeSchemeId, setActiveSchemeId] = useState<number | null>(null)
@@ -65,9 +66,17 @@ const ReverseCalc: React.FC = () => {
     const r = await reverseApi.listRuns(schemeId ? { scheme_id: schemeId } : {})
     setRuns(r.items || [])
   }
-  const loadKpiOpts = async () => {
-    const r = await reverseApi.kpiOptions()
+  const loadKpiOpts = async (modelId?: number | null) => {
+    const params = modelId ? { model_id: modelId } : {}
+    const r = await reverseApi.kpiOptions(params)
     setKpiOpts(r.items || [])
+    setKpiScope({
+      model_id: r.model_id ?? null,
+      scheme_id: r.scheme_id ?? null,
+      model_code: r.model_code ?? null,
+      scheme_code: r.scheme_code ?? null,
+      filtered: !!r.filtered,
+    })
   }
   const loadModelOpts = async () => {
     const r = await reverseApi.modelOptions()
@@ -76,15 +85,17 @@ const ReverseCalc: React.FC = () => {
 
   useEffect(() => {
     loadSchemes()
-    loadKpiOpts()
     loadModelOpts()
     loadRuns()
   }, [])
 
+  // 当前选中方案变化时，刷新目标、运行、KPI 下拉（按方案的 model_id 联动过滤）
   useEffect(() => {
     loadTargets(activeSchemeId)
     loadRuns(activeSchemeId)
-  }, [activeSchemeId])
+    const s = schemes.find(x => x.id === activeSchemeId)
+    loadKpiOpts(s?.model_id || null)
+  }, [activeSchemeId, schemes])
 
   // 日志轮询
   useEffect(() => {
@@ -174,11 +185,16 @@ const ReverseCalc: React.FC = () => {
     setEditingTarget(null)
     targetForm.resetFields()
     targetForm.setFieldsValue({ scheme_id: activeSchemeId, constraint_type: 'GE', weight: 1, sort_order: 0 })
+    // 重新按当前方案的 model_id 刷新 KPI 下拉（防止选中方案后未触发 useEffect）
+    const s = schemes.find(x => x.id === activeSchemeId)
+    loadKpiOpts(s?.model_id || null)
     setTargetModal(true)
   }
   const onEditTarget = (t: any) => {
     setEditingTarget(t)
     targetForm.setFieldsValue(t)
+    const s = schemes.find(x => x.id === activeSchemeId)
+    loadKpiOpts(s?.model_id || null)
     setTargetModal(true)
   }
   const onSaveTarget = async () => {
@@ -284,8 +300,15 @@ const ReverseCalc: React.FC = () => {
 
   const targetColumns = [
     { title: '目标名称', dataIndex: 'target_name', key: 'tn' },
-    { title: '关联 KPI', dataIndex: 'kpi_code', key: 'kc', width: 120,
-      render: (v: string, r: any) => v ? <Tooltip title={r.ref_formula}><Tag color="geekblue">{v}</Tag></Tooltip> : '-' },
+    { title: '关联 KPI', dataIndex: 'kpi_code', key: 'kc', width: 140,
+      render: (v: string, r: any) => v ? (
+        <Tooltip title={r.ref_formula || r.ref_kpi_name}>
+          <Space size={4}>
+            <Tag color="geekblue">{v}</Tag>
+            {r.ref_kpi_name && <span style={{ color: '#888', fontSize: 12 }}>{r.ref_kpi_name}</span>}
+          </Space>
+        </Tooltip>
+      ) : '-' },
     { title: '目标值', dataIndex: 'target_value', key: 'tv', width: 110,
       render: (v: number) => <strong>{v.toFixed(4)}</strong> },
     { title: '约束', dataIndex: 'constraint_type', key: 'ct', width: 80,
@@ -416,10 +439,23 @@ const ReverseCalc: React.FC = () => {
               <Col span={10}>
                 <Card
                   title={
-                    <Space>
+                    <Space wrap>
                       <FunctionOutlined />
                       <span>目标指标（{targets.length}）</span>
                       {activeScheme && <Tag color="purple">{activeScheme.scheme_code}</Tag>}
+                      {kpiScope?.filtered ? (
+                        <Tooltip
+                          title={`KPI 仅限：模型 ${kpiScope.model_code || kpiScope.model_id} → 指标方案 ${kpiScope.scheme_code || kpiScope.scheme_id}`}
+                        >
+                          <Tag color="geekblue" icon={<ExperimentOutlined />}>
+                            {kpiScope.model_code || `model#${kpiScope.model_id}`} → {kpiScope.scheme_code || `scheme#${kpiScope.scheme_id}`}
+                          </Tag>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="当前方案未关联计量模型，KPI 下拉显示全部">
+                          <Tag color="default">未限定 KPI 范围</Tag>
+                        </Tooltip>
+                      )}
                     </Space>
                   }
                   extra={
@@ -568,10 +604,31 @@ const ReverseCalc: React.FC = () => {
           <Form.Item label="目标名称" name="target_name" rules={[{ required: true }]}>
             <Input placeholder="如 NIM ≥ 2.8%" />
           </Form.Item>
-          <Form.Item label="关联 KPI" name="kpi_id">
-            <Select showSearch optionFilterProp="children" allowClear placeholder="选择 KPI">
+          <Form.Item
+            label="关联 KPI"
+            name="kpi_id"
+            extra={
+              kpiScope?.filtered
+                ? <span style={{ color: '#534ab7' }}>
+                    <ExperimentOutlined /> 仅可选择：模型 <b>{kpiScope.model_code}</b> → 指标方案 <b>{kpiScope.scheme_code}</b> 中的 KPI（共 {kpiOpts.length} 条）
+                  </span>
+                : <span style={{ color: '#aaa' }}>当前方案未关联计量模型，KPI 下拉显示全部</span>
+            }
+          >
+            <Select
+              showSearch optionFilterProp="children" allowClear
+              placeholder={
+                kpiScope?.filtered
+                  ? `从「${kpiScope.scheme_code}」指标方案中选择`
+                  : '选择 KPI'
+              }
+              notFoundContent={kpiScope?.filtered ? '该指标方案下暂无定义，请到指标管理页维护' : '暂无 KPI'}
+            >
               {kpiOpts.map((k: any) => (
-                <Select.Option key={k.id} value={k.id}>{k.kpi_code} · {k.kpi_name}</Select.Option>
+                <Select.Option key={k.id} value={k.id}>
+                  {k.kpi_code} · {k.kpi_name}
+                  {k.scheme_code && <span style={{ color: '#999', marginLeft: 6 }}>[{k.scheme_code}]</span>}
+                </Select.Option>
               ))}
             </Select>
           </Form.Item>
