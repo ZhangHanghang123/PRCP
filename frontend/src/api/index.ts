@@ -140,6 +140,7 @@ export const kpiApi = {
   // 公式引擎
   formulaEval: (formula: string, ctx: any = {}) => http.post('/kpi/formula/eval', { formula, ctx }).then((r) => r.data),
   formulaValidate: (formula: string) => http.post('/kpi/formula/validate', { formula }).then((r) => r.data),
+  listFunctionScripts: () => http.get('/kpi/functions/scripts').then((r) => r.data),
   recalc: (kpiId: number, dataDate: string) =>
     http.post('/kpi/recalc', null, { params: { kpi_id: kpiId, data_date: dataDate } }).then((r) => r.data),
   // 评分规则

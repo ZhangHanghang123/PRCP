@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Row, Col, Form, Input, Select, Button, Table, Space, Tag,
-  Modal, message, Spin, Empty, Tabs, DatePicker, Popconfirm, Statistic, Alert, InputNumber, Tree, Divider,
+  Modal, message, Spin, Empty, Tabs, DatePicker, Popconfirm, Statistic, Alert, InputNumber, Tree, Divider, Radio,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
@@ -35,6 +35,10 @@ const KPI: React.FC = () => {
   const [defForm] = Form.useForm()
   const [formulaValid, setFormulaValid] = useState<{ ok: boolean; error?: string } | null>(null)
   const [formulaPreview, setFormulaPreview] = useState<number | null>(null)
+  // 监听指标类型切换：1=公式 2=函数
+  const defIndicatorType: number = Form.useWatch('indicator_type', defForm) || 1
+  // 函数指标：可选脚本下拉
+  const [functionScripts, setFunctionScripts] = useState<{path: string; name: string; size?: number}[]>([])
 
   // 值
   const [valueModal, setValueModal] = useState(false)
@@ -237,6 +241,13 @@ const KPI: React.FC = () => {
     if (tab === 'values' && selectedDate) loadValues()
   }, [tab, selectedDate])
 
+  // 打开【指标定义编辑弹窗】时拉取可用脚本
+  useEffect(() => {
+    if (defModal && functionScripts.length === 0) {
+      kpiApi.listFunctionScripts().then((r) => setFunctionScripts(r.items || [])).catch(() => {})
+    }
+  }, [defModal])
+
   // 公式实时校验
   const onFormulaChange = async (v: string) => {
     if (!v || !v.trim()) { setFormulaValid(null); setFormulaPreview(null); return }
@@ -295,8 +306,10 @@ const KPI: React.FC = () => {
     defForm.resetFields()
     defForm.setFieldsValue({
       scheme_id: activeScheme,
+      indicator_type: 1,
       calc_unit: 'PERCENT',
       status: 'ACTIVE',
+      script_name: 'calc',
     })
     setRptItems([])
     setFormulaValid(null); setFormulaPreview(null)
@@ -309,7 +322,10 @@ const KPI: React.FC = () => {
       kpi_code: d.kpi_code,
       kpi_name: d.kpi_name,
       rpt_id: d.rpt_id,
+      indicator_type: d.indicator_type ?? 1,
       formula: d.formula,
+      script_path: d.script_path,
+      script_name: d.script_name || 'calc',
       calc_unit: d.calc_unit,
       formula_desc: d.formula_desc,
       threshold_min: d.threshold_min,
@@ -322,9 +338,17 @@ const KPI: React.FC = () => {
   }
   const onSaveDef = async () => {
     const v = await defForm.validateFields()
+    // 按指标类型清理字段，避免误传
+    const payload: any = { ...v }
+    if (payload.indicator_type === 1) {
+      payload.script_path = null
+      payload.script_name = null
+    } else {
+      payload.formula = payload.formula || null
+    }
     try {
-      if (editingDef) await kpiApi.updateDef(editingDef.id, v)
-      else await kpiApi.createDef(v)
+      if (editingDef) await kpiApi.updateDef(editingDef.id, payload)
+      else await kpiApi.createDef(payload)
       message.success('已保存')
       setDefModal(false)
       loadSchemes()  // 更新 kpi_count
@@ -444,10 +468,17 @@ const KPI: React.FC = () => {
 
   const defCols: ColumnsType<any> = [
     { title: '方案', dataIndex: 'scheme_name', width: 140, render: (s, r) => <Tag color="purple">{s}</Tag> },
+    { title: '类型', dataIndex: 'indicator_type', width: 80,
+      render: (t) => t === 2
+        ? <Tag color="orange" icon={<ThunderboltOutlined />}>函数</Tag>
+        : <Tag color="blue">公式</Tag> },
     { title: '编码', dataIndex: 'kpi_code', width: 120, render: (c) => <code>{c}</code> },
     { title: '名称', dataIndex: 'kpi_name', ellipsis: true },
     { title: '所属报表', dataIndex: 'report_name', width: 140, ellipsis: true },
-    { title: '公式', dataIndex: 'formula', width: 220, render: (f) => <code style={{ fontSize: 12 }}>{f}</code> },
+    { title: '公式/脚本', dataIndex: 'indicator_type', width: 260,
+      render: (_, r) => r.indicator_type === 2
+        ? <code style={{ fontSize: 12, color: '#d46b08' }}>{r.script_path || '-'} :: {r.script_name || 'calc'}</code>
+        : <code style={{ fontSize: 12 }}>{r.formula}</code> },
     { title: '单位', dataIndex: 'calc_unit', width: 80, render: (u) => <Tag>{u}</Tag> },
     { title: '状态', dataIndex: 'status', width: 80, render: (s) => <Tag color={s === 'ACTIVE' ? 'green' : 'default'}>{s}</Tag> },
     {
@@ -592,7 +623,7 @@ const KPI: React.FC = () => {
                       <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDef}>新增指标</Button>
                     </Space>
                     <Table size="small" rowKey="id" dataSource={defs} columns={defCols}
-                      scroll={{ x: 1300 }}
+                      scroll={{ x: 1500 }}
                       locale={{
                         emptyText: (
                           <Empty
@@ -741,6 +772,12 @@ const KPI: React.FC = () => {
                 onChange={onDefRptChange} showSearch optionFilterProp="label" />
             </Form.Item></Col>
           </Row>
+          <Form.Item name="indicator_type" label="指标类型" initialValue={1} rules={[{ required: true }]}>
+            <Radio.Group>
+              <Radio.Button value={1}>公式指标（按报表表项公式计算）</Radio.Button>
+              <Radio.Button value={2}>函数指标（执行外部脚本）</Radio.Button>
+            </Radio.Group>
+          </Form.Item>
           <Row gutter={16}>
             <Col span={8}><Form.Item name="kpi_code" label="指标编码" rules={[{ required: true }]}><Input placeholder="KPI_NIM" /></Form.Item></Col>
             <Col span={8}><Form.Item name="kpi_name" label="指标名称" rules={[{ required: true }]}><Input /></Form.Item></Col>
@@ -754,109 +791,169 @@ const KPI: React.FC = () => {
             </Form.Item></Col>
           </Row>
           {/* 公式工具栏：符号 + 函数 + 退格一键插入 */}
-          <Form.Item label="公式符号与函数">
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 8px', border: '1px solid #f0f0f0', borderRadius: 4, background: '#fafafa' }}>
-              <Button.Group size="small">
-                <Button onClick={() => insertSymbolIntoFormula(' + ')}>+</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' - ')}>−</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' * ')}>×</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' / ')}>÷</Button>
-              </Button.Group>
-              <Button.Group size="small" style={{ marginLeft: 8 }}>
-                <Button onClick={() => insertSymbolIntoFormula('( ')}>(</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' )')}>)</Button>
-                <Button onClick={() => insertSymbolIntoFormula(', ')}>,</Button>
-              </Button.Group>
-              <Button.Group size="small" style={{ marginLeft: 8 }}>
-                <Button onClick={() => insertSymbolIntoFormula('SUM(', ')', true)}>SUM</Button>
-                <Button onClick={() => insertSymbolIntoFormula('AVG(', ')', true)}>AVG</Button>
-                <Button onClick={() => insertSymbolIntoFormula('MAX(', ')', true)}>MAX</Button>
-                <Button onClick={() => insertSymbolIntoFormula('MIN(', ')', true)}>MIN</Button>
-                <Button onClick={() => insertSymbolIntoFormula('COUNT(', ')', true)}>COUNT</Button>
-                <Button onClick={() => insertSymbolIntoFormula('ABS(', ')', true)}>ABS</Button>
-                <Button onClick={() => insertSymbolIntoFormula('ROUND(', ')', true)}>ROUND</Button>
-                <Button onClick={() => insertSymbolIntoFormula('IF(', ',', true)}>IF</Button>
-              </Button.Group>
-              <Button.Group size="small" style={{ marginLeft: 8 }}>
-                <Button onClick={() => insertSymbolIntoFormula(' > ')}>{'>'}</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' < ')}>{'<'}</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' >= ')}>{'>='}</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' <= ')}>{'<='}</Button>
-                <Button onClick={() => insertSymbolIntoFormula(' == ')}>{'=='}</Button>
-              </Button.Group>
-              <Button.Group size="small" style={{ marginLeft: 8 }}>
-                <Button onClick={backspaceFormula} title="退格（删除最后一个 token）">⌫ 退格</Button>
-                <Button onClick={clearFormula} danger title="清空公式">清空</Button>
-              </Button.Group>
-            </div>
-          </Form.Item>
-
-          <Form.Item name="formula" label="计算公式（表项编码，可编辑）" rules={[{ required: true }]}
-            extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = [item_code]（点下方报表结构树叶子节点自动插入）">
-            <Input.TextArea rows={3} placeholder="例如：[001001001001] - [001001001002]" onChange={(e) => onFormulaChange(e.target.value)} />
-          </Form.Item>
-          {formulaValid && (
-            formulaValid.ok
-              ? <Alert type="success" message={`语法正确 · 预览：${formulaPreview}`} showIcon style={{ marginBottom: 12 }} />
-              : <Alert type="error" message={formulaValid.error} showIcon style={{ marginBottom: 12 }} />
+          {defIndicatorType === 1 && (
+            <Form.Item label="公式符号与函数">
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, padding: '4px 8px', border: '1px solid #f0f0f0', borderRadius: 4, background: '#fafafa' }}>
+                <Button.Group size="small">
+                  <Button onClick={() => insertSymbolIntoFormula(' + ')}>+</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' - ')}>−</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' * ')}>×</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' / ')}>÷</Button>
+                </Button.Group>
+                <Button.Group size="small" style={{ marginLeft: 8 }}>
+                  <Button onClick={() => insertSymbolIntoFormula('( ')}>(</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' )')}>)</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(', ')}>,</Button>
+                </Button.Group>
+                <Button.Group size="small" style={{ marginLeft: 8 }}>
+                  <Button onClick={() => insertSymbolIntoFormula('SUM(', ')', true)}>SUM</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('AVG(', ')', true)}>AVG</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('MAX(', ')', true)}>MAX</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('MIN(', ')', true)}>MIN</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('COUNT(', ')', true)}>COUNT</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('ABS(', ')', true)}>ABS</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('ROUND(', ')', true)}>ROUND</Button>
+                  <Button onClick={() => insertSymbolIntoFormula('IF(', ',', true)}>IF</Button>
+                </Button.Group>
+                <Button.Group size="small" style={{ marginLeft: 8 }}>
+                  <Button onClick={() => insertSymbolIntoFormula(' > ')}>{'>'}</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' < ')}>{'<'}</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' >= ')}>{'>='}</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' <= ')}>{'<='}</Button>
+                  <Button onClick={() => insertSymbolIntoFormula(' == ')}>{'=='}</Button>
+                </Button.Group>
+                <Button.Group size="small" style={{ marginLeft: 8 }}>
+                  <Button onClick={backspaceFormula} title="退格（删除最后一个 token）">⌫ 退格</Button>
+                  <Button onClick={clearFormula} danger title="清空公式">清空</Button>
+                </Button.Group>
+              </div>
+            </Form.Item>
           )}
 
-          {/* 名称预览框（只读，把 item_<ID> 翻译成中文名） */}
-          <Form.Item label="公式名称视图（只读预览）">
-            <Input.TextArea
-              rows={2}
-              readOnly
-              value={formulaNameView}
-              placeholder={rptItems.length ? '编辑上方公式时，此处实时显示中文名' : '请先选择所属报表'}
-              style={{ background: '#f5f5f5', fontFamily: 'monospace', fontSize: 12 }}
-            />
-          </Form.Item>
+          {/* 公式指标：公式编辑区 */}
+          {defIndicatorType === 1 && (
+            <>
+              <Form.Item name="formula" label="计算公式（表项编码，可编辑）" rules={[{ required: true }]}
+                extra="支持 + - * / ( ) 与 SUM/AVG/MAX/MIN/COUNT/ABS/ROUND/IF 函数。变量名 = [item_code]（点下方报表结构树叶子节点自动插入）">
+                <Input.TextArea rows={3} placeholder="例如：[001001001001] - [001001001002]" onChange={(e) => onFormulaChange(e.target.value)} />
+              </Form.Item>
+              {formulaValid && (
+                formulaValid.ok
+                  ? <Alert type="success" message={`语法正确 · 预览：${formulaPreview}`} showIcon style={{ marginBottom: 12 }} />
+                  : <Alert type="error" message={formulaValid.error} showIcon style={{ marginBottom: 12 }} />
+              )}
 
-          {/* 报表结构树（按 L1→L2→L3→L4 层级） */}
-          {defForm.getFieldValue('rpt_id') && rptTreeData.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
-              <div style={{ color: '#666', marginBottom: 6, fontSize: 13 }}>
-                📌 点击报表结构树的叶子节点插入引用：
-              </div>
-              <div style={{ maxHeight: 300, overflow: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4, background: '#fafafa' }}>
-                <Tree
-                  treeData={rptTreeData}
-                  defaultExpandAll
-                  showLine
-                  blockNode
-                  selectable
-                  onSelect={(_, info: any) => {
-                    const node = info.node
-                    if (node.isLeaf) {
-                      insertItemIntoFormula(node.raw)
-                    } else {
-                      message.info('请选择叶子节点（具体报表项）')
-                    }
-                  }}
+              {/* 名称预览框（只读，把 item_<ID> 翻译成中文名） */}
+              <Form.Item label="公式名称视图（只读预览）">
+                <Input.TextArea
+                  rows={2}
+                  readOnly
+                  value={formulaNameView}
+                  placeholder={rptItems.length ? '编辑上方公式时，此处实时显示中文名' : '请先选择所属报表'}
+                  style={{ background: '#f5f5f5', fontFamily: 'monospace', fontSize: 12 }}
                 />
-              </div>
-            </div>
-          )}
+              </Form.Item>
 
-          {/* 报表无表项时的空状态提示 */}
-          {defForm.getFieldValue('rpt_id') && rptItems.length === 0 && (
-            <Alert
-              type="warning"
-              showIcon
-              style={{ marginBottom: 12 }}
-              message="该报表暂无表项"
-              description={(
-                <div>
-                  <div style={{ marginBottom: 6 }}>所选报表还没有定义任何报表表项，因此无法在公式中引用具体项。</div>
-                  <div>请先到 <strong>报表表项管理</strong> 页面为此报表添加表项（如：总资产、客户贷款、净息差等）。</div>
+              {/* 报表结构树（按 L1→L2→L3→L4 层级） */}
+              {defForm.getFieldValue('rpt_id') && rptTreeData.length > 0 && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ color: '#666', marginBottom: 6, fontSize: 13 }}>
+                    📌 点击报表结构树的叶子节点插入引用：
+                  </div>
+                  <div style={{ maxHeight: 300, overflow: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4, background: '#fafafa' }}>
+                    <Tree
+                      treeData={rptTreeData}
+                      defaultExpandAll
+                      showLine
+                      blockNode
+                      selectable
+                      onSelect={(_, info: any) => {
+                        const node = info.node
+                        if (node.isLeaf) {
+                          insertItemIntoFormula(node.raw)
+                        } else {
+                          message.info('请选择叶子节点（具体报表项）')
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               )}
-            />
+
+              {/* 报表无表项时的空状态提示 */}
+              {defForm.getFieldValue('rpt_id') && rptItems.length === 0 && (
+                <Alert
+                  type="warning"
+                  showIcon
+                  style={{ marginBottom: 12 }}
+                  message="该报表暂无表项"
+                  description={(
+                    <div>
+                      <div style={{ marginBottom: 6 }}>所选报表还没有定义任何报表表项，因此无法在公式中引用具体项。</div>
+                      <div>请先到 <strong>报表表项管理</strong> 页面为此报表添加表项（如：总资产、客户贷款、净息差等）。</div>
+                    </div>
+                  )}
+                />
+              )}
+
+              {!defForm.getFieldValue('rpt_id') && (
+                <Alert type="info" showIcon style={{ marginBottom: 12 }}
+                  message="请先在上方选择【所属报表】" description="选定报表后，这里会展示该报表的树形结构，点击叶子节点可一键插入到公式中。" />
+              )}
+            </>
           )}
 
-          {!defForm.getFieldValue('rpt_id') && (
-            <Alert type="info" showIcon style={{ marginBottom: 12 }}
-              message="请先在上方选择【所属报表】" description="选定报表后，这里会展示该报表的树形结构，点击叶子节点可一键插入到公式中。" />
+          {/* 函数指标：脚本路径 + 入口函数 */}
+          {defIndicatorType === 2 && (
+            <>
+              <Alert type="info" showIcon style={{ marginBottom: 12 }}
+                message="函数指标说明"
+                description={
+                  <div>
+                    <div>· 脚本需放在白名单目录：<code>backend/scripts/kpi_functions/</code> 或 <code>backend/app/services/kpi_functions/</code></div>
+                    <div>· 入口函数签名：<code>def calc(ctx: dict) -&gt; float</code></div>
+                    <div>· ctx 内容：scheme_id / data_date / kpi / rpt_items / kpi_values / ctx_extra</div>
+                    <div>· 函数内可执行任意 Python 逻辑（含 SQL 查询、机器学习等），完成后返回数字。</div>
+                  </div>
+                }
+              />
+              <Row gutter={16}>
+                <Col span={14}>
+                  <Form.Item name="script_path" label="脚本路径（相对 backend/ 根）" rules={[{ required: true }]}
+                    extra="如 scripts/kpi_functions/demo_nim.py">
+                    <Select
+                      showSearch
+                      allowClear
+                      placeholder="选择或输入脚本路径"
+                      options={functionScripts.map((s) => ({ value: s.path, label: `${s.path}（${s.name}）` }))}
+                      onChange={(v) => {
+                        // 选中时自动用文件名作为默认函数名
+                        if (v) {
+                          const filename = v.split('/').pop() || ''
+                          const stem = filename.replace(/\.py$/i, '')
+                          defForm.setFieldsValue({ script_name: defForm.getFieldValue('script_name') || stem || 'calc' })
+                        }
+                      }}
+                      filterOption={(input, option) =>
+                        (option?.value as string)?.toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
+                  </Form.Item>
+                </Col>
+                <Col span={10}>
+                  <Form.Item name="script_name" label="入口函数名" rules={[{ required: true }]}
+                    extra="默认 calc">
+                    <Input placeholder="calc" />
+                  </Form.Item>
+                </Col>
+              </Row>
+              {functionScripts.length === 0 && (
+                <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+                  message="暂未扫描到任何脚本" description={
+                    <span>请确认 <code>backend/scripts/kpi_functions/</code> 目录有 *.py 文件，且文件中含 def calc(ctx) 函数。</span>
+                  } />
+              )}
+            </>
           )}
 
           <Row gutter={16}>

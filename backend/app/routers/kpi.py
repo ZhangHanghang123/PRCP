@@ -9,6 +9,9 @@ from pydantic import BaseModel
 from app.database import get_db
 from app.auth import get_current_user
 from app.services.formula_engine import evaluate, validate, FormulaError
+from app.services.kpi_function_runner import (
+    run_function_kpi, list_available_scripts, FunctionKpiError,
+)
 
 router = APIRouter(prefix="/kpi", tags=["指标管理"])
 
@@ -26,7 +29,10 @@ class KpiDefIn(BaseModel):
     kpi_code: str
     kpi_name: str
     rpt_id: int
-    formula: str
+    indicator_type: int = 1                  # 1=公式指标 2=函数指标
+    formula: Optional[str] = None            # 公式指标必填，函数指标为空
+    script_path: Optional[str] = None        # 函数指标必填（相对 backend/）
+    script_name: Optional[str] = None       # 函数指标必填，默认 calc
     calc_unit: str = "PERCENT"
     formula_desc: Optional[str] = None
     threshold_min: Optional[float] = None
@@ -186,7 +192,8 @@ async def list_defs(
     rows = db.execute(
         text(f"""SELECT d.id, d.scheme_id, s.scheme_code, s.scheme_name,
                        d.kpi_code, d.kpi_name, d.rpt_id, r.report_code, r.report_name,
-                       d.formula, d.calc_unit, d.formula_desc,
+                       d.indicator_type, d.formula, d.script_path, d.script_name,
+                       d.calc_unit, d.formula_desc,
                        d.threshold_min, d.threshold_max, d.status,
                        d.created_at, d.updated_at
                 FROM prcp_kpi_definition d
@@ -202,12 +209,14 @@ async def list_defs(
             "scheme_id": r[1], "scheme_code": r[2], "scheme_name": r[3],
             "kpi_code": r[4], "kpi_name": r[5],
             "rpt_id": r[6], "report_code": r[7], "report_name": r[8],
-            "formula": r[9], "calc_unit": r[10], "formula_desc": r[11],
-            "threshold_min": float(r[12]) if r[12] is not None else None,
-            "threshold_max": float(r[13]) if r[13] is not None else None,
-            "status": r[14],
-            "created_at": r[15].isoformat() if r[15] else None,
-            "updated_at": r[16].isoformat() if r[16] else None,
+            "indicator_type": int(r[9] or 1),
+            "formula": r[10], "script_path": r[11], "script_name": r[12],
+            "calc_unit": r[13], "formula_desc": r[14],
+            "threshold_min": float(r[15]) if r[15] is not None else None,
+            "threshold_max": float(r[16]) if r[16] is not None else None,
+            "status": r[17],
+            "created_at": r[18].isoformat() if r[18] else None,
+            "updated_at": r[19].isoformat() if r[19] else None,
         } for r in rows
     ]}
 
@@ -215,25 +224,41 @@ async def list_defs(
 @router.post("/definitions")
 async def create_def(p: KpiDefIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    # 公式校验
-    v = validate(p.formula)
-    if not v["ok"]:
-        raise HTTPException(400, f"公式语法错误: {v['error']}")
+    # 按 indicator_type 分支校验
+    indicator_type = int(getattr(p, "indicator_type", 1) or 1)
+    if indicator_type not in (1, 2):
+        raise HTTPException(400, "indicator_type 必须为 1（公式）或 2（函数）")
     # 检查 scheme_id 存在
     if not db.execute(text("SELECT id FROM prcp_kpi_scheme WHERE id=:id AND is_deleted=0"), {"id": p.scheme_id}).first():
         raise HTTPException(400, "方案不存在")
     # 检查 rpt_id 存在
     if not db.execute(text("SELECT id FROM prcp_rpt_report WHERE id=:id AND is_deleted=0"), {"id": p.rpt_id}).first():
         raise HTTPException(400, "报表不存在")
+    formula_to_save: Optional[str] = p.formula
+    if indicator_type == 1:
+        if not (p.formula and p.formula.strip()):
+            raise HTTPException(400, "公式指标必须填写计算公式")
+        v = validate(p.formula)
+        if not v["ok"]:
+            raise HTTPException(400, f"公式语法错误: {v['error']}")
+    else:  # 函数指标
+        if not (p.script_path and p.script_path.strip()):
+            raise HTTPException(400, "函数指标必须填写 script_path（相对 backend/ 根）")
+        if not (p.script_name and p.script_name.strip()):
+            raise HTTPException(400, "函数指标必须填写 script_name（入口函数名，默认 calc）")
+        formula_to_save = None
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_kpi_definition
-                (scheme_id, kpi_code, kpi_name, rpt_id, formula, calc_unit, formula_desc,
+                (scheme_id, kpi_code, kpi_name, rpt_id, indicator_type,
+                 formula, script_path, script_name, calc_unit, formula_desc,
                  threshold_min, threshold_max, status, created_by, updated_by)
-                VALUES (:s, :c, :n, :r, :f, :u, :d, :min, :max, :st, :by, :by)"""),
+                VALUES (:s, :c, :n, :r, :it, :f, :sp, :sn, :u, :d, :min, :max, :st, :by, :by)"""),
             {
                 "s": p.scheme_id, "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
-                "f": p.formula, "u": p.calc_unit, "d": p.formula_desc,
+                "it": indicator_type,
+                "f": formula_to_save, "sp": p.script_path, "sn": p.script_name,
+                "u": p.calc_unit, "d": p.formula_desc,
                 "min": p.threshold_min, "max": p.threshold_max,
                 "st": p.status, "by": uid,
             },
@@ -241,24 +266,41 @@ async def create_def(p: KpiDefIn, db: Session = Depends(get_db), user=Depends(ge
         db.execute(text("UPDATE prcp_kpi_scheme SET kpi_count=kpi_count+1 WHERE id=:s"), {"s": p.scheme_id})
     except Exception as e:
         raise HTTPException(400, f"创建失败：kpi_code 在本方案下重复 ({e})")
-    return {"id": rid, "kpi_code": p.kpi_code, "scheme_id": p.scheme_id}
+    return {"id": rid, "kpi_code": p.kpi_code, "scheme_id": p.scheme_id,
+            "indicator_type": indicator_type}
 
 
 @router.put("/definitions/{kid}")
 async def update_def(kid: int, p: KpiDefIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    v = validate(p.formula)
-    if not v["ok"]:
-        raise HTTPException(400, f"公式语法错误: {v['error']}")
+    indicator_type = int(getattr(p, "indicator_type", 1) or 1)
+    if indicator_type not in (1, 2):
+        raise HTTPException(400, "indicator_type 必须为 1（公式）或 2（函数）")
+    formula_to_save: Optional[str] = p.formula
+    if indicator_type == 1:
+        if not (p.formula and p.formula.strip()):
+            raise HTTPException(400, "公式指标必须填写计算公式")
+        v = validate(p.formula)
+        if not v["ok"]:
+            raise HTTPException(400, f"公式语法错误: {v['error']}")
+    else:
+        if not (p.script_path and p.script_path.strip()):
+            raise HTTPException(400, "函数指标必须填写 script_path")
+        if not (p.script_name and p.script_name.strip()):
+            raise HTTPException(400, "函数指标必须填写 script_name")
+        formula_to_save = None
     r = db.execute(
         text("""UPDATE prcp_kpi_definition SET
-            scheme_id=:s, kpi_code=:c, kpi_name=:n, rpt_id=:r, formula=:f,
+            scheme_id=:s, kpi_code=:c, kpi_name=:n, rpt_id=:r, indicator_type=:it,
+            formula=:f, script_path=:sp, script_name=:sn,
             calc_unit=:u, formula_desc=:d, threshold_min=:min, threshold_max=:max,
             status=:st, updated_by=:by
             WHERE id=:id AND is_deleted=0"""),
         {
             "s": p.scheme_id, "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
-            "f": p.formula, "u": p.calc_unit, "d": p.formula_desc,
+            "it": indicator_type,
+            "f": formula_to_save, "sp": p.script_path, "sn": p.script_name,
+            "u": p.calc_unit, "d": p.formula_desc,
             "min": p.threshold_min, "max": p.threshold_max,
             "st": p.status, "by": uid, "id": kid,
         },
@@ -266,6 +308,13 @@ async def update_def(kid: int, p: KpiDefIn, db: Session = Depends(get_db), user=
     if r == 0:
         raise HTTPException(404, "指标不存在")
     return {"ok": True}
+
+
+# ============== 函数指标脚本浏览 ==============
+@router.get("/functions/scripts")
+async def list_function_scripts(user=Depends(get_current_user)):
+    """列出 backend/scripts/kpi_functions 与 backend/app/services/kpi_functions 下所有 .py，供前端下拉"""
+    return {"items": list_available_scripts()}
 
 
 @router.delete("/definitions/{kid}")
@@ -423,16 +472,19 @@ async def recalc_kpi(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """按公式 + 同方案下其他指标在指定日期的值，重新计算"""
+    """按公式/脚本 + 同方案下其他指标在指定日期的值，重新计算"""
     kpi = db.execute(
-        text("SELECT formula, kpi_code, kpi_name, scheme_id, rpt_id FROM prcp_kpi_definition WHERE id=:id AND is_deleted=0"),
+        text("""SELECT indicator_type, formula, kpi_code, kpi_name, scheme_id, rpt_id,
+                       script_path, script_name, calc_unit
+                FROM prcp_kpi_definition WHERE id=:id AND is_deleted=0"""),
         {"id": kpi_id},
     ).first()
     if not kpi:
         raise HTTPException(404, "指标不存在")
-    formula, kpi_code, kpi_name, scheme_id, rpt_id = kpi
+    indicator_type, formula, kpi_code, kpi_name, scheme_id, rpt_id, script_path, script_name, calc_unit = kpi
+    indicator_type = int(indicator_type or 1)
     # ctx = 同方案下其他定义作为变量
-    ctx = {}
+    ctx: dict = {}
     other = db.execute(
         text("""SELECT kpi_code, id FROM prcp_kpi_definition
             WHERE scheme_id=:s AND is_deleted=0"""),
@@ -444,12 +496,29 @@ async def recalc_kpi(
             {"k": kid, "d": data_date},
         ).first()
         ctx[kc] = float(v[0]) if v and v[0] is not None else 0.0
-    try:
-        result = evaluate(formula, ctx)
-    except FormulaError as e:
-        raise HTTPException(400, f"公式求值失败: {e}")
+    # 根据指标类型选择求值方式
+    if indicator_type == 2:
+        # 函数指标：调用外部脚本
+        rpt_items_dict = _get_rpt_items_map(db, rpt_id)
+        try:
+            result = run_function_kpi(
+                script_path=script_path, script_name=script_name,
+                scheme_id=scheme_id, data_date=data_date,
+                kpi_info={"id": kpi_id, "code": kpi_code, "name": kpi_name, "unit": calc_unit},
+                rpt_items=rpt_items_dict, kpi_values=ctx,
+            )
+        except FunctionKpiError as e:
+            raise HTTPException(400, f"函数指标调用失败: {e}")
+    else:
+        # 公式指标
+        if not formula:
+            raise HTTPException(400, "公式指标未配置 formula")
+        try:
+            result = evaluate(formula, ctx)
+        except FormulaError as e:
+            raise HTTPException(400, f"公式求值失败: {e}")
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-    log = f"scheme={scheme_id}, ctx={ctx}"
+    log = f"type={'FUNCTION' if indicator_type==2 else 'FORMULA'}, scheme={scheme_id}, ctx={ctx}"
     existing = db.execute(
         text("SELECT id FROM prcp_kpi_value WHERE kpi_id=:k AND data_date=:d AND version='V1.0' AND is_deleted=0"),
         {"k": kpi_id, "d": data_date},
@@ -710,10 +779,20 @@ async def list_value_dates(
     } for r in rows]}
 
 
-def _eval_kpi_value(db, formula, scheme_id, kpi_id, data_date):
-    """在指定日期下，构造 ctx（同方案其它指标当前值）后求指标值"""
-    if not formula:
+def _eval_kpi_value(db, kpi_def, scheme_id, kpi_id, data_date):
+    """在指定日期下，构造 ctx 后求指标值（公式指标走公式引擎，函数指标走脚本执行器）
+    kpi_def = (indicator_type, formula, script_path, script_name, rpt_id, kpi_code, kpi_name, calc_unit)
+    """
+    if not kpi_def:
         return None
+    indicator_type = int(kpi_def[0] or 1)
+    formula = kpi_def[1]
+    script_path = kpi_def[2]
+    script_name = kpi_def[3]
+    rpt_id = kpi_def[4]
+    kpi_code = kpi_def[5]
+    kpi_name = kpi_def[6]
+    calc_unit = kpi_def[7]
     ctx = {}
     others = db.execute(
         text("""SELECT kpi_code, id FROM prcp_kpi_definition
@@ -727,9 +806,36 @@ def _eval_kpi_value(db, formula, scheme_id, kpi_id, data_date):
         ).first()
         ctx[kc] = float(v[0]) if v and v[0] is not None else 0.0
     try:
-        return float(evaluate(formula, ctx))
-    except FormulaError:
+        if indicator_type == 2:
+            rpt_items_dict = _get_rpt_items_map(db, rpt_id)
+            return run_function_kpi(
+                script_path=script_path, script_name=script_name or "calc",
+                scheme_id=scheme_id, data_date=data_date,
+                kpi_info={"id": kpi_id, "code": kpi_code, "name": kpi_name, "unit": calc_unit},
+                rpt_items=rpt_items_dict, kpi_values=ctx,
+            )
+        else:
+            if not formula:
+                return None
+            return float(evaluate(formula, ctx))
+    except (FormulaError, FunctionKpiError, Exception):
         return None
+
+
+def _get_rpt_items_map(db, rpt_id) -> dict:
+    """根据 rpt_id 取出所有表项的 item_code -> 数据值（无值报为 0）
+    当前实现：从 prcp_rpt_item 拿到表项编码，与 prcp_data_basic 或者指标值做 JOIN，
+    由于本期未做完整 rpt_item.value 表，这里采用：从 prcp_rpt_item 取 item_code 即可，
+    值为 0（调用方如需真实值可在脚本内自己查 db）。
+    """
+    if not rpt_id:
+        return {}
+    rows = db.execute(
+        text("""SELECT item_code FROM prcp_rpt_item
+            WHERE report_id=:r AND is_deleted=0"""),
+        {"r": rpt_id},
+    ).fetchall()
+    return {code: 0.0 for (code,) in rows}
 
 
 def _calc_score_for_value(db, kpi_id, value):
@@ -781,8 +887,10 @@ async def calc_score(
 
     # 取当前方案下的所有指标定义
     defs = db.execute(
-        text("""SELECT id, kpi_code, kpi_name, formula FROM prcp_kpi_definition
-            WHERE scheme_id=:s AND is_deleted=0""" + (" AND id=:kid" if only_kpi_id else "")),
+        text("""SELECT id, indicator_type, formula, script_path, script_name, rpt_id,
+                       kpi_code, kpi_name, calc_unit
+                FROM prcp_kpi_definition
+                WHERE scheme_id=:s AND is_deleted=0""" + (" AND id=:kid" if only_kpi_id else "")),
         {"s": scheme_id, "kid": only_kpi_id} if only_kpi_id else {"s": scheme_id},
     ).fetchall()
 
@@ -791,7 +899,7 @@ async def calc_score(
     scored_count = 0
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
 
-    for kpi_id, kpi_code, kpi_name, formula in defs:
+    for kpi_id, indicator_type, formula, script_path, script_name, rpt_id, kpi_code, kpi_name, calc_unit in defs:
         # 1) 拿或算指标值
         val_row = db.execute(
             text("""SELECT id, current_value FROM prcp_kpi_value
@@ -800,8 +908,10 @@ async def calc_score(
         ).first()
         existing_vid = val_row[0] if val_row else None
         cur_val = float(val_row[1]) if val_row and val_row[1] is not None else None
-        if cur_val is None and formula:
-            cur_val = _eval_kpi_value(db, formula, scheme_id, kpi_id, data_date)
+        if cur_val is None:
+            kpi_def_tuple = (indicator_type, formula, script_path, script_name, rpt_id,
+                             kpi_code, kpi_name, calc_unit)
+            cur_val = _eval_kpi_value(db, kpi_def_tuple, scheme_id, kpi_id, data_date)
 
         # 2) 算分数
         score = _calc_score_for_value(db, kpi_id, cur_val)
