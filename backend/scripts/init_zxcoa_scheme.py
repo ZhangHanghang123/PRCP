@@ -20,46 +20,46 @@ DB = dict(host='127.0.0.1', port=3306, user='almd', password='Almd@2026',
 # ZXCOA.xlsx 解析结果（按 row 顺序）
 # (name, category, caliber)
 ZXCOA_ROWS = [
-    ('总资产', '资产', None),
-    ('生息资产', '资产', None),
-    ('(一)人民币小计', '资产', '1.境内人民币各项贷款'),
-    ('1.境内人民币各项贷款', '资产', '1.1.对公一般贷款'),
-    ('1.1.对公一般贷款', '资产', '121、122、123、124、141、142'),
-    ('1.2.个人贷款', '资产', '131、132、133、134、135'),
-    ('1.3.信用卡贷款', '资产', '136'),
-    ('1.4.票据贴现', '资产', '125、126'),
-    ('1.5.非银贷款', '资产', '115、116(剔除11602)'),
-    ('2.人民币非信贷类业务', '资产', '2 . 1 . 债券投资'),
-    ('2.1.债券投资', '资产', '151、152'),
-    ('2.1.1金市自营债券', '资产', '区分金市自营和司库债券条件用投资组合\nINVES   COMB区分，其中司库债券的投资组合'),
-    ('2.1.2司库债券', '资产', None),
-    ('2.2.结构化融资', '资产', '155'),
-    ('2.3.同业资产(不含拆放非银)', '资产', '112、113、114、119、150、11602'),
-    ('2.4.存款准备金', '资产', '110'),
-    ('3.人民币非生息资产', '资产', '3 . 1 .FV TPL类资产'),
-    ('3.1.FVTPL类资产', '资产', '154、156'),
-    ('3.2.其他非生息资产', '资产', '总资产-1.境内人民币各项贷款-2.人民币非'),
-    ('(二)外币小计(美元)', '资产', '1.外币贷款'),
-    ('1.外币贷款', '资产', '121、122、123、124、141、142'),
-    ('2.外币非信贷资产', '资产', '2 . 1 . 外币债券'),
-    ('2.1.外币债券', '资产', '151、152'),
-    ('2.2.同业资产', '资产', '112、113、114、119、150、11602'),
-    ('3.外币非生息资产', '资产', None),
-    ('总负债', '负债', '报表获取'),
-    ('计息负债', '负债', None),
-    ('(一)人民币小计', '负债', '汇总：'),
-    ('1.境内人民币自营存款', '负债', '汇总：'),
-    ('1.1.对公存款', '负债', '汇总：'),
-    ('1.1.1对公活期存款', '负债', '201金融机构活期存款'),
-    ('1.1.2对公定期存款', '负债', '202金融机构通知存款'),
-    ('1.2.零售存款', '负债', '汇总：'),
-    ('1.2.1零售活期存款', '负债', '221个人活期存款'),
-    ('1.2.2零售定期存款', '负债', '222个人通知存款'),
-    ('2.人民币市场化负债', '负债', None),
-    ('(二)外币小计(美元)', '负债', '汇总：且币种为外币折美元'),
-    ('1.外币存款', '负债', None),
-    ('2.外币市场化负债', '负债', None),
-    ('所有者权益', '权益', '总资产-总负债'),
+    ('总资产', 'ASSET', None),
+    ('生息资产', 'ASSET', None),
+    ('(一)人民币小计', 'ASSET', '1.境内人民币各项贷款'),
+    ('1.境内人民币各项贷款', 'ASSET', '1.1.对公一般贷款'),
+    ('1.1.对公一般贷款', 'ASSET', '121、122、123、124、141、142'),
+    ('1.2.个人贷款', 'ASSET', '131、132、133、134、135'),
+    ('1.3.信用卡贷款', 'ASSET', '136'),
+    ('1.4.票据贴现', 'ASSET', '125、126'),
+    ('1.5.非银贷款', 'ASSET', '115、116(剔除11602)'),
+    ('2.人民币非信贷类业务', 'ASSET', '2 . 1 . 债券投资'),
+    ('2.1.债券投资', 'ASSET', '151、152'),
+    ('2.1.1金市自营债券', 'ASSET', '区分金市自营和司库债券条件用投资组合\nINVES   COMB区分，其中司库债券的投资组合'),
+    ('2.1.2司库债券', 'ASSET', None),
+    ('2.2.结构化融资', 'ASSET', '155'),
+    ('2.3.同业资产(不含拆放非银)', 'ASSET', '112、113、114、119、150、11602'),
+    ('2.4.存款准备金', 'ASSET', '110'),
+    ('3.人民币非生息资产', 'ASSET', '3 . 1 .FV TPL类资产'),
+    ('3.1.FVTPL类资产', 'ASSET', '154、156'),
+    ('3.2.其他非生息资产', 'ASSET', '总资产-1.境内人民币各项贷款-2.人民币非'),
+    ('(二)外币小计(美元)', 'ASSET', '1.外币贷款'),
+    ('1.外币贷款', 'ASSET', '121、122、123、124、141、142'),
+    ('2.外币非信贷资产', 'ASSET', '2 . 1 . 外币债券'),
+    ('2.1.外币债券', 'ASSET', '151、152'),
+    ('2.2.同业资产', 'ASSET', '112、113、114、119、150、11602'),
+    ('3.外币非生息资产', 'ASSET', None),
+    ('总负债', 'LIABILITY', '报表获取'),
+    ('计息负债', 'LIABILITY', None),
+    ('(一)人民币小计', 'LIABILITY', '汇总：'),
+    ('1.境内人民币自营存款', 'LIABILITY', '汇总：'),
+    ('1.1.对公存款', 'LIABILITY', '汇总：'),
+    ('1.1.1对公活期存款', 'LIABILITY', '201金融机构活期存款'),
+    ('1.1.2对公定期存款', 'LIABILITY', '202金融机构通知存款'),
+    ('1.2.零售存款', 'LIABILITY', '汇总：'),
+    ('1.2.1零售活期存款', 'LIABILITY', '221个人活期存款'),
+    ('1.2.2零售定期存款', 'LIABILITY', '222个人通知存款'),
+    ('2.人民币市场化负债', 'LIABILITY', None),
+    ('(二)外币小计(美元)', 'LIABILITY', '汇总：且币种为外币折美元'),
+    ('1.外币存款', 'LIABILITY', None),
+    ('2.外币市场化负债', 'LIABILITY', None),
+    ('所有者权益', 'EQUITY', '总资产-总负债'),
 ]
 
 # 推断层级（基于名称前缀规则）
@@ -90,7 +90,7 @@ def category_to_root_sort(category: str, idx_in_category: int) -> int:
     """返回 (root_sort_order, parent_name)
     总资产=10, 生息资产=11, 总负债=20, 计息负债=21, 所有者权益=30
     """
-    return {'资产': 10, '负债': 20, '权益': 30}.get(category, 99) + idx_in_category
+    return {'ASSET': 10, 'LIABILITY': 20, 'EQUITY': 30}.get(category, 99) + idx_in_category
 
 
 def build_tree():
@@ -102,7 +102,7 @@ def build_tree():
     nodes = []  # (name, category, level, parent_idx_or_None, sort_in_level, caliber)
     # 第一次扫描：识别所有 L1 汇总行（按 category + 顺序）
     cat_l1_seq = {}  # category -> 当前序号
-    cat_summary_count = {'资产': 0, '负债': 0, '权益': 0}
+    cat_summary_count = {'ASSET': 0, 'LIABILITY': 0, 'EQUITY': 0}
 
     # 第一遍：识别 L1
     l1_nodes = []
@@ -111,7 +111,7 @@ def build_tree():
         lvl = infer_level(name)
         if lvl == 1:
             cat_summary_count[cat] += 1
-            sort_order = {'资产': 10, '负债': 20, '权益': 30}[cat] + cat_summary_count[cat]
+            sort_order = {'ASSET': 10, 'LIABILITY': 20, 'EQUITY': 30}[cat] + cat_summary_count[cat]
             l1_nodes.append({
                 'idx': i, 'name': name, 'category': cat, 'level': 1,
                 'parent_idx': None, 'sort_order': sort_order, 'caliber': caliber,
@@ -127,7 +127,7 @@ def build_tree():
         lvl = infer_level(name)
         if lvl == 2:
             # 找父级：同 category 的总资产/总负债
-            parent_name = '总资产' if cat == '资产' else ('总负债' if cat == '负债' else None)
+            parent_name = '总资产' if cat == 'ASSET' else ('总负债' if cat == 'LIABILITY' else None)
             parent_idx = None
             for ln in l1_nodes:
                 if ln['name'] == parent_name and ln['category'] == cat:
@@ -145,9 +145,9 @@ def build_tree():
     # L4 (1.1./2.1.) → 父级 = 当前 category 上一个 L3
     # L5 (1.1.1/2.1.1) → 父级 = 当前 category 上一个 L4
     detail_nodes = []
-    last_l2_idx = {'资产': None, '负债': None}
-    last_l3_idx = {'资产': None, '负债': None}
-    last_l4_idx = {'资产': None, '负债': None}
+    last_l2_idx = {'ASSET': None, 'LIABILITY': None}
+    last_l3_idx = {'ASSET': None, 'LIABILITY': None}
+    last_l4_idx = {'ASSET': None, 'LIABILITY': None}
     for i, (name, cat, caliber) in enumerate(ZXCOA_ROWS):
         lvl = infer_level(name)
         if lvl >= 3:
@@ -184,7 +184,7 @@ def build_tree():
 
 def gen_node_code(node, idx_in_scheme):
     """生成 node_code：ZX_<category><seq>"""
-    cat_prefix = {'资产': 'A', '负债': 'L', '权益': 'E'}[node['category']]
+    cat_prefix = {'ASSET': 'A', 'LIABILITY': 'L', 'EQUITY': 'E'}[node['category']]
     return f"ZX_{cat_prefix}{idx_in_scheme:03d}"
 
 

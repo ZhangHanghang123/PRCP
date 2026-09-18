@@ -10,13 +10,12 @@ import {
 import type { DataNode } from 'antd/es/tree'
 import type { ColumnsType } from 'antd/es/table'
 import { coaApi } from '../api'
+import { DictSelect, DictTag } from '../components'
 
 const NODE_TYPES = [
-  { value: 'ASSET', label: '资产', color: 'blue' },
-  { value: 'LIABILITY', label: '负债', color: 'orange' },
-  { value: 'EQUITY', label: '权益', color: 'green' },
-  { value: 'INCOME', label: '收入', color: 'cyan' },
-  { value: 'EXPENSE', label: '支出', color: 'magenta' },
+  { value: 'CATEGORY', label: '大类', color: 'blue' },
+  { value: 'GROUP', label: '分组', color: 'cyan' },
+  { value: 'LEAF', label: '叶节点', color: 'green' },
 ]
 
 const COA: React.FC = () => {

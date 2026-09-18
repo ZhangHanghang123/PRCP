@@ -71,10 +71,11 @@ def main():
         grouped.append({**n, 'group': current_grp})
 
     print(f'实际账户册: {len(grouped)}')
-    # 按 category + group 汇总
-    for cat in ('资产', '负债', '表外'):
-        sub = [g for g in grouped if g['category'] == cat]
-        print(f'  {cat}: {len(sub)} 册')
+    # 按 category + group 汇总（码值国际化）
+    cat_map = {'资产': 'ASSET', '负债': 'LIABILITY', '表外': 'OFF_BALANCE'}
+    for cat_cn in ('资产', '负债', '表外'):
+        sub = [g for g in grouped if g['category'] == cat_cn]
+        print(f'  {cat_cn} ({cat_map[cat_cn]}): {len(sub)} 册')
 
     # ========== 写入数据库 ==========
     conn = pymysql.connect(**MYSQL)
@@ -98,13 +99,15 @@ def main():
 
     # 3) 创建节点（3 层）
     print('[3] 创建 3 层节点结构...')
-    # Level 1: 大类（3 个）
+    # Level 1: 大类（3 个）—— 码值国际化：ASSET/LIABILITY/OFF_BALANCE
     l1_ids = {}
-    for cat in ('资产', '负债', '表外'):
+    for cat in ('ASSET', 'LIABILITY', 'OFF_BALANCE'):
+        # 中文显示名通过 PRCP_COA_CATEGORY 字典查询（硬编码仅用于初次 init）
+        cat_label = {'ASSET': '资产', 'LIABILITY': '负债', 'OFF_BALANCE': '表外'}[cat]
         cur.execute("""
             INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, created_by, updated_by)
             VALUES (%s, %s, %s, NULL, 1, 'CATEGORY', %s, %s, 1, 1)
-        """, (scheme_id, f'L1_{cat}', cat, f'/L1_{cat}/', list(('资产', '负债', '表外')).index(cat)))
+        """, (scheme_id, f'L1_{cat}', cat_label, f'/L1_{cat}/', list(('ASSET', 'LIABILITY', 'OFF_BALANCE')).index(cat)))
         l1_ids[cat] = cur.lastrowid
 
     # Level 2: 业务分组
@@ -112,15 +115,17 @@ def main():
     l2_codes = {}  # (category, group) -> node_code
     counter = 0
     for g in grouped:
-        key = (g['category'], g['group'])
+        # g['category'] 仍为中文（来自 xlsx），转换为英文码值
+        cat_en = cat_map[g['category']]
+        key = (cat_en, g['group'])
         if key not in l2_ids:
             counter += 1
-            grp_code = f'L2_{g["category"]}_{counter:02d}'
+            grp_code = f'L2_{cat_en}_{counter:02d}'
             cur.execute("""
                 INSERT INTO prcp_coa_node (scheme_id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, created_by, updated_by)
                 VALUES (%s, %s, %s, %s, 2, 'GROUP', %s, %s, 1, 1)
-            """, (scheme_id, grp_code, g['group'], l1_ids[g['category']],
-                  f'/L1_{g["category"]}/{grp_code}/', counter))
+            """, (scheme_id, grp_code, g['group'], l1_ids[cat_en],
+                  f'/L1_{cat_en}/{grp_code}/', counter))
             l2_ids[key] = cur.lastrowid
             l2_codes[key] = grp_code
 

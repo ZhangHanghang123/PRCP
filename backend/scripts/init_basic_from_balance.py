@@ -94,8 +94,9 @@ def distribute_off_rem(name: str, amt: float) -> dict:
 
 # ---------- ASF/RSF + HQLA 启发式 ----------
 def get_asf_rsf(category: str) -> str:
-    if category == '负债': return 'ASF'
-    if category == '资产': return 'RSF'
+    """根据资产负债分类返回 ASF/RSF（码值国际化后）"""
+    if category == 'LIABILITY': return 'ASF'
+    if category == 'ASSET': return 'RSF'
     return ''
 
 def get_hqla_factor(node_name: str) -> float:
@@ -140,10 +141,10 @@ def main():
          parent_id, parent_code, current_amount, avg_balance,
          interest_rate, interest_amount, capital_ratio, risk_weight) = r
 
-        # 大类
-        if path and '/L1_资产/' in path: category = '资产'
-        elif path and '/L1_负债/' in path: category = '负债'
-        elif path and '/L1_表外/' in path: category = '表外'
+        # 大类（从 path 推导，码值用国际化后的英文）
+        if path and '/L1_ASSET/' in path: category = 'ASSET'
+        elif path and '/L1_LIABILITY/' in path: category = 'LIABILITY'
+        elif path and '/L1_OFF_BALANCE/' in path: category = 'OFF_BALANCE'
         else: category = ''
 
         # 跳过空余额的 L1/L2 父节点（避免生成无效记录）
@@ -153,13 +154,13 @@ def main():
 
         # 期限桶分配
         current_amount = float(current_amount or 0)
-        if category == '资产':
+        if category == 'ASSET':
             orig = distribute_asset_orig(node_name, current_amount)
             rem = distribute_asset_rem(node_name, current_amount)
-        elif category == '负债':
+        elif category == 'LIABILITY':
             orig = distribute_liab_orig(node_name, current_amount)
             rem = distribute_liab_rem(node_name, current_amount)
-        elif category == '表外':
+        elif category == 'OFF_BALANCE':
             orig = distribute_off_orig(node_name, current_amount)
             rem = distribute_off_rem(node_name, current_amount)
         else:

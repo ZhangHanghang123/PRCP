@@ -305,7 +305,7 @@ const ReverseResult: React.FC = () => {
                 <Space size="middle" wrap>
                   {categoryRows.map((row) => (
                     <Tooltip key={row.key} title="当前余额">
-                      <Tag color={row.category === '资产' ? 'blue' : row.category === '负债' ? 'orange' : 'green'}>
+                      <Tag color={row.category === 'ASSET' ? 'blue' : row.category === 'LIABILITY' ? 'orange' : 'green'}>
                         {row.category}: ¥{row.current_balance.toFixed(2)} 亿
                       </Tag>
                     </Tooltip>

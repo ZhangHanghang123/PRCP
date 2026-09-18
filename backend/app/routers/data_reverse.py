@@ -230,20 +230,24 @@ async def by_scheme_matrix(
         m["record_id"] = r[7 + 2 * n_b + 10]
         matrix[m["coa_node_id"]] = m
 
-    # 6. 大类汇总
+    # 6. 大类汇总（码值国际化：ASSET/LIABILITY/EQUITY/OFF_BALANCE）
     def classify_category(n: dict) -> str:
         code = n.get("node_code") or ""
         path = n.get("path") or ""
         if code.startswith("ZX_A"):
-            return "资产"
+            return "ASSET"
         if code.startswith("ZX_L"):
-            return "负债"
+            return "LIABILITY"
         if code.startswith("ZX_E"):
-            return "权益"
+            return "EQUITY"
         parts = path.split("/")
         if len(parts) >= 2 and parts[1].startswith("L1_"):
-            return parts[1][3:]
-        return "其他"
+            # path 已是 L1_ASSET / L1_LIABILITY / L1_EQUITY / L1_OFF_BALANCE 形式
+            raw = parts[1][3:]
+            # 兼容旧 path
+            mapping = {'资产': 'ASSET', '负债': 'LIABILITY', '权益': 'EQUITY', '表外': 'OFF_BALANCE'}
+            return mapping.get(raw, raw)
+        return "OTHER"
 
     categories: dict = {}
     node_by_id = {n["coa_node_id"]: n for n in nodes}

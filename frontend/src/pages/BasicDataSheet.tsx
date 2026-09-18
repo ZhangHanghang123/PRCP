@@ -334,9 +334,8 @@ const BasicDataSheet: React.FC = () => {
 
   const allCols: ColumnsType<any> = [...baseCols, origGroup, remGroup, extraGroup, actionCol]
 
-  // 大类汇总
-  // 大类汇总行（动态从 categoriesAgg 的 key 生成）
-  const categoryNameOrder = ['资产', '负债', '权益', '表外', '其他']
+  // 大类汇总（码值国际化后）
+  const categoryNameOrder = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
   const existingCategories = Object.keys(categoriesAgg).sort((a, b) => {
     const ia = categoryNameOrder.indexOf(a); const ib = categoryNameOrder.indexOf(b)
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
@@ -345,10 +344,10 @@ const BasicDataSheet: React.FC = () => {
     category: cat,
     account_count: matrixNodes.filter((n) => {
       const code = n.node_code || ''
-      if (cat === '资产') return code.startsWith('ZX_A') || n.path?.startsWith('/L1_资产')
-      if (cat === '负债') return code.startsWith('ZX_L') || n.path?.startsWith('/L1_负债')
-      if (cat === '权益') return code.startsWith('ZX_E')
-      if (cat === '表外') return n.path?.startsWith('/L1_表外')
+      if (cat === 'ASSET') return code.startsWith('ZX_A') || n.path?.startsWith('/L1_ASSET')
+      if (cat === 'LIABILITY') return code.startsWith('ZX_L') || n.path?.startsWith('/L1_LIABILITY')
+      if (cat === 'EQUITY') return code.startsWith('ZX_E')
+      if (cat === 'OFF_BALANCE') return n.path?.startsWith('/L1_OFF_BALANCE')
       return false
     }).length,
   }))

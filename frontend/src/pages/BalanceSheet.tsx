@@ -444,9 +444,9 @@ const BalanceSheet: React.FC = () => {
                   size="small"
                   rowKey="category"
                   dataSource={[
-                    { category: '资产', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_资产') && n.node_level === 3).length },
-                    { category: '负债', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_负债') && n.node_level === 3).length },
-                    { category: '表外', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_表外') && n.node_level === 3).length },
+                    { category: 'ASSET', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_ASSET') && n.node_level === 3).length },
+                    { category: 'LIABILITY', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_LIABILITY') && n.node_level === 3).length },
+                    { category: 'OFF_BALANCE', account_count: matrixNodes.filter((n) => n.path?.startsWith('/L1_OFF_BALANCE') && n.node_level === 3).length },
                   ]}
                   columns={allCatCols as any}
                   scroll={{ x: 110 + 100 + matrixDates.length * 7 * 110, y: 'calc(100vh - 380px)' }}
