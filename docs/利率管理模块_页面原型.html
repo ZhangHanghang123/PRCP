@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>PRCP 利率管理模块 · 页面原型</title>
+<style>
+  :root {
+    --brand-grad: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --bg-soft: #f7f8fb;
+    --border: #e5e7eb;
+    --text-1: #1f2937;
+    --text-2: #6b7280;
+    --primary: #667eea;
+    --primary-2: #764ba2;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    background: var(--bg-soft);
+    color: var(--text-1);
+    font-size: 14px;
+  }
+
+  /* 顶部导航 */
+  .topbar {
+    height: 56px;
+    background: var(--brand-grad);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .topbar .logo {
+    font-size: 18px;
+    font-weight: 700;
+    margin-right: 32px;
+  }
+  .topbar .crumb {
+    color: rgba(255,255,255,0.85);
+    font-size: 13px;
+  }
+  .topbar .user {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  /* 布局 */
+  .layout {
+    display: flex;
+    min-height: calc(100vh - 56px);
+  }
+  .sidebar {
+    width: 200px;
+    background: #fff;
+    border-right: 1px solid var(--border);
+    padding: 16px 0;
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    color: var(--text-1);
+    cursor: pointer;
+    transition: background 0.15s;
+    font-size: 14px;
+  }
+  .menu-item:hover { background: #f3f4f6; }
+  .menu-item.active {
+    background: linear-gradient(90deg, rgba(102,126,234,0.1), transparent);
+    color: var(--primary);
+    border-left: 3px solid var(--primary);
+    padding-left: 17px;
+    font-weight: 600;
+  }
+  .menu-item .icon {
+    width: 18px;
+    margin-right: 10px;
+    text-align: center;
+  }
+
+  /* 内容区 */
+  .content {
+    flex: 1;
+    padding: 24px;
+    overflow-x: auto;
+  }
+  .page-title {
+    display: flex;
+    align-items: center;
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .page-title::before {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 20px;
+    background: var(--brand-grad);
+    margin-right: 10px;
+    border-radius: 2px;
+  }
+
+  /* 卡片 */
+  .card {
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    margin-bottom: 16px;
+  }
+  .card-header {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* 主面板 grid */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 16px;
+  }
+
+  /* 左侧曲线树 */
+  .curve-tree {
+    padding: 8px;
+    max-height: 700px;
+    overflow-y: auto;
+  }
+  .curve-group {
+    margin-bottom: 4px;
+  }
+  .curve-group-header {
+    display: flex;
+    align-items: center;
+    padding: 8px 8px;
+    background: linear-gradient(90deg, rgba(102,126,234,0.06), transparent);
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .curve-group-header:hover { background: linear-gradient(90deg, rgba(102,126,234,0.12), transparent); }
+  .curve-group-header.selected {
+    background: linear-gradient(90deg, rgba(102,126,234,0.2), transparent);
+    color: var(--primary);
+  }
+  .curve-group-arrow {
+    margin-right: 4px;
+    transition: transform 0.2s;
+    font-size: 12px;
+    color: var(--text-2);
+  }
+  .curve-group-arrow.open { transform: rotate(90deg); }
+  .curve-group-tag {
+    margin-left: auto;
+    padding: 1px 6px;
+    background: var(--primary);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+  .curve-children {
+    padding-left: 20px;
+  }
+  .curve-child {
+    padding: 6px 8px;
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-2);
+  }
+  .curve-child:hover { background: #f9fafb; color: var(--text-1); }
+  .curve-child.selected {
+    background: rgba(102,126,234,0.08);
+    color: var(--primary);
+    font-weight: 500;
+  }
+
+  /* 右侧矩阵 */
+  .matrix-area {
+    padding: 16px;
+  }
+  .matrix-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 16px;
+    border-bottom: 1px dashed var(--border);
+    margin-bottom: 16px;
+  }
+  .matrix-toolbar label { color: var(--text-2); font-size: 13px; }
+  .matrix-toolbar select {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    font-size: 13px;
+  }
+
+  /* 利率矩阵表 */
+  .rate-matrix {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+  }
+  .rate-matrix th, .rate-matrix td {
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    text-align: center;
+    font-size: 13px;
+  }
+  .rate-matrix thead th {
+    background: #f9fafb;
+    font-weight: 600;
+    color: var(--text-1);
+  }
+  .rate-matrix .term {
+    background: linear-gradient(180deg, rgba(102,126,234,0.06), transparent);
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .rate-matrix .num-cell {
+    background: #fff;
+  }
+  .rate-matrix .num-cell input {
+    width: 80px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    text-align: right;
+    font-size: 13px;
+    background: transparent;
+  }
+  .rate-matrix .num-cell input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    outline: none;
+  }
+  .rate-matrix tr.divider td {
+    background: #fef3c7;
+    color: var(--warning);
+    font-style: italic;
+    padding: 4px 12px;
+    font-size: 12px;
+    text-align: left;
+  }
+  .rate-matrix tr.total td {
+    background: #ecfdf5;
+    font-weight: 600;
+    color: var(--success);
+  }
+
+  /* KPI 卡片 */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .kpi-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .kpi-card .label {
+    color: var(--text-2);
+    font-size: 12px;
+    margin-bottom: 8px;
+  }
+  .kpi-card .value {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .kpi-card .value .unit {
+    font-size: 14px;
+    color: var(--text-2);
+    margin-left: 4px;
+    font-weight: 400;
+  }
+
+  /* 按钮 */
+  .btn {
+    padding: 6px 16px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--primary); color: var(--primary); }
+  .btn-primary {
+    background: var(--brand-grad);
+    border-color: transparent;
+    color: #fff;
+  }
+  .btn-primary:hover { color: #fff; opacity: 0.92; }
+  .btn-sm {
+    padding: 3px 10px;
+    font-size: 12px;
+  }
+
+  /* 对比图（SVG 折线） */
+  .chart-container {
+    padding: 16px;
+  }
+  .chart-svg {
+    width: 100%;
+    height: 360px;
+  }
+
+  /* Tab */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  .tab {
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text-2);
+    font-weight: 500;
+    transition: all 0.15s;
+  }
+  .tab:hover { color: var(--primary); }
+  .tab.active {
+    color: var(--primary);
+    border-bottom-color: var(--primary);
+  }
+
+  /* 标签 */
+  .tag {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background: #f3f4f6;
+    color: var(--text-1);
+  }
+  .tag-blue { background: #dbeafe; color: #1e40af; }
+  .tag-green { background: #d1fae5; color: #065f46; }
+  .tag-orange { background: #fed7aa; color: #9a3412; }
+  .tag-purple { background: #ede9fe; color: #5b21b6; }
+  .tag-pink { background: #fce7f3; color: #9f1239; }
+
+  /* 模态框 */
+  .modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 8px;
+    width: 480px;
+    max-width: 90vw;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  }
+  .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 600;
+    font-size: 15px;
+  }
+  .modal-body { padding: 20px; }
+  .modal-footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .form-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .form-row label {
+    width: 100px;
+    color: var(--text-2);
+    text-align: right;
+    font-size: 13px;
+  }
+  .form-row input, .form-row select {
+    flex: 1;
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部导航 -->
+<div class="topbar">
+  <div class="logo">🏦 PRCP · 银行经营智能分析平台</div>
+  <div class="crumb">数据维护 / 利率管理 / CN_SOV_CNY</div>
+  <div class="user">👤 admin <span style="opacity:0.6">|</span> 退出登录</div>
+</div>
+
+<div class="layout">
+  <!-- 侧边栏 -->
+  <div class="sidebar">
+    <div class="menu-item"><span class="icon">📊</span> Dashboard</div>
+    <div class="menu-item"><span class="icon">🌳</span> 账户册维护</div>
+    <div class="menu-item"><span class="icon">📄</span> 报表表项管理</div>
+    <div class="menu-item"><span class="icon">📈</span> 指标管理</div>
+    <div class="menu-item"><span class="icon">⚡</span> 数据维护</div>
+    <div class="menu-item"><span class="icon">🧪</span> 模型管理</div>
+    <div class="menu-item"><span class="icon">🎯</span> 组合反算</div>
+    <div class="menu-item active" style="background: linear-gradient(90deg, rgba(102,126,234,0.18), transparent); border-left: 3px solid #667eea; padding-left: 17px;">
+      <span class="icon">💹</span> 利率管理
+    </div>
+    <div class="menu-item"><span class="icon">⚙️</span> 系统管理</div>
+  </div>
+
+  <!-- 内容区 -->
+  <div class="content">
+
+    <div class="page-title">利率管理 · 收益率曲线</div>
+
+    <!-- KPI 概览 -->
+    <div class="kpi-row">
+      <div class="kpi-card">
+        <div class="label">曲线方案总数</div>
+        <div class="value">6 <span class="unit">条</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">利率点总数</div>
+        <div class="value">234 <span class="unit">条</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">当前活跃曲线</div>
+        <div class="value">5 <span class="unit">条</span></div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">最新 10Y 国债</div>
+        <div class="value">2.750 <span class="unit">%</span></div>
+      </div>
+    </div>
+
+    <!-- Tab -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('matrix')">① 曲线明细维护</div>
+      <div class="tab" onclick="switchTab('compare')">② 历史曲线对比</div>
+      <div class="tab" onclick="switchTab('manage')">③ 曲线方案管理</div>
+    </div>
+
+    <!-- Tab 1: 矩阵维护 -->
+    <div id="tab-matrix">
+      <div class="main-grid">
+        <!-- 左侧曲线树 -->
+        <div class="card">
+          <div class="card-header">
+            <span>📋 曲线方案</span>
+            <button class="btn btn-sm btn-primary" onclick="openModal()">+ 新建</button>
+          </div>
+          <div class="curve-tree">
+            <div class="curve-group">
+              <div class="curve-group-header selected" onclick="toggleGroup(this)">
+                <span class="curve-group-arrow open">▶</span>
+                <span class="tag tag-blue" style="margin-right:6px">SOVEREIGN</span>
+                <span>CN_SOV_CNY</span>
+                <span class="curve-group-tag">18</span>
+              </div>
+              <div class="curve-children">
+                <div class="curve-child selected">
+                  <span>📅 2026-09-17</span>
+                  <span style="margin-left:auto;color:var(--primary)">2.750%</span>
+                </div>
+                <div class="curve-child">
+                  <span>📅 2026-09-16</span>
+                  <span style="margin-left:auto;color:var(--text-2)">2.780%</span>
+                </div>
+                <div class="curve-child">
+                  <span>📅 2026-09-15</span>
+                  <span style="margin-left:auto;color:var(--text-2)">2.800%</span>
+                </div>
+                <div class="curve-child" style="color:var(--primary);cursor:pointer">
+                  <span>➕ 新增日期</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="curve-group">
+              <div class="curve-group-header" onclick="toggleGroup(this)">
+                <span class="curve-group-arrow">▶</span>
+                <span class="tag tag-green" style="margin-right:6px">POLICY</span>
+                <span>CN_POL_CNY</span>
+                <span class="curve-group-tag">15</span>
+              </div>
+            </div>
+
+            <div class="curve-group">
+              <div class="curve-group-header" onclick="toggleGroup(this)">
+                <span class="curve-group-arrow">▶</span>
+                <span class="tag tag-orange" style="margin-right:6px">CD</span>
+                <span>CN_CD_CNY</span>
+                <span class="curve-group-tag">12</span>
+              </div>
+            </div>
+
+            <div class="curve-group">
+              <div class="curve-group-header" onclick="toggleGroup(this)">
+                <span class="curve-group-arrow">▶</span>
+                <span class="tag tag-purple" style="margin-right:6px">LPR</span>
+                <span>CN_LPR_CNY</span>
+                <span class="curve-group-tag">8</span>
+              </div>
+            </div>
+
+            <div class="curve-group">
+              <div class="curve-group-header" onclick="toggleGroup(this)">
+                <span class="curve-group-arrow">▶</span>
+                <span class="tag tag-pink" style="margin-right:6px">FTP</span>
+                <span>CN_FTP_CNY</span>
+                <span class="curve-group-tag">20</span>
+              </div>
+            </div>
+
+            <div class="curve-group">
+              <div class="curve-group-header" onclick="toggleGroup(this)">
+                <span class="curve-group-arrow">▶</span>
+                <span class="tag" style="margin-right:6px;background:#f3f4f6">CUSTOM</span>
+                <span>CN_CORP_CNY</span>
+                <span class="curve-group-tag">10</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧矩阵 -->
+        <div class="card">
+          <div class="card-header">
+            <span>📊 CN_SOV_CNY · 中国国债收益率曲线 · 2026-09-17</span>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm">📥 导入 Excel</button>
+              <button class="btn btn-sm">📤 导出 Excel</button>
+              <button class="btn btn-sm btn-primary">💾 保存</button>
+            </div>
+          </div>
+          <div class="matrix-area">
+            <div class="matrix-toolbar">
+              <label>数据日期：</label>
+              <select><option>2026-09-17</option><option>2026-09-16</option></select>
+              <label>币种：</label>
+              <select><option>CNY 人民币</option></select>
+              <label>数据源：</label>
+              <span class="tag tag-blue">WIND</span>
+            </div>
+
+            <table class="rate-matrix">
+              <thead>
+                <tr>
+                  <th>期限点</th>
+                  <th>年化利率 (%)</th>
+                  <th>说明</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="term">1日</td>
+                  <td class="num-cell"><input value="1.5000"></td>
+                  <td>隔夜</td>
+                </tr>
+                <tr>
+                  <td class="term">7日</td>
+                  <td class="num-cell"><input value="1.6500"></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td class="term">1M</td>
+                  <td class="num-cell"><input value="1.8500"></td>
+                  <td>1 个月</td>
+                </tr>
+                <tr>
+                  <td class="term">3M</td>
+                  <td class="num-cell"><input value="2.0500"></td>
+                  <td>3 个月</td>
+                </tr>
+                <tr>
+                  <td class="term">6M</td>
+                  <td class="num-cell"><input value="2.1500"></td>
+                  <td>6 个月</td>
+                </tr>
+                <tr class="divider">
+                  <td colspan="3">— 关键期限 —</td>
+                </tr>
+                <tr>
+                  <td class="term">1Y</td>
+                  <td class="num-cell"><input value="2.2500"></td>
+                  <td>基准</td>
+                </tr>
+                <tr>
+                  <td class="term">2Y</td>
+                  <td class="num-cell"><input value="2.3500"></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td class="term">3Y</td>
+                  <td class="num-cell"><input value="2.4500"></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td class="term">5Y</td>
+                  <td class="num-cell"><input value="2.6000"></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td class="term" style="background: linear-gradient(180deg, rgba(245,158,11,0.15), transparent); color: var(--warning);">
+                    10Y
+                  </td>
+                  <td class="num-cell" style="background: #fffbeb">
+                    <input value="2.7500" style="background:#fffbeb;color:var(--warning);font-weight:600">
+                  </td>
+                  <td>关键期限 ⭐</td>
+                </tr>
+                <tr>
+                  <td class="term">15Y</td>
+                  <td class="num-cell"><input value="2.8500"></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td class="term">20Y</td>
+                  <td class="num-cell"><input value="2.9500"></td>
+                  <td>—</td>
+                </tr>
+                <tr>
+                  <td class="term">30Y</td>
+                  <td class="num-cell"><input value="3.0500"></td>
+                  <td>超长期</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr class="total">
+                  <td>📊 度量</td>
+                  <td colspan="2" style="text-align:left;padding-left:24px">
+                    <span>BP 平移：<b style="color:var(--success)">+0.5</b> （vs 上日 10Y）</span>
+                    &nbsp;&nbsp;&nbsp;&nbsp;
+                    <span>斜率：<b style="color:var(--primary)">0.500%</b> （10Y - 1Y）</span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+
+            <div style="margin-top:12px;padding:8px 12px;background:#fff7e6;border-left:3px solid #f59e0b;border-radius:4px;font-size:12px;color:#92400e">
+              💡 <b>使用提示</b>：每个期限点对应一个年化利率（%），保留 4 位小数。BP 平移自动 = 当日 10Y - 上日 10Y；斜率 = 当日 10Y - 1Y。
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 2: 历史曲线对比 -->
+    <div id="tab-compare" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span>📈 历史曲线对比</span>
+          <div style="display:flex;gap:8px">
+            <select><option>曲线 1：CN_SOV_CNY</option></select>
+            <select><option>曲线 2：CN_POL_CNY</option></select>
+            <select><option>2026-09-15 至 2026-09-17</option></select>
+            <button class="btn btn-sm btn-primary">🔄 重新对比</button>
+          </div>
+        </div>
+        <div class="chart-container">
+          <svg class="chart-svg" viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+            <!-- 网格 -->
+            <defs>
+              <linearGradient id="grad-sov" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0" stop-color="#667eea"/>
+                <stop offset="1" stop-color="#764ba2"/>
+              </linearGradient>
+            </defs>
+            <!-- 坐标轴 -->
+            <line x1="50" y1="20" x2="50" y2="320" stroke="#d1d5db" stroke-width="1"/>
+            <line x1="50" y1="320" x2="780" y2="320" stroke="#d1d5db" stroke-width="1"/>
+
+            <!-- Y 轴刻度 -->
+            <text x="40" y="24" text-anchor="end" fill="#6b7280" font-size="10">3.5%</text>
+            <text x="40" y="94" text-anchor="end" fill="#6b7280" font-size="10">3.0%</text>
+            <text x="40" y="164" text-anchor="end" fill="#6b7280" font-size="10">2.5%</text>
+            <text x="40" y="234" text-anchor="end" fill="#6b7280" font-size="10">2.0%</text>
+            <text x="40" y="304" text-anchor="end" fill="#6b7280" font-size="10">1.5%</text>
+
+            <!-- Y 轴网格线 -->
+            <line x1="50" y1="100" x2="780" y2="100" stroke="#f3f4f6"/>
+            <line x1="50" y1="170" x2="780" y2="170" stroke="#f3f4f6"/>
+            <line x1="50" y1="240" x2="780" y2="240" stroke="#f3f4f6"/>
+
+            <!-- X 轴：13 个期限点 -->
+            <g fill="#6b7280" font-size="10" text-anchor="middle">
+              <text x="70" y="340">1日</text>
+              <text x="115" y="340">7日</text>
+              <text x="160" y="340">1M</text>
+              <text x="205" y="340">3M</text>
+              <text x="250" y="340">6M</text>
+              <text x="295" y="340">1Y</text>
+              <text x="340" y="340">2Y</text>
+              <text x="385" y="340">3Y</text>
+              <text x="430" y="340">5Y</text>
+              <text x="475" y="340">10Y</text>
+              <text x="520" y="340">15Y</text>
+              <text x="565" y="340">20Y</text>
+              <text x="610" y="340">30Y</text>
+            </g>
+
+            <!-- 曲线 1：国债 CN_SOV_CNY（蓝色，9-17 当日） -->
+            <polyline fill="none" stroke="url(#grad-sov)" stroke-width="2.5"
+              points="70,235 115,210 162,190 207,170 252,160 297,150 342,140 387,130 432,115 477,100 522,90 567,80 612,70"/>
+            <!-- 数据点 -->
+            <g fill="#667eea">
+              <circle cx="70" cy="235" r="3"/><circle cx="115" cy="210" r="3"/>
+              <circle cx="162" cy="190" r="3"/><circle cx="207" cy="170" r="3"/>
+              <circle cx="252" cy="160" r="3"/><circle cx="297" cy="150" r="3"/>
+              <circle cx="342" cy="140" r="3"/><circle cx="387" cy="130" r="3"/>
+              <circle cx="432" cy="115" r="3"/><circle cx="477" cy="100" r="3.5" stroke="#fff" stroke-width="1.5"/>
+              <circle cx="522" cy="90" r="3"/><circle cx="567" cy="80" r="3"/>
+              <circle cx="612" cy="70" r="3"/>
+            </g>
+
+            <!-- 曲线 2：政策性金融债（绿色虚线，9-17 当日） -->
+            <polyline fill="none" stroke="#10b981" stroke-width="2" stroke-dasharray="5,3"
+              points="70,225 115,200 162,180 207,160 252,150 297,140 342,130 387,120 432,105 477,85 522,75 567,65 612,55"/>
+            <g fill="#10b981">
+              <circle cx="70" cy="225" r="3"/><circle cx="115" cy="200" r="3"/>
+              <circle cx="162" cy="180" r="3"/><circle cx="207" cy="160" r="3"/>
+              <circle cx="252" cy="150" r="3"/><circle cx="297" cy="140" r="3"/>
+              <circle cx="342" cy="130" r="3"/><circle cx="387" cy="120" r="3"/>
+              <circle cx="432" cy="105" r="3"/><circle cx="477" cy="85" r="3"/>
+              <circle cx="522" cy="75" r="3"/><circle cx="567" cy="65" r="3"/>
+              <circle cx="612" cy="55" r="3"/>
+            </g>
+
+            <!-- 国债 9-15 历史 -->
+            <polyline fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="2,2"
+              points="70,237 115,212 162,200 297,160 477,110"/>
+            <!-- 国债 9-16 历史 -->
+            <polyline fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4,2"
+              points="70,236 115,211 162,195 297,155 477,105"/>
+
+            <!-- 图例 -->
+            <g transform="translate(660, 30)">
+              <rect x="0" y="0" width="110" height="80" fill="#fff" stroke="#e5e7eb" rx="4"/>
+              <line x1="8" y1="14" x2="30" y2="14" stroke="#667eea" stroke-width="2.5"/>
+              <text x="34" y="17" font-size="11" fill="#1f2937">国债 9-17</text>
+              <line x1="8" y1="32" x2="30" y2="32" stroke="#10b981" stroke-width="2" stroke-dasharray="5,3"/>
+              <text x="34" y="35" font-size="11" fill="#1f2937">政金 9-17</text>
+              <line x1="8" y1="50" x2="30" y2="50" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="2,2"/>
+              <text x="34" y="53" font-size="11" fill="#1f2937">国债 9-15</text>
+              <line x1="8" y1="68" x2="30" y2="68" stroke="#9ca3af" stroke-width="1.5" stroke-dasharray="4,2"/>
+              <text x="34" y="71" font-size="11" fill="#1f2937">国债 9-16</text>
+            </g>
+
+            <!-- 标题 -->
+            <text x="50" y="14" font-size="12" fill="#6b7280">年化利率（%）</text>
+            <text x="770" y="356" text-anchor="end" font-size="11" fill="#6b7280">期限点</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: 曲线方案管理 -->
+    <div id="tab-manage" style="display:none">
+      <div class="card">
+        <div class="card-header">
+          <span>⚙️ 曲线方案管理</span>
+          <button class="btn btn-sm btn-primary" onclick="openModal()">+ 新建曲线方案</button>
+        </div>
+        <div style="padding:0">
+          <table class="rate-matrix" style="margin-bottom:0">
+            <thead>
+              <tr>
+                <th>曲线编码</th>
+                <th>曲线名称</th>
+                <th>曲线类型</th>
+                <th>币种</th>
+                <th>数据源</th>
+                <th>利率点</th>
+                <th>状态</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>CN_SOV_CNY</code></td>
+                <td>中国国债收益率曲线</td>
+                <td><span class="tag tag-blue">SOVEREIGN</span></td>
+                <td>CNY</td>
+                <td>WIND</td>
+                <td>18</td>
+                <td><span class="tag tag-green">ACTIVE</span></td>
+                <td>
+                  <button class="btn btn-sm">编辑</button>
+                  <button class="btn btn-sm">复制</button>
+                  <button class="btn btn-sm" style="color:var(--danger)">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>CN_POL_CNY</code></td>
+                <td>政策性金融债收益率曲线</td>
+                <td><span class="tag tag-green">POLICY</span></td>
+                <td>CNY</td>
+                <td>WIND</td>
+                <td>15</td>
+                <td><span class="tag tag-green">ACTIVE</span></td>
+                <td>
+                  <button class="btn btn-sm">编辑</button>
+                  <button class="btn btn-sm">复制</button>
+                  <button class="btn btn-sm" style="color:var(--danger)">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>CN_CD_CNY</code></td>
+                <td>同业存单收益率曲线</td>
+                <td><span class="tag tag-orange">CD</span></td>
+                <td>CNY</td>
+                <td>WIND</td>
+                <td>12</td>
+                <td><span class="tag tag-green">ACTIVE</span></td>
+                <td>
+                  <button class="btn btn-sm">编辑</button>
+                  <button class="btn btn-sm">复制</button>
+                  <button class="btn btn-sm" style="color:var(--danger)">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>CN_LPR_CNY</code></td>
+                <td>LPR 贷款市场报价利率</td>
+                <td><span class="tag tag-purple">LPR</span></td>
+                <td>CNY</td>
+                <td>央行</td>
+                <td>8</td>
+                <td><span class="tag tag-green">ACTIVE</span></td>
+                <td>
+                  <button class="btn btn-sm">编辑</button>
+                  <button class="btn btn-sm">复制</button>
+                  <button class="btn btn-sm" style="color:var(--danger)">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>CN_FTP_CNY</code></td>
+                <td>内部 FTP 转移定价曲线</td>
+                <td><span class="tag tag-pink">FTP</span></td>
+                <td>CNY</td>
+                <td>内部</td>
+                <td>20</td>
+                <td><span class="tag tag-green">ACTIVE</span></td>
+                <td>
+                  <button class="btn btn-sm">编辑</button>
+                  <button class="btn btn-sm">复制</button>
+                  <button class="btn btn-sm" style="color:var(--danger)">删除</button>
+                </td>
+              </tr>
+              <tr>
+                <td><code>CN_CORP_CNY</code></td>
+                <td>企业债（AAA）收益率曲线</td>
+                <td><span class="tag">CUSTOM</span></td>
+                <td>CNY</td>
+                <td>WIND</td>
+                <td>10</td>
+                <td><span class="tag tag-orange">HISTORY</span></td>
+                <td>
+                  <button class="btn btn-sm">编辑</button>
+                  <button class="btn btn-sm">复制</button>
+                  <button class="btn btn-sm" style="color:var(--danger)">删除</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- 模态框：新建曲线 -->
+<div class="modal-backdrop" id="modal-backdrop" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-header">➕ 新建曲线方案</div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>曲线编码 *</label>
+        <input placeholder="如：CN_SOV_CNY" value="">
+      </div>
+      <div class="form-row">
+        <label>曲线名称 *</label>
+        <input placeholder="如：中国国债收益率曲线（人民币）" value="">
+      </div>
+      <div class="form-row">
+        <label>曲线类型 *</label>
+        <select>
+          <option>SOVEREIGN 国债</option>
+          <option>POLICY 政策性金融债</option>
+          <option>CD 同业存单</option>
+          <option>LPR LPR 报价</option>
+          <option>FTP FTP 转移定价</option>
+          <option>CUSTOM 自定义</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>币种</label>
+        <select>
+          <option>CNY 人民币</option>
+          <option>USD 美元</option>
+          <option>EUR 欧元</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>数据源</label>
+        <select>
+          <option>WIND</option>
+          <option>CHOICE</option>
+          <option>中债登</option>
+          <option>央行</option>
+          <option>手工录入</option>
+        </select>
+      </div>
+      <div class="form-row">
+        <label>描述</label>
+        <input placeholder="备注信息" value="">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="closeModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Tab 切换
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById('tab-matrix').style.display = name === 'matrix' ? 'block' : 'none';
+    document.getElementById('tab-compare').style.display = name === 'compare' ? 'block' : 'none';
+    document.getElementById('tab-manage').style.display = name === 'manage' ? 'block' : 'none';
+  }
+
+  // 曲线分组展开/折叠
+  function toggleGroup(el) {
+    const arrow = el.querySelector('.curve-group-arrow');
+    const children = el.nextElementSibling;
+    if (children && children.classList.contains('curve-children')) {
+      const isOpen = children.style.display !== 'none';
+      children.style.display = isOpen ? 'none' : 'block';
+      arrow.classList.toggle('open', !isOpen);
+    }
+  }
+
+  // 模态框
+  function openModal() {
+    document.getElementById('modal-backdrop').classList.add('show');
+  }
+  function closeModal() {
+    document.getElementById('modal-backdrop').classList.remove('show');
+  }
+</script>
+
+</body>
+</html>

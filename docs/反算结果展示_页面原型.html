@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>PRCP 反算结果展示 — 未来经营计划驾驶舱</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --c-bg-1: #0a0e27;
+    --c-bg-2: #1a1f3a;
+    --c-bg-3: #252b48;
+    --c-bg-glass: rgba(37, 43, 72, 0.65);
+    --c-bg-card: rgba(20, 26, 56, 0.75);
+    --c-border: rgba(118, 75, 162, 0.3);
+    --c-border-strong: rgba(102, 126, 234, 0.5);
+    --c-text: #e2e8f0;
+    --c-text-mute: #94a3b8;
+    --c-text-dim: #64748b;
+    --c-accent-1: #667eea;
+    --c-accent-2: #764ba2;
+    --c-accent-3: #06b6d4;
+    --c-success: #10b981;
+    --c-warning: #f59e0b;
+    --c-danger: #ef4444;
+    --c-gold: #fbbf24;
+    --shadow-card: 0 8px 32px rgba(0, 0, 0, 0.45), 0 0 1px rgba(118, 75, 162, 0.4);
+    --shadow-glow: 0 0 24px rgba(102, 126, 234, 0.25);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+      "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--c-bg-1);
+    color: var(--c-text);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* === 背景动态效果 === */
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(ellipse at 10% 0%, rgba(102, 126, 234, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 100%, rgba(118, 75, 162, 0.18) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, rgba(6, 182, 212, 0.08) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(102, 126, 234, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(102, 126, 234, 0.04) 1px, transparent 1px);
+    background-size: 50px 50px;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* === 顶部导航 === */
+  .topbar {
+    position: sticky; top: 0; z-index: 100;
+    height: 64px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.95) 0%, rgba(118, 75, 162, 0.95) 100%);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--c-border);
+    display: flex; align-items: center;
+    padding: 0 28px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+  }
+  .topbar-logo {
+    display: flex; align-items: center; gap: 12px;
+    font-size: 18px; font-weight: 600;
+  }
+  .topbar-logo-icon {
+    width: 36px; height: 36px;
+    background: rgba(255, 255, 255, 0.18);
+    border-radius: 9px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 0 16px rgba(255, 255, 255, 0.2);
+  }
+  .topbar-subtitle {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(255, 255, 255, 0.25);
+    letter-spacing: 0.5px;
+  }
+  .topbar-controls {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .control-group {
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .control-label {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.6);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+  }
+  .control-select {
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #fff;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .control-select:hover {
+    background: rgba(255, 255, 255, 0.25);
+  }
+  .btn-icon {
+    width: 36px; height: 36px;
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    color: #fff;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    transition: all 0.2s;
+  }
+  .btn-icon:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-1px); }
+
+  /* === 主内容 === */
+  .main {
+    position: relative; z-index: 1;
+    padding: 24px 28px;
+    max-width: 1920px;
+    margin: 0 auto;
+  }
+
+  /* === 区块标题 === */
+  .section-title {
+    display: flex; align-items: center; gap: 12px;
+    margin: 28px 0 16px 0;
+  }
+  .section-title-bar {
+    width: 4px; height: 18px;
+    background: linear-gradient(180deg, var(--c-accent-1), var(--c-accent-2));
+    border-radius: 2px;
+  }
+  .section-title-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    letter-spacing: 0.3px;
+  }
+  .section-title-meta {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--c-text-mute);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .meta-pill {
+    padding: 3px 10px;
+    background: rgba(102, 126, 234, 0.15);
+    border: 1px solid var(--c-border);
+    border-radius: 100px;
+    color: var(--c-accent-1);
+    font-weight: 500;
+  }
+
+  /* === KPI 顶部大卡 === */
+  .kpi-strip {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 16px;
+    margin-bottom: 8px;
+  }
+  .kpi-card {
+    position: relative;
+    padding: 18px 20px 16px;
+    background: var(--c-bg-card);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: var(--shadow-card);
+  }
+  .kpi-card::before {
+    content: "";
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), transparent 60%);
+    pointer-events: none;
+  }
+  .kpi-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--c-border-strong);
+    box-shadow: var(--shadow-card), var(--shadow-glow);
+  }
+  .kpi-card.accent-purple::after,
+  .kpi-card.accent-cyan::after,
+  .kpi-card.accent-gold::after,
+  .kpi-card.accent-green::after,
+  .kpi-card.accent-red::after,
+  .kpi-card.accent-blue::after {
+    content: "";
+    position: absolute; top: 0; right: 0;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, currentColor 0%, transparent 60%);
+    opacity: 0.12;
+    pointer-events: none;
+  }
+  .kpi-card.accent-purple { color: var(--c-accent-2); }
+  .kpi-card.accent-cyan { color: var(--c-accent-3); }
+  .kpi-card.accent-gold { color: var(--c-gold); }
+  .kpi-card.accent-green { color: var(--c-success); }
+  .kpi-card.accent-red { color: var(--c-danger); }
+  .kpi-card.accent-blue { color: var(--c-accent-1); }
+
+  .kpi-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .kpi-icon {
+    width: 32px; height: 32px;
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--c-border);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .kpi-tag {
+    padding: 2px 8px;
+    font-size: 10px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 100px;
+    color: var(--c-text-mute);
+    letter-spacing: 0.3px;
+  }
+  .kpi-label {
+    font-size: 11px;
+    color: var(--c-text-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  .kpi-value {
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--c-text);
+    line-height: 1.1;
+    font-feature-settings: "tnum";
+    letter-spacing: -0.5px;
+  }
+  .kpi-value-unit {
+    font-size: 13px;
+    color: var(--c-text-mute);
+    font-weight: 400;
+    margin-left: 4px;
+  }
+  .kpi-delta {
+    display: inline-flex; align-items: center; gap: 3px;
+    font-size: 11px; font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 6px;
+  }
+  .kpi-delta.up { background: rgba(16, 185, 129, 0.15); color: var(--c-success); }
+  .kpi-delta.down { background: rgba(239, 68, 68, 0.15); color: var(--c-danger); }
+  .kpi-footer {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--c-border);
+  }
+  .kpi-mini-chart {
+    height: 28px;
+    width: 60%;
+  }
+  .kpi-meta {
+    font-size: 10px;
+    color: var(--c-text-dim);
+  }
+
+  /* === 图表网格 === */
+  .grid-3 {
+    display: grid;
+    grid-template-columns: 2fr 1.2fr 1fr;
+    gap: 16px;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .panel {
+    background: var(--c-bg-card);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+    backdrop-filter: blur(12px);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    position: relative;
+  }
+  .panel::before {
+    content: "";
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--c-border-strong), transparent);
+  }
+  .panel-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--c-border);
+    display: flex; align-items: center;
+  }
+  .panel-title {
+    font-size: 14px; font-weight: 600;
+    color: #f1f5f9;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-title-icon {
+    width: 4px; height: 14px;
+    background: linear-gradient(180deg, var(--c-accent-1), var(--c-accent-2));
+    border-radius: 2px;
+  }
+  .panel-actions {
+    margin-left: auto;
+    display: flex; gap: 6px;
+  }
+  .panel-tab {
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--c-text-mute);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .panel-tab.active {
+    background: rgba(102, 126, 234, 0.2);
+    color: var(--c-accent-1);
+    font-weight: 500;
+  }
+  .panel-tab:hover:not(.active) {
+    color: var(--c-text);
+  }
+  .panel-body { padding: 16px 20px; }
+  .chart {
+    width: 100%;
+    height: 320px;
+  }
+  .chart-tall { height: 380px; }
+  .chart-short { height: 260px; }
+
+  /* === 预警列表 === */
+  .alert-list {
+    display: flex; flex-direction: column; gap: 8px;
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .alert-item {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 12px 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--c-border);
+    border-left-width: 3px;
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .alert-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateX(2px);
+  }
+  .alert-item.severity-high { border-left-color: var(--c-danger); }
+  .alert-item.severity-med { border-left-color: var(--c-warning); }
+  .alert-item.severity-low { border-left-color: var(--c-accent-3); }
+  .alert-icon {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+  .alert-item.severity-high .alert-icon { background: rgba(239, 68, 68, 0.15); color: var(--c-danger); }
+  .alert-item.severity-med .alert-icon { background: rgba(245, 158, 11, 0.15); color: var(--c-warning); }
+  .alert-item.severity-low .alert-icon { background: rgba(6, 182, 212, 0.15); color: var(--c-accent-3); }
+  .alert-body { flex: 1; }
+  .alert-title {
+    font-size: 13px; font-weight: 500;
+    color: var(--c-text);
+    margin-bottom: 3px;
+  }
+  .alert-desc {
+    font-size: 11px; color: var(--c-text-mute);
+    line-height: 1.5;
+  }
+  .alert-value {
+    flex-shrink: 0;
+    font-size: 14px; font-weight: 600;
+    color: var(--c-text);
+    font-feature-settings: "tnum";
+  }
+
+  /* === 优化建议 === */
+  .suggestion-list {
+    display: flex; flex-direction: column; gap: 10px;
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .suggestion-item {
+    padding: 12px 14px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.08), rgba(118, 75, 162, 0.05));
+    border: 1px solid var(--c-border);
+    border-radius: 8px;
+    transition: all 0.2s;
+  }
+  .suggestion-item:hover {
+    border-color: var(--c-border-strong);
+    transform: translateY(-1px);
+  }
+  .suggestion-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px;
+  }
+  .suggestion-num {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--c-accent-1), var(--c-accent-2));
+    color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600;
+  }
+  .suggestion-title { font-size: 13px; font-weight: 500; color: var(--c-text); }
+  .suggestion-desc {
+    font-size: 11px; color: var(--c-text-mute);
+    line-height: 1.6;
+    margin-left: 30px;
+  }
+  .suggestion-impact {
+    display: flex; gap: 6px;
+    margin-top: 6px; margin-left: 30px;
+  }
+  .impact-tag {
+    padding: 2px 8px;
+    font-size: 10px;
+    border-radius: 100px;
+    background: rgba(102, 126, 234, 0.15);
+    color: var(--c-accent-1);
+  }
+  .impact-tag.success { background: rgba(16, 185, 129, 0.15); color: var(--c-success); }
+
+  /* === 时间轴 === */
+  .timeline {
+    margin-top: 20px;
+    padding: 16px 20px;
+    background: var(--c-bg-card);
+    border: 1px solid var(--c-border);
+    border-radius: var(--radius);
+  }
+  .timeline-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 12px;
+  }
+  .timeline-title { font-size: 13px; font-weight: 600; color: var(--c-text); }
+  .timeline-info { font-size: 11px; color: var(--c-text-mute); }
+  .timeline-track {
+    position: relative;
+    height: 56px;
+    background: linear-gradient(90deg, rgba(102, 126, 234, 0.05), rgba(118, 75, 162, 0.05));
+    border: 1px solid var(--c-border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .timeline-months {
+    position: absolute; inset: 0;
+    display: grid; grid-template-columns: repeat(24, 1fr);
+  }
+  .timeline-month {
+    border-right: 1px solid var(--c-border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--c-text-mute);
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .timeline-month:last-child { border-right: none; }
+  .timeline-month:hover { background: rgba(102, 126, 234, 0.15); color: var(--c-text); }
+  .timeline-month.active {
+    background: rgba(102, 126, 234, 0.25);
+    color: var(--c-accent-1);
+    font-weight: 600;
+  }
+  .timeline-marker {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: linear-gradient(180deg, var(--c-gold), transparent);
+    box-shadow: 0 0 8px var(--c-gold);
+    transition: left 0.3s;
+  }
+  .timeline-marker::before {
+    content: "▼";
+    position: absolute; top: -2px; left: -5px;
+    color: var(--c-gold); font-size: 12px;
+  }
+
+  /* === 情景对比表 === */
+  .scenario-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+  .scenario-table th {
+    text-align: left;
+    padding: 10px 12px;
+    background: rgba(102, 126, 234, 0.1);
+    color: var(--c-text-mute);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-size: 10px;
+    border-bottom: 1px solid var(--c-border);
+  }
+  .scenario-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--c-border);
+    color: var(--c-text);
+  }
+  .scenario-table tr:hover td { background: rgba(102, 126, 234, 0.06); }
+  .scenario-table .num { font-feature-settings: "tnum"; font-weight: 600; }
+  .scenario-table .positive { color: var(--c-success); }
+  .scenario-table .negative { color: var(--c-danger); }
+  .scenario-table .neutral { color: var(--c-text-mute); }
+  .scenario-name {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-weight: 500;
+  }
+  .scenario-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+  }
+
+  /* === Footer === */
+  .footer {
+    margin-top: 32px;
+    padding: 16px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--c-text-dim);
+    border-top: 1px solid var(--c-border);
+  }
+
+  /* === 自定义滚动条 === */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(102, 126, 234, 0.3); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(102, 126, 234, 0.5); }
+
+  /* === Loading 动画 === */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  .loading { animation: pulse 2s ease-in-out infinite; }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .kpi-card, .panel {
+    animation: slideUp 0.6s ease-out;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 顶部导航 ===== -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="topbar-logo-icon">📊</div>
+    <span>PRCP · 反算结果驾驶舱</span>
+    <span class="topbar-subtitle">Future Operating Plan & Reverse Calculation Cockpit</span>
+  </div>
+  <div class="topbar-controls">
+    <div class="control-group">
+      <span class="control-label">反算方案</span>
+      <select class="control-select" id="selScheme">
+        <option value="REV_GROWTH">REV_GROWTH · 规模增长 15%</option>
+        <option value="REV_LCR_STRESS">REV_LCR_STRESS · LCR 压力情景</option>
+        <option value="REV_NIM_UP">REV_NIM_UP · NIM 上行 50BP</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <span class="control-label">计量模型</span>
+      <select class="control-select" id="selModel">
+        <option value="DGM_2026">DGM_2026 · 存款增长模型</option>
+        <option value="PNN">PNN · 神经网络预测</option>
+        <option value="ACO">ACO · 蚁群算法</option>
+        <option value="FNN_LLM">FNN_LLM · 大模型预测</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <span class="control-label">对比情景</span>
+      <select class="control-select" id="selScenario">
+        <option value="BASE">基准情景</option>
+        <option value="OPT">乐观情景</option>
+        <option value="PESS">悲观情景</option>
+        <option value="STRESS">压力情景</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <span class="control-label">数据日期</span>
+      <input type="date" class="control-select" id="selDate" value="2025-12-31">
+    </div>
+    <button class="btn-icon" title="刷新">🔄</button>
+    <button class="btn-icon" title="导出 PDF">📄</button>
+    <button class="btn-icon" title="全屏">⛶</button>
+  </div>
+</div>
+
+<!-- ===== 主内容 ===== -->
+<div class="main">
+
+  <!-- ============ KPI 顶部 6 卡 ============ -->
+  <div class="kpi-strip">
+    <div class="kpi-card accent-purple">
+      <div class="kpi-header">
+        <div class="kpi-icon">💰</div>
+        <div class="kpi-tag">NIM 24M</div>
+      </div>
+      <div class="kpi-label">24月累计净息差</div>
+      <div class="kpi-value">2.18<span class="kpi-value-unit">%</span>
+        <span class="kpi-delta up">↑ 12BP</span>
+      </div>
+      <div class="kpi-footer">
+        <div class="kpi-mini-chart" id="mini-nim"></div>
+        <div class="kpi-meta">vs 现状 2.06%</div>
+      </div>
+    </div>
+
+    <div class="kpi-card accent-cyan">
+      <div class="kpi-header">
+        <div class="kpi-icon">📈</div>
+        <div class="kpi-tag">NII 24M</div>
+      </div>
+      <div class="kpi-label">24月累计净利息收入</div>
+      <div class="kpi-value">¥<span>187.6</span><span class="kpi-value-unit">亿</span>
+        <span class="kpi-delta up">↑ 8.3%</span>
+      </div>
+      <div class="kpi-footer">
+        <div class="kpi-mini-chart" id="mini-nii"></div>
+        <div class="kpi-meta">年化 ¥93.8 亿</div>
+      </div>
+    </div>
+
+    <div class="kpi-card accent-gold">
+      <div class="kpi-header">
+        <div class="kpi-icon">⚖️</div>
+        <div class="kpi-tag">GAP</div>
+      </div>
+      <div class="kpi-label">期末累计期限缺口</div>
+      <div class="kpi-value">+126.4<span class="kpi-value-unit">亿</span>
+        <span class="kpi-delta down">↓ 32.7%</span>
+      </div>
+      <div class="kpi-footer">
+        <div class="kpi-mini-chart" id="mini-gap"></div>
+        <div class="kpi-meta">从 +188 亿改善</div>
+      </div>
+    </div>
+
+    <div class="kpi-card accent-blue">
+      <div class="kpi-header">
+        <div class="kpi-icon">🎯</div>
+        <div class="kpi-tag">LMR</div>
+      </div>
+      <div class="kpi-label">流动性匹配率</div>
+      <div class="kpi-value">128.5<span class="kpi-value-unit">%</span>
+        <span class="kpi-delta up">↑ 5.2pct</span>
+      </div>
+      <div class="kpi-footer">
+        <div class="kpi-mini-chart" id="mini-lmr"></div>
+        <div class="kpi-meta">监管阈值 ≥100%</div>
+      </div>
+    </div>
+
+    <div class="kpi-card accent-green">
+      <div class="kpi-header">
+        <div class="kpi-icon">🛡️</div>
+        <div class="kpi-tag">CAR</div>
+      </div>
+      <div class="kpi-label">资本充足率</div>
+      <div class="kpi-value">14.32<span class="kpi-value-unit">%</span>
+        <span class="kpi-delta up">↑ 0.45pct</span>
+      </div>
+      <div class="kpi-footer">
+        <div class="kpi-mini-chart" id="mini-car"></div>
+        <div class="kpi-meta">监管阈值 ≥10.5%</div>
+      </div>
+    </div>
+
+    <div class="kpi-card accent-red">
+      <div class="kpi-header">
+        <div class="kpi-icon">💸</div>
+        <div class="kpi-tag">WAC</div>
+      </div>
+      <div class="kpi-label">加权资金成本</div>
+      <div class="kpi-value">2.84<span class="kpi-value-unit">%</span>
+        <span class="kpi-delta up">↑ 8BP</span>
+      </div>
+      <div class="kpi-footer">
+        <div class="kpi-mini-chart" id="mini-wac"></div>
+        <div class="kpi-meta">vs NIM 2.18% · 利差 -0.66%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 第一行: NII 现金流 + 期限缺口热力图 ============ -->
+  <div class="section-title">
+    <div class="section-title-bar"></div>
+    <div class="section-title-text">未来24月经营计划全景</div>
+    <div class="section-title-meta">
+      <span class="meta-pill">基础日 2025-12-31</span>
+      <span class="meta-pill">预测窗口 24 个月</span>
+      <span class="meta-pill">19 个账户节点</span>
+      <span class="meta-pill">456 条数据</span>
+    </div>
+  </div>
+
+  <div class="grid-3" style="grid-template-columns: 2fr 1fr;">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>24月 NII 现金流预测（含置信带）</div>
+        <div class="panel-actions">
+          <span class="panel-tab active">月度</span>
+          <span class="panel-tab">季度</span>
+          <span class="panel-tab">半年</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart chart-tall" id="chart-nii-forecast"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>资产负债期限缺口热力图</div>
+        <div class="panel-actions">
+          <span class="panel-tab active">剩余期限</span>
+          <span class="panel-tab">原始期限</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart chart-tall" id="chart-heatmap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 第二行: 雷达图 + 瀑布图 + 期限结构 ============ -->
+  <div class="section-title">
+    <div class="section-title-bar"></div>
+    <div class="section-title-text">多情景对比与业务条线分析</div>
+    <div class="section-title-meta">
+      <span class="meta-pill">📊 多维度</span>
+      <span class="meta-pill">🏢 业务条线</span>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>多情景核心指标对比</div>
+        <div class="panel-actions">
+          <span class="panel-tab active">6维度</span>
+          <span class="panel-tab">8维度</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart" id="chart-radar"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>业务条线 NII 贡献瀑布图</div>
+        <div class="panel-actions">
+          <span class="panel-tab active">贡献度</span>
+          <span class="panel-tab">占比</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart" id="chart-waterfall"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>期限结构分布</div>
+      </div>
+      <div class="panel-body">
+        <div class="chart" id="chart-term-structure"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 第三行: TOP 缺口 + 风险预警 + 优化建议 ============ -->
+  <div class="section-title">
+    <div class="section-title-bar"></div>
+    <div class="section-title-text">关键账户洞察与决策建议</div>
+    <div class="section-title-meta">
+      <span class="meta-pill">⚠️ 8 项风险</span>
+      <span class="meta-pill">💡 5 项建议</span>
+    </div>
+  </div>
+
+  <div class="grid-3">
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>关键账户期限缺口 TOP10</div>
+        <div class="panel-actions">
+          <span class="panel-tab active">缺口</span>
+          <span class="panel-tab">利率风险</span>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="chart" id="chart-top-gap"></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">
+          <div class="panel-title-icon"></div>
+          智能风险预警
+          <span style="margin-left:8px;font-size:10px;color:var(--c-danger);">● 3 高危</span>
+        </div>
+      </div>
+      <div class="panel-body" style="padding: 12px 16px;">
+        <div class="alert-list">
+          <div class="alert-item severity-high">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-body">
+              <div class="alert-title">对公活期存款 24 月缺口扩大</div>
+              <div class="alert-desc">预测期末缺口达 +28.6 亿，超过警戒线 25 亿，建议调整 3M 内结构性存款占比</div>
+            </div>
+            <div class="alert-value" style="color:var(--c-danger);">+28.6亿</div>
+          </div>
+          <div class="alert-item severity-high">
+            <div class="alert-icon">🚨</div>
+            <div class="alert-body">
+              <div class="alert-title">5-10Y 债券投资占比偏离</div>
+              <div class="alert-desc">当前配置 36.5%，目标 30% 以下，久期错配风险升高</div>
+            </div>
+            <div class="alert-value" style="color:var(--c-danger);">36.5%</div>
+          </div>
+          <div class="alert-item severity-high">
+            <div class="alert-icon">🔻</div>
+            <div class="alert-body">
+              <div class="alert-title">零售贷款 NIM 收窄</div>
+              <div class="alert-desc">LPR 重定价叠加存款成本上行，零售 NIM 从 3.2% 降至 2.8%</div>
+            </div>
+            <div class="alert-value" style="color:var(--c-danger);">-40BP</div>
+          </div>
+          <div class="alert-item severity-med">
+            <div class="alert-icon">⚡</div>
+            <div class="alert-body">
+              <div class="alert-title">NIM 改善幅度低于预期</div>
+              <div class="alert-desc">反算后 NIM 2.18% 仅较基线 +12BP，低于 +20BP 目标</div>
+            </div>
+            <div class="alert-value" style="color:var(--c-warning);">+12BP</div>
+          </div>
+          <div class="alert-item severity-med">
+            <div class="alert-icon">📉</div>
+            <div class="alert-body">
+              <div class="alert-title">3-6M 短期负债集中度</div>
+              <div class="alert-desc">结构性存款季末到期重定价，加权成本将上行 8-12BP</div>
+            </div>
+            <div class="alert-value" style="color:var(--c-warning);">68.4%</div>
+          </div>
+          <div class="alert-item severity-low">
+            <div class="alert-icon">💡</div>
+            <div class="alert-body">
+              <div class="alert-title">同业拆入利率敏感性</div>
+              <div class="alert-desc">6-9M 同业利差走阔，可优化拆入时机</div>
+            </div>
+            <div class="alert-value" style="color:var(--c-accent-3);">-15BP</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title"><div class="panel-title-icon"></div>AI 优化建议</div>
+      </div>
+      <div class="panel-body" style="padding: 12px 16px;">
+        <div class="suggestion-list">
+          <div class="suggestion-item">
+            <div class="suggestion-header">
+              <div class="suggestion-num">1</div>
+              <div class="suggestion-title">增加 1-3Y 中长期债券配置</div>
+            </div>
+            <div class="suggestion-desc">将 1-3Y 国债/政策性金融债占比由当前 12% 提升至 18%，预计 NII 提升 +4.2 亿/年</div>
+            <div class="suggestion-impact">
+              <span class="impact-tag success">+¥4.2亿/年</span>
+              <span class="impact-tag">LMR ↑ 2.3pct</span>
+            </div>
+          </div>
+          <div class="suggestion-item">
+            <div class="suggestion-header">
+              <div class="suggestion-num">2</div>
+              <div class="suggestion-title">调整对公结构性存款期限</div>
+            </div>
+            <div class="suggestion-desc">将部分 3M 结构存款转换为 6M，缓解 3-6M 集中到期压力</div>
+            <div class="suggestion-impact">
+              <span class="impact-tag success">WAC ↓ 5BP</span>
+              <span class="impact-tag">缺口 ↓ ¥8亿</span>
+            </div>
+          </div>
+          <div class="suggestion-item">
+            <div class="suggestion-header">
+              <div class="suggestion-num">3</div>
+              <div class="suggestion-title">零售贷款结构优化</div>
+            </div>
+            <div class="suggestion-desc">提升小微贷款占比至 25%，压降消费贷，降低 LPR 敏感性</div>
+            <div class="suggestion-impact">
+              <span class="impact-tag success">NIM ↑ 8BP</span>
+              <span class="impact-tag">风险 ↓</span>
+            </div>
+          </div>
+          <div class="suggestion-item">
+            <div class="suggestion-header">
+              <div class="suggestion-num">4</div>
+              <div class="suggestion-title">同业负债来源多元化</div>
+            </div>
+            <div class="suggestion-desc">拓展证券公司/保险资管等同业渠道，降低单一银行依赖</div>
+            <div class="suggestion-impact">
+              <span class="impact-tag">WAC ↓ 3BP</span>
+              <span class="impact-tag">集中度 ↓</span>
+            </div>
+          </div>
+          <div class="suggestion-item">
+            <div class="suggestion-header">
+              <div class="suggestion-num">5</div>
+              <div class="suggestion-title">RWA 节约型资产置换</div>
+            </div>
+            <div class="suggestion-desc">用地方政府债置换部分对公贷款，释放 RWA 空间</div>
+            <div class="suggestion-impact">
+              <span class="impact-tag success">CAR ↑ 0.6pct</span>
+              <span class="impact-tag">RWA ↓ ¥45亿</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 第四行: 情景对比表 ============ -->
+  <div class="section-title">
+    <div class="section-title-bar"></div>
+    <div class="section-title-text">反算方案 vs 多情景对比</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title"><div class="panel-title-icon"></div>同一反算方案在 4 种情景下的指标对比</div>
+    </div>
+    <div class="panel-body" style="padding: 16px 20px;">
+      <table class="scenario-table">
+        <thead>
+          <tr>
+            <th style="width:18%;">核心指标</th>
+            <th style="width:14%;">🔵 基准情景</th>
+            <th style="width:14%;">🟢 乐观情景</th>
+            <th style="width:14%;">🟡 悲观情景</th>
+            <th style="width:14%;">🔴 压力情景</th>
+            <th style="width:14%;">vs 反算目标</th>
+            <th style="width:12%;">达成状态</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>24月累计 NIM (%)</td>
+            <td class="num">2.18</td>
+            <td class="num positive">2.42</td>
+            <td class="num negative">1.96</td>
+            <td class="num negative">1.78</td>
+            <td class="num">2.30</td>
+            <td><span style="color:var(--c-warning);">⚠️ 接近</span></td>
+          </tr>
+          <tr>
+            <td>24月累计 NII (亿元)</td>
+            <td class="num">187.6</td>
+            <td class="num positive">208.3</td>
+            <td class="num negative">168.5</td>
+            <td class="num negative">152.7</td>
+            <td class="num">196.0</td>
+            <td><span style="color:var(--c-warning);">⚠️ 接近</span></td>
+          </tr>
+          <tr>
+            <td>期末累计 GAP (亿元)</td>
+            <td class="num">+126.4</td>
+            <td class="num positive">+95.8</td>
+            <td class="num negative">+158.2</td>
+            <td class="num negative">+186.4</td>
+            <td class="num">≤120</td>
+            <td><span style="color:var(--c-danger);">✗ 超目标</span></td>
+          </tr>
+          <tr>
+            <td>流动性匹配率 LMR (%)</td>
+            <td class="num">128.5</td>
+            <td class="num positive">132.1</td>
+            <td class="num">125.3</td>
+            <td class="num negative">118.6</td>
+            <td class="num">≥130</td>
+            <td><span style="color:var(--c-warning);">⚠️ 接近</span></td>
+          </tr>
+          <tr>
+            <td>资本充足率 CAR (%)</td>
+            <td class="num">14.32</td>
+            <td class="num positive">14.78</td>
+            <td class="num">14.05</td>
+            <td class="num negative">13.62</td>
+            <td class="num">≥13.5</td>
+            <td><span style="color:var(--c-success);">✓ 达成</span></td>
+          </tr>
+          <tr>
+            <td>加权资金成本 WAC (%)</td>
+            <td class="num">2.84</td>
+            <td class="num">2.78</td>
+            <td class="num negative">2.96</td>
+            <td class="num negative">3.12</td>
+            <td class="num">≤2.80</td>
+            <td><span style="color:var(--c-warning);">⚠️ 略高</span></td>
+          </tr>
+          <tr>
+            <td>不良率 NPL (%)</td>
+            <td class="num">1.32</td>
+            <td class="num positive">1.18</td>
+            <td class="num negative">1.58</td>
+            <td class="num negative">1.96</td>
+            <td class="num">≤1.50</td>
+            <td><span style="color:var(--c-success);">✓ 达成</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ============ 时间轴 ============ -->
+  <div class="timeline">
+    <div class="timeline-header">
+      <div class="timeline-title">⏱️ 24月预测时间轴 · 拖动滑块选择分析时点</div>
+      <div class="timeline-info">当前: <strong id="current-month-label" style="color:var(--c-gold);">M+12 · 2026-12-31</strong> · 累计 NII ¥94.2亿</div>
+    </div>
+    <div class="timeline-track">
+      <div class="timeline-months" id="timeline-months"></div>
+      <div class="timeline-marker" id="timeline-marker" style="left: calc(50% - 1px);"></div>
+    </div>
+  </div>
+
+  <!-- ============ Footer ============ -->
+  <div class="footer">
+    © 2026 PRCP Group Work Platform · <a href="https://beian.miit.gov.cn/" style="color:var(--c-text-mute);text-decoration:none;">京ICP备2026054150号</a> · Powered by WorkBuddy Agent
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+   * 共用主题色
+   * ============================================================ */
+  const THEME = {
+    bg: 'transparent',
+    text: '#94a3b8',
+    textLight: '#e2e8f0',
+    textDim: '#64748b',
+    line: 'rgba(102, 126, 234, 0.2)',
+    gridLine: 'rgba(102, 126, 234, 0.08)',
+    palette: ['#667eea', '#764ba2', '#06b6d4', '#10b981', '#fbbf24', '#ef4444'],
+    scenario: {
+      BASE: '#667eea',
+      OPT:  '#10b981',
+      PESS: '#fbbf24',
+      STRESS: '#ef4444'
+    }
+  };
+
+  const baseAxis = {
+    axisLine: { lineStyle: { color: THEME.line } },
+    axisLabel: { color: THEME.text, fontSize: 11 },
+    axisTick: { lineStyle: { color: THEME.line } },
+    splitLine: { lineStyle: { color: THEME.gridLine } }
+  };
+
+  /* ============================================================
+   * 顶部 KPI Mini Charts
+   * ============================================================ */
+  function renderMiniChart(id, color, data) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const c = echarts.init(el);
+    c.setOption({
+      grid: { left: 0, right: 0, top: 4, bottom: 4 },
+      xAxis: { type: 'category', show: false, data: data.map((_, i) => i) },
+      yAxis: { type: 'value', show: false },
+      series: [{
+        type: 'line', data, symbol: 'none', lineStyle: { color, width: 2 },
+        areaStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: color + '40' }, { offset: 1, color: color + '00' }] }
+        }
+      }]
+    });
+  }
+  // 24 个数据点
+  const base24 = Array.from({ length: 24 }, (_, i) => Math.sin(i * 0.5) * 5 + i * 0.3 + 10);
+  renderMiniChart('mini-nim',  '#a78bfa', base24.map(v => 2 + Math.sin(v / 5) * 0.1));
+  renderMiniChart('mini-nii',  '#22d3ee', base24.map(v => 60 + v * 1.5));
+  renderMiniChart('mini-gap',  '#fbbf24', base24.map(v => 188 - v * 2.5));
+  renderMiniChart('mini-lmr',  '#60a5fa', base24.map(v => 123 + v * 0.2));
+  renderMiniChart('mini-car',  '#34d399', base24.map(v => 13.8 + v * 0.02));
+  renderMiniChart('mini-wac',  '#f87171', base24.map(v => 2.76 + v * 0.005));
+
+  /* ============================================================
+   * 1. 24 月 NII 现金流预测（含置信带）
+   * ============================================================ */
+  const months = Array.from({ length: 24 }, (_, i) => `M+${i + 1}`);
+  const monthsDate = Array.from({ length: 24 }, (_, i) => {
+    const d = new Date('2025-12-31');
+    d.setMonth(d.getMonth() + i + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
+  const niiBase = [6.8, 7.2, 7.5, 7.8, 8.0, 8.3, 8.1, 8.4, 8.2, 8.5, 8.3, 8.6, 8.4, 8.7, 8.5, 8.8, 8.6, 8.9, 8.7, 9.0, 8.8, 9.1, 8.9, 9.2];
+  const niiUpper = niiBase.map(v => v * 1.15);
+  const niiLower = niiBase.map(v => v * 0.85);
+  const niiCum = [];
+  niiBase.reduce((a, v, i) => (niiCum[i] = a + v), 0);
+
+  echarts.init(document.getElementById('chart-nii-forecast')).setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(20, 26, 56, 0.95)',
+      borderColor: 'rgba(102, 126, 234, 0.5)',
+      textStyle: { color: THEME.textLight },
+      formatter: (params) => {
+        const m = params[0].axisValue;
+        return `<div style="font-weight:600;margin-bottom:6px;">${m} · ${monthsDate[params[0].dataIndex]}</div>` +
+          params.map(p => `<div>${p.marker} ${p.seriesName}: <strong>${p.value}</strong> 亿</div>`).join('');
+      }
+    },
+    legend: {
+      data: ['95% 置信上界', '预测中枢', '95% 置信下界', '累计 NII'],
+      textStyle: { color: THEME.text, fontSize: 11 },
+      icon: 'roundRect', itemWidth: 12, itemHeight: 8, top: 0, right: 0
+    },
+    grid: { left: 50, right: 60, top: 36, bottom: 30 },
+    xAxis: { type: 'category', data: months, ...baseAxis },
+    yAxis: [
+      { type: 'value', name: '月度 NII（亿）', nameTextStyle: { color: THEME.text, padding: [0, 0, 0, -40] },
+        ...baseAxis, axisLabel: { ...baseAxis.axisLabel, formatter: '{value}' } },
+      { type: 'value', name: '累计 NII（亿）', nameTextStyle: { color: THEME.text, padding: [0, -40, 0, 0] },
+        ...baseAxis }
+    ],
+    series: [
+      { name: '95% 置信上界', type: 'line', data: niiUpper, smooth: true,
+        lineStyle: { opacity: 0 }, stack: 'ci-band', symbol: 'none', tooltip: { show: false } },
+      { name: '95% 置信下界', type: 'line', data: niiLower, smooth: true,
+        lineStyle: { opacity: 0 }, stack: 'ci-band', symbol: 'none',
+        areaStyle: { color: 'rgba(102, 126, 234, 0.12)' }, tooltip: { show: false } },
+      { name: '预测中枢', type: 'line', data: niiBase, smooth: true,
+        lineStyle: { color: '#667eea', width: 2.5 },
+        itemStyle: { color: '#667eea' },
+        areaStyle: { color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+          colorStops: [{ offset: 0, color: 'rgba(102, 126, 234, 0.35)' },
+                       { offset: 1, color: 'rgba(102, 126, 234, 0.02)' }] } } },
+      { name: '累计 NII', type: 'line', yAxisIndex: 1, data: niiCum, smooth: true,
+        lineStyle: { color: '#fbbf24', width: 2, type: 'dashed' },
+        itemStyle: { color: '#fbbf24' } }
+    ]
+  });
+
+  /* ============================================================
+   * 2. 期限缺口热力图（节点 × 期限）
+   * ============================================================ */
+  const termLabels = ['1D','7D','1M','3M','6M','1Y','2Y','3Y','5Y','10Y','15Y','20Y','30Y'];
+  const nodeLabels = ['对公活期', '对公定期', '零售活期', '零售定期', '储蓄存款',
+                       '结构性存款', '国  债', '政策性金融债', '地方政府债', '企业债',
+                       '对公贷款', '零售贷款', '小微贷款', '按揭贷款', '同业拆出',
+                       '同业拆入', '卖出回购', '买入返售', '存放央行', '总资产'];
+  const heatData = [];
+  for (let i = 0; i < nodeLabels.length; i++) {
+    for (let j = 0; j < termLabels.length; j++) {
+      const seed = Math.sin(i * 1.3 + j * 0.7) * Math.cos(j * 0.4);
+      heatData.push([j, i, Math.round((seed * 80) + (i === 19 ? 100 : 0) + Math.random() * 30)]);
+    }
+  }
+  echarts.init(document.getElementById('chart-heatmap')).setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      position: 'top',
+      backgroundColor: 'rgba(20, 26, 56, 0.95)',
+      borderColor: 'rgba(102, 126, 234, 0.5)',
+      textStyle: { color: THEME.textLight },
+      formatter: (p) => `${nodeLabels[p.data[1]]} × ${termLabels[p.data[0]]}<br/>缺口: <strong>${p.data[2]}</strong> 亿`
+    },
+    grid: { left: 90, right: 30, top: 20, bottom: 60 },
+    xAxis: { type: 'category', data: termLabels, ...baseAxis,
+      axisLabel: { ...baseAxis.axisLabel, rotate: 0, fontSize: 10 },
+      splitArea: { show: false } },
+    yAxis: { type: 'category', data: nodeLabels, ...baseAxis,
+      axisLabel: { ...baseAxis.axisLabel, fontSize: 10 },
+      splitArea: { show: false } },
+    visualMap: {
+      min: -120, max: 180, calculable: false, orient: 'horizontal',
+      left: 'center', bottom: 8,
+      textStyle: { color: THEME.text, fontSize: 10 },
+      inRange: { color: ['#10b981', '#0f172a', '#0f172a', '#fbbf24', '#ef4444'] }
+    },
+    series: [{
+      name: '期限缺口', type: 'heatmap', data: heatData,
+      label: { show: false },
+      emphasis: {
+        itemStyle: { shadowBlur: 10, shadowColor: 'rgba(102, 126, 234, 0.5)' }
+      }
+    }]
+  });
+
+  /* ============================================================
+   * 3. 多情景雷达图
+   * ============================================================ */
+  echarts.init(document.getElementById('chart-radar')).setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      backgroundColor: 'rgba(20, 26, 56, 0.95)',
+      borderColor: 'rgba(102, 126, 234, 0.5)',
+      textStyle: { color: THEME.textLight }
+    },
+    legend: {
+      data: ['基准情景', '乐观情景', '悲观情景', '压力情景'],
+      textStyle: { color: THEME.text, fontSize: 11 },
+      icon: 'roundRect', itemWidth: 12, itemHeight: 8,
+      top: 0, left: 'center'
+    },
+    radar: {
+      indicator: [
+        { name: 'NIM', max: 100 },
+        { name: 'NII 增长', max: 100 },
+        { name: 'LMR', max: 100 },
+        { name: 'CAR', max: 100 },
+        { name: '缺口控制', max: 100 },
+        { name: '利差', max: 100 }
+      ],
+      center: ['50%', '55%'], radius: '65%',
+      axisName: { color: THEME.textLight, fontSize: 11 },
+      splitLine: { lineStyle: { color: THEME.gridLine } },
+      splitArea: { areaStyle: { color: ['rgba(102, 126, 234, 0.02)', 'rgba(102, 126, 234, 0.06)'] } },
+      axisLine: { lineStyle: { color: THEME.line } }
+    },
+    series: [{
+      type: 'radar',
+      data: [
+        { value: [78, 72, 85, 90, 65, 88], name: '基准情景',
+          itemStyle: { color: THEME.scenario.BASE },
+          areaStyle: { color: 'rgba(102, 126, 234, 0.25)' },
+          lineStyle: { width: 2 } },
+        { value: [92, 88, 92, 95, 85, 95], name: '乐观情景',
+          itemStyle: { color: THEME.scenario.OPT },
+          areaStyle: { color: 'rgba(16, 185, 129, 0.2)' },
+          lineStyle: { width: 2 } },
+        { value: [62, 58, 78, 82, 50, 72], name: '悲观情景',
+          itemStyle: { color: THEME.scenario.PESS },
+          areaStyle: { color: 'rgba(251, 191, 36, 0.2)' },
+          lineStyle: { width: 2 } },
+        { value: [45, 42, 65, 75, 35, 55], name: '压力情景',
+          itemStyle: { color: THEME.scenario.STRESS },
+          areaStyle: { color: 'rgba(239, 68, 68, 0.2)' },
+          lineStyle: { width: 2 } }
+      ]
+    }]
+  });
+
+  /* ============================================================
+   * 4. 业务条线 NII 贡献瀑布图
+   * ============================================================ */
+  const wfHelper = [0, 0, 0, 0, 0, 0];
+  const wfPos = [22, 35, 18, 28, 24, 12];
+  const wfLabels = ['对公存款', '零售存款', '同业业务', '对公贷款', '零售贷款', '债券投资'];
+  echarts.init(document.getElementById('chart-waterfall')).setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      backgroundColor: 'rgba(20, 26, 56, 0.95)',
+      borderColor: 'rgba(102, 126, 234, 0.5)',
+      textStyle: { color: THEME.textLight },
+      formatter: (p) => `${p.name}<br/>贡献: <strong>${p.value}</strong> 亿`
+    },
+    grid: { left: 60, right: 20, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: wfLabels, ...baseAxis,
+      axisLabel: { ...baseAxis.axisLabel, fontSize: 11, interval: 0, rotate: 15 } },
+    yAxis: { type: 'value', name: '贡献（亿）', ...baseAxis,
+      axisLabel: { ...baseAxis.axisLabel, formatter: '{value}' },
+      nameTextStyle: { color: THEME.text } },
+    series: [{
+      type: 'bar', stack: 'wf',
+      data: wfHelper.map((h, i) => ({ value: h, itemStyle: { color: 'transparent' } }))
+    }, {
+      type: 'bar', stack: 'wf',
+      data: wfPos.map((v, i) => ({
+        value: v,
+        itemStyle: {
+          color: { type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+            colorStops: [{ offset: 0, color: THEME.palette[i] },
+                         { offset: 1, color: THEME.palette[i] + '88' }] },
+          borderRadius: [4, 4, 0, 0]
+        }
+      }))
+    }]
+  });
+
+  /* ============================================================
+   * 5. 期限结构分布（堆叠面积图）
+   * ============================================================ */
+  const termMonths = ['M0', 'M+3', 'M+6', 'M+9', 'M+12', 'M+15', 'M+18', 'M+21', 'M+24'];
+  echarts.init(document.getElementById('chart-term-structure')).setOption({
+    backgroundColor: 'transparent',
+    tooltip: { trigger: 'axis', backgroundColor: 'rgba(20, 26, 56, 0.95)',
+      borderColor: 'rgba(102, 126, 234, 0.5)', textStyle: { color: THEME.textLight } },
+    legend: { data: ['<3M', '3M-1Y', '1-5Y', '5-10Y', '>10Y'],
+      textStyle: { color: THEME.text, fontSize: 10 }, top: 0, itemWidth: 10, itemHeight: 6 },
+    grid: { left: 40, right: 20, top: 30, bottom: 30 },
+    xAxis: { type: 'category', data: termMonths, ...baseAxis },
+    yAxis: { type: 'value', ...baseAxis, axisLabel: { ...baseAxis.axisLabel, formatter: '{value}%' } },
+    series: [
+      { name: '<3M',   type: 'line', stack: 'ts', smooth: true, data: [28, 30, 31, 32, 33, 32, 31, 30, 28],
+        areaStyle: { color: THEME.palette[0] + 'cc' }, lineStyle: { color: THEME.palette[0] }, symbol: 'none' },
+      { name: '3M-1Y', type: 'line', stack: 'ts', smooth: true, data: [22, 24, 26, 27, 28, 28, 27, 26, 25],
+        areaStyle: { color: THEME.palette[1] + 'cc' }, lineStyle: { color: THEME.palette[1] }, symbol: 'none' },
+      { name: '1-5Y',  type: 'line', stack: 'ts', smooth: true, data: [25, 24, 23, 23, 22, 22, 23, 24, 25],
+        areaStyle: { color: THEME.palette[2] + 'cc' }, lineStyle: { color: THEME.palette[2] }, symbol: 'none' },
+      { name: '5-10Y', type: 'line', stack: 'ts', smooth: true, data: [15, 14, 13, 12, 11, 12, 13, 14, 15],
+        areaStyle: { color: THEME.palette[3] + 'cc' }, lineStyle: { color: THEME.palette[3] }, symbol: 'none' },
+      { name: '>10Y',  type: 'line', stack: 'ts', smooth: true, data: [10, 8, 7, 6, 6, 6, 6, 6, 7],
+        areaStyle: { color: THEME.palette[4] + 'cc' }, lineStyle: { color: THEME.palette[4] }, symbol: 'none' }
+    ]
+  });
+
+  /* ============================================================
+   * 6. 关键账户期限缺口 TOP10（双向条形图）
+   * ============================================================ */
+  const topNodes = ['对公活期', '零售活期', '对公定期', '零售定期', '储蓄存款',
+                    '结构性存款', '对公贷款', '零售贷款', '同业拆出', '同业拆入'];
+  const topGaps = [-28.6, -22.4, -15.8, -12.6, -8.9, +6.5, +18.4, +22.6, +28.5, +32.8];
+  echarts.init(document.getElementById('chart-top-gap')).setOption({
+    backgroundColor: 'transparent',
+    tooltip: {
+      backgroundColor: 'rgba(20, 26, 56, 0.95)',
+      borderColor: 'rgba(102, 126, 234, 0.5)',
+      textStyle: { color: THEME.textLight },
+      formatter: (p) => `${p.name}<br/>缺口: <strong>${p.value}</strong> 亿`
+    },
+    grid: { left: 80, right: 40, top: 20, bottom: 30 },
+    xAxis: { type: 'value', ...baseAxis, axisLabel: { ...baseAxis.axisLabel, formatter: '{value}亿' } },
+    yAxis: { type: 'category', data: topNodes, ...baseAxis,
+      axisLabel: { ...baseAxis.axisLabel, fontSize: 11 } },
+    series: [{
+      type: 'bar',
+      data: topGaps.map(v => ({
+        value: v,
+        itemStyle: {
+          color: v >= 0
+            ? { type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+                colorStops: [{ offset: 0, color: '#ef4444' }, { offset: 1, color: '#f87171' }] }
+            : { type: 'linear', x: 1, y: 0, x2: 0, y2: 0,
+                colorStops: [{ offset: 0, color: '#10b981' }, { offset: 1, color: '#34d399' }] },
+          borderRadius: 4
+        }
+      })),
+      label: {
+        show: true, position: 'right', color: THEME.textLight,
+        formatter: (p) => (p.value >= 0 ? '+' : '') + p.value + '亿', fontSize: 11
+      }
+    }]
+  });
+
+  /* ============================================================
+   * 24 月时间轴
+   * ============================================================ */
+  const tm = document.getElementById('timeline-months');
+  const marker = document.getElementById('timeline-marker');
+  const label = document.getElementById('current-month-label');
+  months.forEach((m, idx) => {
+    const div = document.createElement('div');
+    div.className = 'timeline-month';
+    div.textContent = idx % 3 === 0 ? `M${idx + 1}` : '·';
+    div.addEventListener('click', () => {
+      tm.querySelectorAll('.timeline-month').forEach(el => el.classList.remove('active'));
+      div.classList.add('active');
+      marker.style.left = `calc(${(idx + 0.5) / 24 * 100}% - 1px)`;
+      label.textContent = `${m} · ${monthsDate[idx]}`;
+    });
+    if (idx === 11) div.classList.add('active');
+    tm.appendChild(div);
+  });
+
+  /* ============================================================
+   * Resize
+   * ============================================================ */
+  window.addEventListener('resize', () => {
+    ['chart-nii-forecast','chart-heatmap','chart-radar','chart-waterfall',
+     'chart-term-structure','chart-top-gap'].forEach(id => {
+      const inst = echarts.getInstanceByDom(document.getElementById(id));
+      if (inst) inst.resize();
+    });
+    ['mini-nim','mini-nii','mini-gap','mini-lmr','mini-car','mini-wac'].forEach(id => {
+      const inst = echarts.getInstanceByDom(document.getElementById(id));
+      if (inst) inst.resize();
+    });
+  });
+</script>
+</body>
+</html>

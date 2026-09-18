@@ -57,13 +57,13 @@ class BasicIn(BaseModel):
 
 
 def _row_to_dict(r) -> dict:
-    """将 SQL 行转 dict（含 orig[58]/rem[58] 数组）"""
+    """将 SQL 行转 dict（含 orig[17]/rem[17] 数组）"""
     # col 0-13 公共字段, col 14 起为 orig_*, rem_*
     # SELECT 顺序：id, data_date, coa_node_id, node_code, node_name, node_level,
     # parent_code, is_leaf, category, date_offset, offset_unit,
-    # orig_d1..y30 (13 列), rem_d1..y30 (13 列), 度量
+    # orig_m1..y30 (17 列), rem_m1..y30 (17 列), 度量
     # 改用动态列偏移
-    n_b = 58
+    n_b = len(ORIG_FIELDS)  # 17（v2 后）
     base = 14
     orig = [float(r[base + i] or 0) for i in range(n_b)]
     rem = [float(r[base + n_b + i] or 0) for i in range(n_b)]
@@ -81,15 +81,15 @@ def _row_to_dict(r) -> dict:
         "offset_unit": r[10],
         "orig": orig,
         "rem": rem,
-        "asf_rsf": r[41],
-        "hqla_factor": float(r[42] or 0) if r[42] is not None else None,
-        "current_balance": float(r[43] or 0),
-        "avg_balance": float(r[44] or 0),
-        "weighted_rate": float(r[45] or 0),
-        "interest_amount": float(r[46] or 0),
-        "risk_weight": float(r[47] or 0),
-        "calc_note": r[48],
-        "created_at": r[49].isoformat() if r[49] else None,
+        "asf_rsf": r[base + 2 * n_b],
+        "hqla_factor": float(r[base + 2 * n_b + 1] or 0) if r[base + 2 * n_b + 1] is not None else None,
+        "current_balance": float(r[base + 2 * n_b + 2] or 0),
+        "avg_balance": float(r[base + 2 * n_b + 3] or 0),
+        "weighted_rate": float(r[base + 2 * n_b + 4] or 0),
+        "interest_amount": float(r[base + 2 * n_b + 5] or 0),
+        "risk_weight": float(r[base + 2 * n_b + 6] or 0),
+        "calc_note": r[base + 2 * n_b + 7],
+        "created_at": r[base + 2 * n_b + 8].isoformat() if r[base + 2 * n_b + 8] else None,
     }
 
 
