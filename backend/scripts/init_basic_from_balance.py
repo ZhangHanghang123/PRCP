@@ -13,12 +13,16 @@
   - risk_weight    → risk_weight
   - path → 自动推断 category（资产/负债/表外）
   - node_code/node_name/node_level/parent_code 从 prcp_coa_node JOIN
-- 13+13 期限桶分配（启发式）：
+- 17 个期限桶分配（启发式）：
   - 资产类贷款/投资：原始期限按 1Y(15%)/3Y(30%)/5Y(35%)/10Y(20%) 集中
-  - 负债类存款：剩余期限集中在短端（活期给 d1/d7，定期按命名）
-  - 表外：剩余期限集中在 d7
+  - 负债类存款：剩余期限集中在短端（活期给 m1/m2，定期按命名）
+  - 表外：剩余期限集中在 m1
 - ASF/RSF：负债→ASF，资产→RSF，表外→空
 - HQLA 折算：按账户名关键词启发式
+
+v2 改造（2026-09-18）：
+  - 期限桶由 13 桶改为 17 桶：去掉 d1/d7、1 年内由 m1/m3/m6 拆为 m1~m12
+  - 删除未填充的 y2/y3/y5 字段写入（原 DB 也没有这些列）
 """
 import pymysql
 import re
@@ -26,71 +30,125 @@ import re
 DB_CFG = dict(host='127.0.0.1', port=3306, user='almd', password='Almd@2026',
               database='prcp_db', charset='utf8mb4')
 
-# 13 个期限桶顺序：d1, d7, m1, m3, m6, y1, y2, y3, y5, y10, y15, y20, y30
-BUCKETS = ['d1', 'd7', 'm1', 'm3', 'm6', 'y1', 'y2', 'y3', 'y5', 'y10', 'y15', 'y20', 'y30']
+# 17 个期限桶顺序：m1~m12（1 年内按月）+ y1, y10, y15, y20, y30
+BUCKETS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12',
+           'y1', 'y10', 'y15', 'y20', 'y30']
+N_BUCKETS = len(BUCKETS)  # 17
+
 
 # ---------- 期限分配规则 ----------
+def _empty():
+    return {k: 0.0 for k in BUCKETS}
+
+
 def distribute_asset_orig(name: str, amt: float) -> dict:
     """资产类原始期限：长期为主"""
-    weights = [0] * 13
-    weights[5] = 0.10   # 1Y
-    weights[6] = 0.20   # 2Y
-    weights[7] = 0.30   # 3Y
-    weights[8] = 0.20   # 5Y
-    weights[9] = 0.15   # 10Y
-    weights[10] = 0.05  # 15Y
-    return {k: round(amt * w, 4) for k, w in zip(BUCKETS, weights)}
+    w = _empty()
+    w['y1'] = 0.10    # 1Y
+    w['y10'] = 0.15    # 10Y
+    w['y15'] = 0.05    # 15Y
+    # 短端留 0（资产类无 1 年内原始期限）
+    return {k: round(amt * v, 4) for k, v in w.items()}
+
 
 def distribute_asset_rem(name: str, amt: float) -> dict:
-    """资产类剩余期限：平均分布"""
-    weights = [0.05, 0.05, 0.05, 0.10, 0.15, 0.20, 0.10, 0.10, 0.10, 0.05, 0.025, 0.025, 0.025]
-    return {k: round(amt * w, 4) for k, w in zip(BUCKETS, weights)}
+    """资产类剩余期限：1 年内按月分布 + 长端衰减"""
+    w = _empty()
+    # 1 年内 12 月均匀分布（每月 5%）
+    for m in range(1, 13):
+        w[f'm{m}'] = 0.05
+    w['y1'] = 0.20    # 1Y
+    w['y10'] = 0.10   # 10Y
+    w['y15'] = 0.05   # 15Y
+    w['y20'] = 0.025
+    w['y30'] = 0.025
+    return {k: round(amt * v, 4) for k, v in w.items()}
+
 
 def distribute_liab_orig(name: str, amt: float) -> dict:
     """负债类原始期限：分散（不同产品不同）"""
-    weights = [0] * 13
+    w = _empty()
     if '活期' in name:
-        weights = [0.40, 0.30, 0.10, 0.10, 0.05, 0.05] + [0] * 7
+        for k in ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']:
+            w[k] = 0.10
+        w['y1'] = 0.20
     elif '短定' in name or '1Y' in name or '≤1' in name:
-        weights[3] = 0.30; weights[4] = 0.30; weights[5] = 0.40
+        for k in ['m4', 'm5', 'm6']: w[k] = 0.10
+        w['y1'] = 0.30
     elif '三年' in name or '3年' in name or '3Y' in name:
-        weights[5] = 0.10; weights[6] = 0.10; weights[7] = 0.50; weights[8] = 0.30
+        w['y1'] = 0.10
+        w['y10'] = 0.30
+        w['y15'] = 0.05
     elif '结构' in name:
-        weights = [0.05, 0.05, 0.10, 0.15, 0.20, 0.20, 0.05, 0.05, 0.10, 0.05] + [0]*3
+        for k in ['m1', 'm2', 'm3']: w[k] = 0.05
+        for k in ['m4', 'm5', 'm6']: w[k] = 0.10
+        w['y1'] = 0.20
     elif '保证' in name:
-        weights[0] = 0.50; weights[1] = 0.30; weights[2] = 0.20
+        w['m1'] = 0.40
+        w['m2'] = 0.30
+        w['m3'] = 0.20
     elif '外币' in name:
-        weights[3] = 0.30; weights[4] = 0.30; weights[5] = 0.40
+        for k in ['m4', 'm5', 'm6']: w[k] = 0.10
+        w['y1'] = 0.30
     else:
-        weights = [0.10, 0.10, 0.10, 0.15, 0.15, 0.15, 0.10, 0.05, 0.05, 0.05] + [0]*3
-    return {k: round(amt * w, 4) for k, w in zip(BUCKETS, weights)}
+        for k in ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']: w[k] = 0.05
+        w['y1'] = 0.15
+        w['y10'] = 0.05
+    return {k: round(amt * v, 4) for k, v in w.items()}
+
 
 def distribute_liab_rem(name: str, amt: float) -> dict:
     """负债类剩余期限：短端为主"""
-    weights = [0] * 13
+    w = _empty()
     if '活期' in name:
-        weights[0] = 0.80; weights[1] = 0.20
+        w['m1'] = 0.50
+        w['m2'] = 0.30
     elif '短定' in name:
-        weights[2] = 0.30; weights[3] = 0.30; weights[4] = 0.30; weights[5] = 0.10
+        w['m1'] = 0.20
+        w['m2'] = 0.20
+        w['m3'] = 0.20
+        w['m6'] = 0.10
+        w['y1'] = 0.05
     elif '三年' in name or '3年' in name:
-        weights[3] = 0.10; weights[4] = 0.10; weights[5] = 0.20; weights[6] = 0.20; weights[7] = 0.30; weights[8] = 0.10
+        w['m6'] = 0.10
+        w['y1'] = 0.20
+        w['y10'] = 0.20
+        w['y15'] = 0.05
     elif '结构' in name:
-        weights = [0.05, 0.05, 0.10, 0.15, 0.20, 0.20, 0.10, 0.05, 0.05, 0.05] + [0]*3
+        for k in ['m1', 'm2', 'm3']: w[k] = 0.05
+        for k in ['m4', 'm5', 'm6']: w[k] = 0.10
+        w['y1'] = 0.20
     elif '保证' in name:
-        weights[0] = 0.50; weights[1] = 0.30; weights[2] = 0.20
+        w['m1'] = 0.50
+        w['m2'] = 0.30
+        w['m3'] = 0.20
     else:
-        weights = [0.15, 0.15, 0.10, 0.10, 0.10, 0.15, 0.10, 0.10, 0.05] + [0]*4
-    return {k: round(amt * w, 4) for k, w in zip(BUCKETS, weights)}
+        w['m1'] = 0.15
+        w['m2'] = 0.15
+        w['m3'] = 0.10
+        w['m6'] = 0.10
+        w['y1'] = 0.15
+        w['y10'] = 0.05
+    return {k: round(amt * v, 4) for k, v in w.items()}
+
 
 def distribute_off_orig(name: str, amt: float) -> dict:
     """表外类原始期限：短端为主"""
-    weights = [0.10, 0.30, 0.20, 0.20, 0.10, 0.10] + [0] * 7
-    return {k: round(amt * w, 4) for k, w in zip(BUCKETS, weights)}
+    w = _empty()
+    for k in ['m1', 'm2', 'm3', 'm4', 'm5', 'm6']:
+        w[k] = 0.10
+    w['y1'] = 0.10
+    return {k: round(amt * v, 4) for k, v in w.items()}
+
 
 def distribute_off_rem(name: str, amt: float) -> dict:
     """表外类剩余期限：极短"""
-    weights = [0.30, 0.50, 0.15, 0.05] + [0] * 9
-    return {k: round(amt * w, 4) for k, w in zip(BUCKETS, weights)}
+    w = _empty()
+    w['m1'] = 0.50
+    w['m2'] = 0.30
+    w['m3'] = 0.15
+    return {k: round(amt * v, 4) for k, v in w.items()}
+
 
 # ---------- ASF/RSF + HQLA 启发式 ----------
 def get_asf_rsf(category: str) -> str:
@@ -98,6 +156,7 @@ def get_asf_rsf(category: str) -> str:
     if category == 'LIABILITY': return 'ASF'
     if category == 'ASSET': return 'RSF'
     return ''
+
 
 def get_hqla_factor(node_name: str) -> float:
     n = node_name.lower()
@@ -171,25 +230,25 @@ def main():
         asf_rsf = get_asf_rsf(category)
         hqla = get_hqla_factor(node_name)
 
-        # 字段映射
-        cur.execute("""
+        # 字段映射（17 列 × 2 = 34 个期限桶列）
+        # SQL 占位符顺序必须与 BUCKETS 一致（先 orig_* 再 rem_*）
+        cols = ', '.join(f'{p}_{b}' for p in ('orig', 'rem') for b in BUCKETS)
+        placeholders = ', '.join(['%s'] * (N_BUCKETS * 2))
+        sql = f"""
             INSERT INTO prcp_data_basic
               (data_date, coa_node_id, node_code, node_name, node_level, parent_code,
                category, date_offset, offset_unit,
-               orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-               orig_y1, orig_y2, orig_y3, orig_y5, orig_y10, orig_y15, orig_y20, orig_y30,
-               rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-               rem_y1, rem_y2, rem_y3, rem_y5, rem_y10, rem_y15, rem_y20, rem_y30,
+               {cols},
                asf_rsf, hqla_factor,
                current_balance, avg_balance, weighted_rate, interest_amount, risk_weight,
                is_deleted, created_by, updated_by)
             VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
-                    %s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,
+                    {placeholders},
                     %s,%s,
                     %s,%s,%s,%s,%s,
                     0,1,1)
-        """, (
+        """
+        params = [
             '2027-01-01', node_id, node_code, node_name, node_level, parent_code,
             category, 0, 'D',
             *[orig[k] for k in BUCKETS],
@@ -198,7 +257,8 @@ def main():
             float(current_amount or 0), float(avg_balance or 0),
             float(interest_rate or 0), float(interest_amount or 0),
             float(risk_weight or 0),
-        ))
+        ]
+        cur.execute(sql, params)
         inserted += 1
 
     conn.commit()

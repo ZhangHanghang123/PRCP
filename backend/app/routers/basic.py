@@ -124,22 +124,7 @@ async def list_basic(
 
     select_cols = "b.id, b.data_date, b.coa_node_id, b.node_code, b.node_name, b.node_level, " \
                   "b.parent_code, b.is_leaf, b.category, b.date_offset, b.offset_unit, " \
-                  "b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6, " \
-                  "b.orig_m13, b.orig_m14, b.orig_m15, b.orig_m16, b.orig_m17, b.orig_m18, b.orig_m19, b.orig_m20, " \
-                  "b.orig_m21, b.orig_m22, b.orig_m23, b.orig_m24, b.orig_m25, b.orig_m26, b.orig_m27, b.orig_m28, " \
-                  "b.orig_m29, b.orig_m30, b.orig_m31, b.orig_m32, b.orig_m33, b.orig_m34, b.orig_m35, b.orig_m36, " \
-                  "b.orig_m37, b.orig_m38, b.orig_m39, b.orig_m40, b.orig_m41, b.orig_m42, b.orig_m43, b.orig_m44, " \
-                  "b.orig_m45, b.orig_m46, b.orig_m47, b.orig_m48, b.orig_m49, b.orig_m50, b.orig_m51, b.orig_m52, " \
-                  "b.orig_m53, b.orig_m54, b.orig_m55, b.orig_m56, b.orig_m57, b.orig_m58, b.orig_m59, b.orig_m60, " \
-                  "b.orig_y1, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30, " \
-                  "b.rem_d1, b.rem_d7, b.rem_m1, b.rem_m3, b.rem_m6, " \
-                  "b.rem_m13, b.rem_m14, b.rem_m15, b.rem_m16, b.rem_m17, b.rem_m18, b.rem_m19, b.rem_m20, " \
-                  "b.rem_m21, b.rem_m22, b.rem_m23, b.rem_m24, b.rem_m25, b.rem_m26, b.rem_m27, b.rem_m28, " \
-                  "b.rem_m29, b.rem_m30, b.rem_m31, b.rem_m32, b.rem_m33, b.rem_m34, b.rem_m35, b.rem_m36, " \
-                  "b.rem_m37, b.rem_m38, b.rem_m39, b.rem_m40, b.rem_m41, b.rem_m42, b.rem_m43, b.rem_m44, " \
-                  "b.rem_m45, b.rem_m46, b.rem_m47, b.rem_m48, b.rem_m49, b.rem_m50, b.rem_m51, b.rem_m52, " \
-                  "b.rem_m53, b.rem_m54, b.rem_m55, b.rem_m56, b.rem_m57, b.rem_m58, b.rem_m59, b.rem_m60, " \
-                  "b.rem_y1, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30, " \
+                  + all_select_sql(prefix="b.") + ", " \
                   "b.asf_rsf, b.hqla_factor, b.current_balance, b.avg_balance, " \
                   "b.weighted_rate, b.interest_amount, b.risk_weight, b.calc_note, b.created_at"
 
@@ -312,22 +297,7 @@ async def by_scheme_matrix(
     # 拉基础数据（**JOIN 过滤 scheme_id**，避免取到其他方案的 coa_node_id）
     rows = db.execute(
         text("""SELECT b.coa_node_id,
-                      b.orig_d1, b.orig_d7, b.orig_m1, b.orig_m3, b.orig_m6,
-                      b.orig_m13, b.orig_m14, b.orig_m15, b.orig_m16, b.orig_m17, b.orig_m18, b.orig_m19, b.orig_m20,
-                      b.orig_m21, b.orig_m22, b.orig_m23, b.orig_m24, b.orig_m25, b.orig_m26, b.orig_m27, b.orig_m28,
-                      b.orig_m29, b.orig_m30, b.orig_m31, b.orig_m32, b.orig_m33, b.orig_m34, b.orig_m35, b.orig_m36,
-                      b.orig_m37, b.orig_m38, b.orig_m39, b.orig_m40, b.orig_m41, b.orig_m42, b.orig_m43, b.orig_m44,
-                      b.orig_m45, b.orig_m46, b.orig_m47, b.orig_m48, b.orig_m49, b.orig_m50, b.orig_m51, b.orig_m52,
-                      b.orig_m53, b.orig_m54, b.orig_m55, b.orig_m56, b.orig_m57, b.orig_m58, b.orig_m59, b.orig_m60,
-                      b.orig_y1, b.orig_y10, b.orig_y15, b.orig_y20, b.orig_y30,
-                      b.rem_d1, b.rem_d7, b.rem_m1, b.rem_m3, b.rem_m6,
-                      b.rem_m13, b.rem_m14, b.rem_m15, b.rem_m16, b.rem_m17, b.rem_m18, b.rem_m19, b.rem_m20,
-                      b.rem_m21, b.rem_m22, b.rem_m23, b.rem_m24, b.rem_m25, b.rem_m26, b.rem_m27, b.rem_m28,
-                      b.rem_m29, b.rem_m30, b.rem_m31, b.rem_m32, b.rem_m33, b.rem_m34, b.rem_m35, b.rem_m36,
-                      b.rem_m37, b.rem_m38, b.rem_m39, b.rem_m40, b.rem_m41, b.rem_m42, b.rem_m43, b.rem_m44,
-                      b.rem_m45, b.rem_m46, b.rem_m47, b.rem_m48, b.rem_m49, b.rem_m50, b.rem_m51, b.rem_m52,
-                      b.rem_m53, b.rem_m54, b.rem_m55, b.rem_m56, b.rem_m57, b.rem_m58, b.rem_m59, b.rem_m60,
-                      b.rem_y1, b.rem_y10, b.rem_y15, b.rem_y20, b.rem_y30,
+                      """ + all_select_sql("b.") + """,
                       b.asf_rsf, b.hqla_factor,
                       b.current_balance, b.avg_balance, b.weighted_rate, b.interest_amount, b.risk_weight
                FROM prcp_data_basic b
@@ -433,22 +403,7 @@ async def export_xlsx(
 
     rows = db.execute(
         text("""SELECT coa_node_id, node_code, node_name, node_level, parent_code, category, is_leaf,
-                      orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-                      orig_m13, orig_m14, orig_m15, orig_m16, orig_m17, orig_m18, orig_m19, orig_m20,
-                      orig_m21, orig_m22, orig_m23, orig_m24, orig_m25, orig_m26, orig_m27, orig_m28,
-                      orig_m29, orig_m30, orig_m31, orig_m32, orig_m33, orig_m34, orig_m35, orig_m36,
-                      orig_m37, orig_m38, orig_m39, orig_m40, orig_m41, orig_m42, orig_m43, orig_m44,
-                      orig_m45, orig_m46, orig_m47, orig_m48, orig_m49, orig_m50, orig_m51, orig_m52,
-                      orig_m53, orig_m54, orig_m55, orig_m56, orig_m57, orig_m58, orig_m59, orig_m60,
-                      orig_y1, orig_y10, orig_y15, orig_y20, orig_y30,
-                      rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-                      rem_m13, rem_m14, rem_m15, rem_m16, rem_m17, rem_m18, rem_m19, rem_m20,
-                      rem_m21, rem_m22, rem_m23, rem_m24, rem_m25, rem_m26, rem_m27, rem_m28,
-                      rem_m29, rem_m30, rem_m31, rem_m32, rem_m33, rem_m34, rem_m35, rem_m36,
-                      rem_m37, rem_m38, rem_m39, rem_m40, rem_m41, rem_m42, rem_m43, rem_m44,
-                      rem_m45, rem_m46, rem_m47, rem_m48, rem_m49, rem_m50, rem_m51, rem_m52,
-                      rem_m53, rem_m54, rem_m55, rem_m56, rem_m57, rem_m58, rem_m59, rem_m60,
-                      rem_y1, rem_y10, rem_y15, rem_y20, rem_y30,
+                      """ + all_select_sql() + """,
                       asf_rsf, hqla_factor, current_balance, avg_balance,
                       weighted_rate, interest_amount, risk_weight, calc_note
                FROM prcp_data_basic
@@ -578,24 +533,24 @@ async def export_xlsx(
         ws.cell(ri, 9, date_offset)              # 日期偏移量
         ws.cell(ri, 10, offset_unit)             # 偏移单位
 
-        # col 11-68: 原始期限（58 列，r[7]..r[64]）
-        if r:
-            for i in range(n_buckets):
-                ws.cell(ri, 11 + i, float(r[7 + i] or 0))
+        # col 11-(10+17): 原始期限（17 列，r[7]..r[23]）
+    if r:
+        for i in range(n_buckets):
+            ws.cell(ri, 11 + i, float(r[7 + i] or 0))
         # col 69-126: 剩余期限（58 列，r[65]..r[122]）
         if r:
             for i in range(n_buckets):
                 ws.cell(ri, 11 + n_buckets + i, float(r[7 + n_buckets + i] or 0))
 
-        # col 127: ASF/RSF (rows 中 r[123])
+        # col (10+17+1): ASF/RSF
         ws.cell(ri, 11 + 2 * n_buckets, r[7 + 2 * n_buckets] if r and r[7 + 2 * n_buckets] is not None else "")
-        # col 128: HQLA折算系数 (r[124])
+        # col (10+17+2): HQLA折算系数
         offset_hqla = 7 + 2 * n_buckets + 1
         if r and r[offset_hqla] is not None:
             ws.cell(ri, 11 + 2 * n_buckets + 1, float(r[offset_hqla]))
         else:
             ws.cell(ri, 11 + 2 * n_buckets + 1, "")
-        # col 129: 当前余额 (r[125])
+        # col (10+17+3): 当前余额
         offset_cb = 7 + 2 * n_buckets + 2
         ws.cell(ri, 11 + 2 * n_buckets + 2, float(r[offset_cb]) if r and r[offset_cb] is not None else 0)
         # col 130: 平均余额（月） (r[126])
@@ -714,12 +669,12 @@ async def import_xlsx(
     if not header_row:
         raise HTTPException(400, "Excel 中找不到 '账户册编码' 表头行")
 
-    # 找原始期限列起点（第一个 "1日"）和剩余期限列起点（第二个 "1日"）
+    # 找原始期限列起点（第一个 "1M"）和剩余期限列起点（第二个 "1M"）
     orig_col_start = None
     rem_col_start = None
     for cidx in range(1, 50):
         v = ws.cell(header_row, cidx).value
-        if v and "1日" in str(v):
+        if v and "1M" in str(v):
             if orig_col_start is None:
                 orig_col_start = cidx
             elif rem_col_start is None:
@@ -727,24 +682,24 @@ async def import_xlsx(
                 break
 
     if not orig_col_start or not rem_col_start:
-        raise HTTPException(400, "Excel 中找不到原始/剩余期限桶（缺少 '1日' 列）")
+        raise HTTPException(400, "Excel 中找不到原始/剩余期限桶（缺少 '1M' 列）")
 
     # 列转 0-indexed 用于 list 索引
     # col 3 = 账户册编码 → row[2]
-    # col 11-23 = 原始期限 → row[10..22]
-    # col 24-36 = 剩余期限 → row[23..35]
-    # col 37 = ASF/RSF → row[36]
-    # col 38 = HQLA → row[37]
-    # col 39-43 = 度量 → row[38..42]
+    # col 11-27 = 原始期限 → row[10..26]（17 列）
+    # col 28-44 = 剩余期限 → row[27..43]（17 列）
+    # col 45 = ASF/RSF → row[44]
+    # col 46 = HQLA → row[45]
+    # col 47-51 = 度量 → row[46..50]
     COL_NODE_CODE = 2           # row[2] = 账户册编码
     COL_DATA_DATE = 1           # row[1] = 数据日期
     COL_OFFSET = 8              # row[8] = 日期偏移量
     COL_OFFSET_UNIT = 9         # row[9] = 日期偏移量单位
-    COL_ORIG_START = 10         # row[10] = 原始期限第一个（1日）
-    N_BUCKETS_IMPORT = 58        # 5 + 48 + 5（新结构）
-    COL_REM_START = COL_ORIG_START + N_BUCKETS_IMPORT  # 68 = 剩余期限第一个（1日）
-    COL_ASF_RSF = COL_REM_START + N_BUCKETS_IMPORT  # 126
-    COL_HQLA = COL_ASF_RSF + 1   # 127
+    COL_ORIG_START = 10         # row[10] = 原始期限第一个（1M）
+    N_BUCKETS_IMPORT = 17       # m1~m12 + y1 + y10 + y15 + y20 + y30
+    COL_REM_START = COL_ORIG_START + N_BUCKETS_IMPORT  # 27 = 剩余期限第一个（1M）
+    COL_ASF_RSF = COL_REM_START + N_BUCKETS_IMPORT  # 44
+    COL_HQLA = COL_ASF_RSF + 1   # 45
     COL_CURRENT_BAL = 38
     COL_AVG_BAL = 39
     COL_WEIGHTED_RATE = 40

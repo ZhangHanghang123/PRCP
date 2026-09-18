@@ -73,9 +73,11 @@ NODE_DATA = {
 # 2. 负债类按产品（活期/定期）分配
 # 3. 表外→空
 
-# orig_*: 原始期限（13 桶：1日/7日/1M/3M/6M/1Y/2Y/3Y/5Y/10Y/15Y/20Y/30Y）
-# rem_*: 剩余期限（同 13 桶）
-BUCKETS = ['d1', 'd7', 'm1', 'm3', 'm6', 'y1', 'y2', 'y3', 'y5', 'y10', 'y15', 'y20', 'y30']
+# orig_*: 原始期限（17 桶：m1~m12 + y1/y10/y15/y20/y30）
+# rem_*: 剩余期限（同 17 桶）
+# v2 改造（2026-09-18）：去掉 d1/d7、1 年内由 m1/m3/m6 拆为 m1~m12、删除 y2/y3/y5
+BUCKETS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12',
+           'y1', 'y10', 'y15', 'y20', 'y30']
 
 # 各节点的期限分布（占总金额比例，总和 = 1.0）
 # 分配策略：基于业务特征 + 真实银行期限结构
@@ -367,20 +369,8 @@ def insert_basic_data(cur, node_id_map):
             'data_date': DATA_DATE,
             'date_offset': 0,
             'offset_unit': 'D',
-            'orig_d1': orig_buckets['d1'], 'orig_d7': orig_buckets['d7'],
-            'orig_m1': orig_buckets['m1'], 'orig_m3': orig_buckets['m3'],
-            'orig_m6': orig_buckets['m6'], 'orig_y1': orig_buckets['y1'],
-            'orig_y2': orig_buckets['y2'], 'orig_y3': orig_buckets['y3'],
-            'orig_y5': orig_buckets['y5'], 'orig_y10': orig_buckets['y10'],
-            'orig_y15': orig_buckets['y15'], 'orig_y20': orig_buckets['y20'],
-            'orig_y30': orig_buckets['y30'],
-            'rem_d1': rem_buckets['d1'], 'rem_d7': rem_buckets['d7'],
-            'rem_m1': rem_buckets['m1'], 'rem_m3': rem_buckets['m3'],
-            'rem_m6': rem_buckets['m6'], 'rem_y1': rem_buckets['y1'],
-            'rem_y2': rem_buckets['y2'], 'rem_y3': rem_buckets['y3'],
-            'rem_y5': rem_buckets['y5'], 'rem_y10': rem_buckets['y10'],
-            'rem_y15': rem_buckets['y15'], 'rem_y20': rem_buckets['y20'],
-            'rem_y30': rem_buckets['y30'],
+            **{f'orig_{b}': orig_buckets[b] for b in BUCKETS},
+            **{f'rem_{b}': rem_buckets[b] for b in BUCKETS},
             'asf_rsf': get_asf_rsf(code),
             'hqla_factor': HQLA_FACTOR.get(code),
             'current_balance': cur_amt_f,
@@ -392,10 +382,7 @@ def insert_basic_data(cur, node_id_map):
         })
 
     cols = ['coa_node_id', 'data_date', 'date_offset', 'offset_unit',
-            'orig_d1', 'orig_d7', 'orig_m1', 'orig_m3', 'orig_m6',
-            'orig_y1', 'orig_y2', 'orig_y3', 'orig_y5', 'orig_y10', 'orig_y15', 'orig_y20', 'orig_y30',
-            'rem_d1', 'rem_d7', 'rem_m1', 'rem_m3', 'rem_m6',
-            'rem_y1', 'rem_y2', 'rem_y3', 'rem_y5', 'rem_y10', 'rem_y15', 'rem_y20', 'rem_y30',
+            ] + [f'orig_{b}' for b in BUCKETS] + [f'rem_{b}' for b in BUCKETS] + [
             'asf_rsf', 'hqla_factor', 'current_balance', 'avg_balance',
             'weighted_rate', 'interest_amount', 'risk_weight', 'is_deleted']
     for r in rows:
@@ -422,12 +409,7 @@ def insert_basic_data(cur, node_id_map):
 
         # SUM 数值字段
         sum_fields = ['current_balance', 'avg_balance', 'interest_amount',
-                       'orig_d1', 'orig_d7', 'orig_m1', 'orig_m3', 'orig_m6',
-                       'orig_y1', 'orig_y2', 'orig_y3', 'orig_y5', 'orig_y10',
-                       'orig_y15', 'orig_y20', 'orig_y30',
-                       'rem_d1', 'rem_d7', 'rem_m1', 'rem_m3', 'rem_m6',
-                       'rem_y1', 'rem_y2', 'rem_y3', 'rem_y5', 'rem_y10',
-                       'rem_y15', 'rem_y20', 'rem_y30']
+                       ] + [f'orig_{b}' for b in BUCKETS] + [f'rem_{b}' for b in BUCKETS]
         sum_select = ', '.join([f'IFNULL(SUM({f}), 0)' for f in sum_fields])
         cur.execute(f"""
             SELECT {sum_select}

@@ -16,7 +16,7 @@ from openpyxl.styles import Font, PatternFill, Alignment
 
 from app.database import get_db
 from app.auth import get_current_user
-from app.services.buckets import BUCKETS, ORIG_COLS, REM_COLS
+from app.services.buckets import BUCKETS, ORIG_COLS, REM_COLS, all_select_sql
 
 router = APIRouter(prefix="/data-reverse", tags=["反算结果查询"])
 
@@ -173,22 +173,7 @@ async def by_scheme_matrix(
 
     rows = db.execute(text(f"""
         SELECT coa_node_id, node_code, node_name, node_level, parent_code, category, is_leaf,
-               orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-               orig_m13, orig_m14, orig_m15, orig_m16, orig_m17, orig_m18, orig_m19, orig_m20,
-               orig_m21, orig_m22, orig_m23, orig_m24, orig_m25, orig_m26, orig_m27, orig_m28,
-               orig_m29, orig_m30, orig_m31, orig_m32, orig_m33, orig_m34, orig_m35, orig_m36,
-               orig_m37, orig_m38, orig_m39, orig_m40, orig_m41, orig_m42, orig_m43, orig_m44,
-               orig_m45, orig_m46, orig_m47, orig_m48, orig_m49, orig_m50, orig_m51, orig_m52,
-               orig_m53, orig_m54, orig_m55, orig_m56, orig_m57, orig_m58, orig_m59, orig_m60,
-               orig_y1, orig_y10, orig_y15, orig_y20, orig_y30,
-               rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-               rem_m13, rem_m14, rem_m15, rem_m16, rem_m17, rem_m18, rem_m19, rem_m20,
-               rem_m21, rem_m22, rem_m23, rem_m24, rem_m25, rem_m26, rem_m27, rem_m28,
-               rem_m29, rem_m30, rem_m31, rem_m32, rem_m33, rem_m34, rem_m35, rem_m36,
-               rem_m37, rem_m38, rem_m39, rem_m40, rem_m41, rem_m42, rem_m43, rem_m44,
-               rem_m45, rem_m46, rem_m47, rem_m48, rem_m49, rem_m50, rem_m51, rem_m52,
-               rem_m53, rem_m54, rem_m55, rem_m56, rem_m57, rem_m58, rem_m59, rem_m60,
-               rem_y1, rem_y10, rem_y15, rem_y20, rem_y30,
+               {all_select_sql()},
                asf_rsf, hqla_factor, current_balance, avg_balance,
                weighted_rate, interest_amount, risk_weight, calc_note,
                data_date, date_offset, record_id
@@ -327,22 +312,7 @@ async def export_xlsx(
     rows = db.execute(text("""
         SELECT coa_node_id, data_date, date_offset, node_code, node_name, node_level,
                parent_code, category, is_leaf,
-               orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-               orig_m13, orig_m14, orig_m15, orig_m16, orig_m17, orig_m18, orig_m19, orig_m20,
-               orig_m21, orig_m22, orig_m23, orig_m24, orig_m25, orig_m26, orig_m27, orig_m28,
-               orig_m29, orig_m30, orig_m31, orig_m32, orig_m33, orig_m34, orig_m35, orig_m36,
-               orig_m37, orig_m38, orig_m39, orig_m40, orig_m41, orig_m42, orig_m43, orig_m44,
-               orig_m45, orig_m46, orig_m47, orig_m48, orig_m49, orig_m50, orig_m51, orig_m52,
-               orig_m53, orig_m54, orig_m55, orig_m56, orig_m57, orig_m58, orig_m59, orig_m60,
-               orig_y1, orig_y10, orig_y15, orig_y20, orig_y30,
-               rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-               rem_m13, rem_m14, rem_m15, rem_m16, rem_m17, rem_m18, rem_m19, rem_m20,
-               rem_m21, rem_m22, rem_m23, rem_m24, rem_m25, rem_m26, rem_m27, rem_m28,
-               rem_m29, rem_m30, rem_m31, rem_m32, rem_m33, rem_m34, rem_m35, rem_m36,
-               rem_m37, rem_m38, rem_m39, rem_m40, rem_m41, rem_m42, rem_m43, rem_m44,
-               rem_m45, rem_m46, rem_m47, rem_m48, rem_m49, rem_m50, rem_m51, rem_m52,
-               rem_m53, rem_m54, rem_m55, rem_m56, rem_m57, rem_m58, rem_m59, rem_m60,
-               rem_y1, rem_y10, rem_y15, rem_y20, rem_y30,
+               {all_select_sql()},
                asf_rsf, hqla_factor, current_balance, avg_balance,
                weighted_rate, interest_amount, risk_weight, calc_note,
                record_id
