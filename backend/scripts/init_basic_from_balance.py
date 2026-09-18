@@ -59,6 +59,7 @@ def _linear_decay(year: int, max_years: int = 5, base: float = 0.10) -> dict:
 
 def distribute_asset_orig(name: str, amt: float) -> dict:
     """资产类原始期限：长期为主"""
+    amt = float(amt)  # 兼容 Decimal
     w = _empty()
     # 长端固定桶为主
     w['y10'] = 0.40
@@ -73,6 +74,7 @@ def distribute_asset_orig(name: str, amt: float) -> dict:
 
 def distribute_asset_rem(name: str, amt: float) -> dict:
     """资产类剩余期限：1 年内按月分布 + 2-5 年衰减 + 长端"""
+    amt = float(amt)  # 兼容 Decimal
     w = _empty()
     # 1 年内按月均匀（每 1.5%，合计 18%）
     for m in range(1, 13):
@@ -99,6 +101,7 @@ def distribute_asset_rem(name: str, amt: float) -> dict:
 
 def distribute_liab_orig(name: str, amt: float) -> dict:
     """负债类原始期限：分散（不同产品不同）"""
+    amt = float(amt)  # 兼容 Decimal
     w = _empty()
     if '活期' in name:
         # 活期：6 个月内均匀分布
@@ -140,6 +143,7 @@ def distribute_liab_orig(name: str, amt: float) -> dict:
 
 def distribute_liab_rem(name: str, amt: float) -> dict:
     """负债类剩余期限：短端为主"""
+    amt = float(amt)  # 兼容 Decimal
     w = _empty()
     if '活期' in name:
         w['m1'] = 0.50
@@ -183,6 +187,7 @@ def distribute_liab_rem(name: str, amt: float) -> dict:
 
 def distribute_off_orig(name: str, amt: float) -> dict:
     """表外类原始期限：短端为主"""
+    amt = float(amt)  # 兼容 Decimal
     w = _empty()
     for m in range(1, 7):
         w[f'm{m}'] = 0.10
@@ -193,6 +198,7 @@ def distribute_off_orig(name: str, amt: float) -> dict:
 
 def distribute_off_rem(name: str, amt: float) -> dict:
     """表外类剩余期限：集中在 1-3 月"""
+    amt = float(amt)  # 兼容 Decimal
     w = _empty()
     w['m1'] = 0.50
     w['m2'] = 0.30
