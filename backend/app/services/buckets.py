@@ -1,32 +1,31 @@
-"""共享期限桶定义 — 17 列（v2 改造 2026-09-18）
+"""共享期限桶定义 — 64 列（v3 改造 2026-09-18）
 
-新结构（17 列）：
-  1年内按月    12 列：m1, m2, ..., m12
-  关键期限     1 列：y1
-  长端固定桶   4 列：y10, y15, y20, y30
+新结构（64 列）：
+  5年内按月      60 列：m1, m2, ..., m60
+  长端固定桶      4 列：y10, y15, y20, y30
 
 变更点：
-  - 去掉 1日 (d1) / 7日 (d7) 桶
-  - 一年内由 m1/m3/m6 (3 桶) 拆为 m1~m12 (12 桶)
-  - 删除未填充的死列 m13~m60（DB 同步升级，见 upgrade_term_buckets_v2.sql）
+  - 5 年内全部按月拆分（m1~m60）
+  - 删除 y1（因 m12 = 12 月 = 1Y）
+  - 长端固定 y10/y15/y20/y30 不变
+  - DB 同步升级，见 upgrade_term_buckets_v3.sql
 """
 from typing import List, Dict
 
 
 def _build_buckets() -> List[Dict[str, str]]:
-    """构建 17 个期限桶"""
-    monthly_year1 = [
+    """构建 64 个期限桶"""
+    monthly_5y = [
         {"key": f"m{n}", "name": f"{n}M", "col": f"M{n}"}
-        for n in range(1, 13)
+        for n in range(1, 61)
     ]
     long = [
-        {"key": "y1",  "name": "1Y",   "col": "Y1"},
         {"key": "y10", "name": "10Y",  "col": "Y10"},
         {"key": "y15", "name": "15Y",  "col": "Y15"},
         {"key": "y20", "name": "20Y",  "col": "Y20"},
         {"key": "y30", "name": "30Y",  "col": "Y30"},
     ]
-    return monthly_year1 + long
+    return monthly_5y + long
 
 
 BUCKETS: List[Dict[str, str]] = _build_buckets()
@@ -54,7 +53,10 @@ def all_select_sql(prefix: str = "") -> str:
     return orig_select_sql(prefix) + ", " + rem_select_sql(prefix)
 
 
-# 1 年内按月 / 关键期限 / 长端桶（用于布局分组）
-YEAR1_MONTHLY_KEYS = {f"m{n}" for n in range(1, 13)}
-KEY_KEYS = {"y1"}
+# 桶分组（用于布局/分组聚合）
+YEAR1_KEYS = {f"m{n}" for n in range(1, 13)}    # 1-12月
+YEAR2_KEYS = {f"m{n}" for n in range(13, 25)}   # 13-24月
+YEAR3_KEYS = {f"m{n}" for n in range(25, 37)}   # 25-36月
+YEAR4_KEYS = {f"m{n}" for n in range(37, 49)}   # 37-48月
+YEAR5_KEYS = {f"m{n}" for n in range(49, 61)}   # 49-60月
 LONG_KEYS = {"y10", "y15", "y20", "y30"}

@@ -76,8 +76,7 @@ NODE_DATA = {
 # orig_*: 原始期限（17 桶：m1~m12 + y1/y10/y15/y20/y30）
 # rem_*: 剩余期限（同 17 桶）
 # v2 改造（2026-09-18）：去掉 d1/d7、1 年内由 m1/m3/m6 拆为 m1~m12、删除 y2/y3/y5
-BUCKETS = ['m1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7', 'm8', 'm9', 'm10', 'm11', 'm12',
-           'y1', 'y10', 'y15', 'y20', 'y30']
+BUCKETS = [f'm{n}' for n in range(1, 61)] + ['y10', 'y15', 'y20', 'y30']
 
 # 各节点的期限分布（占总金额比例，总和 = 1.0）
 # 分配策略：基于业务特征 + 真实银行期限结构
@@ -501,8 +500,8 @@ def insert_basic_data(cur, node_id_map):
         SELECT n.node_code, n.node_name, n.node_level,
                b.current_balance, b.weighted_rate, b.risk_weight,
                b.asf_rsf, b.hqla_factor,
-               (b.orig_d1 + b.orig_d7 + b.orig_m1 + b.orig_m3 + b.orig_m6) AS orig_short,
-               (b.rem_d1 + b.rem_d7 + b.rem_m1 + b.rem_m3 + b.rem_m6) AS rem_short
+               (b.orig_m1 + b.orig_m2 + b.orig_m3 + b.orig_m6 + b.orig_m12) AS orig_short,
+               (b.rem_m1 + b.rem_m2 + b.rem_m3 + b.rem_m6 + b.rem_m12) AS rem_short
         FROM prcp_data_basic b
         JOIN prcp_coa_node n ON n.id=b.coa_node_id
         WHERE n.scheme_id=%s AND b.data_date=%s AND b.date_offset=0 AND b.is_deleted=0

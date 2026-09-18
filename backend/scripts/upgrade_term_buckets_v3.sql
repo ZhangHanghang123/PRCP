@@ -1,0 +1,336 @@
+-- ============================================================
+-- PRCP 期限桶 v3 改造（5 年内全部按月拆分）
+-- 时间：2026-09-18
+-- 新结构：64+64 桶
+--   5 年内按月：m1 ~ m60（60 桶 = 5 年 × 12 月）
+--   长端固定桶：y10 / y15 / y20 / y30（4 桶）
+--   （y1 已删，因 m12 = 12 月 = 1Y）
+--
+-- 改动清单：
+--   1. 删除 orig_y1 / rem_y1（2 列）
+--   2. 新增 orig_m13 ~ orig_m60 + rem_m13 ~ rem_m60（96 列）
+--   净变化：+94 列/表
+--
+-- 幂等性：
+--   每条 ALTER 前先 IF EXISTS() / IF NOT EXISTS 检查
+-- ============================================================
+
+USE prcp_db;
+
+-- ============================================================
+-- 一、prcp_data_basic 改造
+-- ============================================================
+
+-- 1.1 删除 orig_y1（幂等）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_basic'
+      AND COLUMN_NAME = 'orig_y1'
+);
+SET @sql := IF(@col_exists > 0,
+    'ALTER TABLE prcp_data_basic DROP COLUMN orig_y1',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 1.2 删除 rem_y1（幂等）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_basic'
+      AND COLUMN_NAME = 'rem_y1'
+);
+SET @sql := IF(@col_exists > 0,
+    'ALTER TABLE prcp_data_basic DROP COLUMN rem_y1',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 1.3 新增 orig_m13 ~ orig_m60（幂等）
+SET @col_missing := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_basic'
+      AND COLUMN_NAME = 'orig_m13'
+);
+SET @sql := IF(@col_missing = 0,
+    'ALTER TABLE prcp_data_basic
+     ADD COLUMN orig_m13 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m14 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m15 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m16 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m17 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m18 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m19 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m20 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m21 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m22 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m23 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m24 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m25 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m26 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m27 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m28 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m29 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m30 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m31 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m32 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m33 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m34 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m35 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m36 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m37 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m38 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m39 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m40 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m41 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m42 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m43 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m44 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m45 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m46 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m47 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m48 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m49 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m50 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m51 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m52 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m53 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m54 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m55 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m56 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m57 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m58 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m59 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m60 DECIMAL(20,4) DEFAULT 0',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 1.4 新增 rem_m13 ~ rem_m60（幂等）
+SET @col_missing := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_basic'
+      AND COLUMN_NAME = 'rem_m13'
+);
+SET @sql := IF(@col_missing = 0,
+    'ALTER TABLE prcp_data_basic
+     ADD COLUMN rem_m13 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m14 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m15 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m16 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m17 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m18 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m19 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m20 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m21 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m22 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m23 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m24 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m25 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m26 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m27 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m28 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m29 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m30 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m31 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m32 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m33 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m34 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m35 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m36 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m37 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m38 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m39 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m40 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m41 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m42 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m43 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m44 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m45 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m46 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m47 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m48 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m49 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m50 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m51 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m52 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m53 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m54 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m55 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m56 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m57 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m58 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m59 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m60 DECIMAL(20,4) DEFAULT 0',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+
+-- ============================================================
+-- 二、prcp_data_reverse 改造（同上）
+-- ============================================================
+
+-- 2.1 删除 orig_y1（幂等）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_reverse'
+      AND COLUMN_NAME = 'orig_y1'
+);
+SET @sql := IF(@col_exists > 0,
+    'ALTER TABLE prcp_data_reverse DROP COLUMN orig_y1',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 2.2 删除 rem_y1（幂等）
+SET @col_exists := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_reverse'
+      AND COLUMN_NAME = 'rem_y1'
+);
+SET @sql := IF(@col_exists > 0,
+    'ALTER TABLE prcp_data_reverse DROP COLUMN rem_y1',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 2.3 新增 orig_m13 ~ orig_m60（幂等）
+SET @col_missing := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_reverse'
+      AND COLUMN_NAME = 'orig_m13'
+);
+SET @sql := IF(@col_missing = 0,
+    'ALTER TABLE prcp_data_reverse
+     ADD COLUMN orig_m13 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m14 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m15 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m16 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m17 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m18 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m19 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m20 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m21 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m22 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m23 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m24 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m25 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m26 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m27 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m28 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m29 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m30 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m31 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m32 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m33 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m34 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m35 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m36 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m37 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m38 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m39 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m40 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m41 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m42 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m43 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m44 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m45 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m46 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m47 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m48 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m49 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m50 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m51 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m52 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m53 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m54 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m55 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m56 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m57 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m58 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m59 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN orig_m60 DECIMAL(20,4) DEFAULT 0',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- 2.4 新增 rem_m13 ~ rem_m60（幂等）
+SET @col_missing := (
+    SELECT COUNT(*) FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = 'prcp_db'
+      AND TABLE_NAME = 'prcp_data_reverse'
+      AND COLUMN_NAME = 'rem_m13'
+);
+SET @sql := IF(@col_missing = 0,
+    'ALTER TABLE prcp_data_reverse
+     ADD COLUMN rem_m13 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m14 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m15 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m16 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m17 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m18 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m19 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m20 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m21 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m22 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m23 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m24 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m25 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m26 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m27 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m28 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m29 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m30 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m31 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m32 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m33 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m34 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m35 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m36 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m37 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m38 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m39 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m40 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m41 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m42 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m43 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m44 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m45 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m46 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m47 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m48 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m49 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m50 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m51 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m52 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m53 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m54 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m55 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m56 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m57 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m58 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m59 DECIMAL(20,4) DEFAULT 0,
+     ADD COLUMN rem_m60 DECIMAL(20,4) DEFAULT 0',
+    'SELECT 1');
+PREPARE s FROM @sql; EXECUTE s; DEALLOCATE PREPARE s;
+
+
+-- ============================================================
+-- 三、验证
+-- ============================================================
+
+SELECT 'prcp_data_basic' AS tbl_, COUNT(*) AS bucket_cols
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'prcp_db'
+  AND TABLE_NAME = 'prcp_data_basic'
+  AND (COLUMN_NAME LIKE 'orig\\_%' OR COLUMN_NAME LIKE 'rem\\_%')
+  AND COLUMN_NAME NOT LIKE 'orig\\_asf%' AND COLUMN_NAME NOT LIKE 'rem\\_asf%'
+  AND COLUMN_NAME NOT LIKE 'orig\\_hqla%' AND COLUMN_NAME NOT LIKE 'rem\\_hqla%';
+
+SELECT 'prcp_data_reverse' AS tbl_, COUNT(*) AS bucket_cols
+FROM information_schema.COLUMNS
+WHERE TABLE_SCHEMA = 'prcp_db'
+  AND TABLE_NAME = 'prcp_data_reverse'
+  AND (COLUMN_NAME LIKE 'orig\\_%' OR COLUMN_NAME LIKE 'rem\\_%')
+  AND COLUMN_NAME NOT LIKE 'orig\\_asf%' AND COLUMN_NAME NOT LIKE 'rem\\_asf%'
+  AND COLUMN_NAME NOT LIKE 'orig\\_hqla%' AND COLUMN_NAME NOT LIKE 'rem\\_hqla%';

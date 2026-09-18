@@ -693,15 +693,15 @@ async def import_xlsx(
     COL_OFFSET = 8              # row[8] = 日期偏移量
     COL_OFFSET_UNIT = 9         # row[9] = 日期偏移量单位
     COL_ORIG_START = 10         # row[10] = 原始期限第一个（1M）
-    N_BUCKETS_IMPORT = 17       # m1~m12 + y1 + y10 + y15 + y20 + y30
-    COL_REM_START = COL_ORIG_START + N_BUCKETS_IMPORT  # 27 = 剩余期限第一个（1M）
-    COL_ASF_RSF = COL_REM_START + N_BUCKETS_IMPORT  # 44
-    COL_HQLA = COL_ASF_RSF + 1   # 45
-    COL_CURRENT_BAL = 38
-    COL_AVG_BAL = 39
-    COL_WEIGHTED_RATE = 40
-    COL_INTEREST_AMOUNT = 41
-    COL_RISK_WEIGHT = 42
+    N_BUCKETS_IMPORT = len(ORIG_FIELDS)  # 64 = m1~m60 + y10/y15/y20/y30
+    COL_REM_START = COL_ORIG_START + N_BUCKETS_IMPORT  # 74 = 剩余期限第一个（1M）
+    COL_ASF_RSF = COL_REM_START + N_BUCKETS_IMPORT  # 138
+    COL_HQLA = COL_ASF_RSF + 1   # 139
+    COL_CURRENT_BAL = COL_HQLA + 1  # 140
+    COL_AVG_BAL = COL_CURRENT_BAL + 1  # 141
+    COL_WEIGHTED_RATE = COL_AVG_BAL + 1  # 142
+    COL_INTEREST_AMOUNT = COL_WEIGHTED_RATE + 1  # 143
+    COL_RISK_WEIGHT = COL_INTEREST_AMOUNT + 1  # 144
 
     inserted = updated = skipped = 0
     errors = []

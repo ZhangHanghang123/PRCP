@@ -419,9 +419,9 @@ const BasicDataSheet: React.FC = () => {
       <div className="page-title">
         <span className="page-title-icon" />
         <span>
-          基础数据表（17+17 期限桶 · 余额/利率/风险权重）
+          基础数据表（64+64 期限桶 · 余额/利率/风险权重）
           <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal', marginLeft: 8 }}>
-            ——原始期限 + 剩余期限 × 1M/2M/3M/4M/5M/6M/7M/8M/9M/10M/11M/12M/1Y/10Y/15Y/20Y/30Y
+            ——原始期限 + 剩余期限 × 5年内按月（m1~m60）+ 长端（y10/y15/y20/y30）
           </span>
         </span>
       </div>
@@ -594,7 +594,7 @@ const BasicDataSheet: React.FC = () => {
             </Col>
           </Row>
 
-          <Divider orientation="left" style={{ fontSize: 13 }}>原始期限金额（58 个期限桶：5 年内按月，5 年后固定）</Divider>
+          <Divider orientation="left" style={{ fontSize: 13 }}>原始期限金额（64 个期限桶：5 年内按月 m1~m60 + 长端 y10/y15/y20/y30）</Divider>
           <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4 }}>
             <Row gutter={[6, 6]}>
               {BUCKETS.map((b, i) => (
@@ -607,7 +607,7 @@ const BasicDataSheet: React.FC = () => {
             </Row>
           </div>
 
-          <Divider orientation="left" style={{ fontSize: 13 }}>剩余期限金额（58 个期限桶）</Divider>
+          <Divider orientation="left" style={{ fontSize: 13 }}>剩余期限金额（64 个期限桶：5 年内按月 m1~m60 + 长端 y10/y15/y20/y30）</Divider>
           <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #f0f0f0', padding: 8, borderRadius: 4 }}>
             <Row gutter={[6, 6]}>
               {BUCKETS.map((b, i) => (

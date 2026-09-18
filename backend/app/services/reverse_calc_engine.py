@@ -177,6 +177,7 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
 
     # 2) 写入 prcp_data_reverse（基础数据表结构 + scheme_code）
     #    先 INSERT，record_id 暂用 scheme_code 占位，最后批量 UPDATE 为 scheme_code_id
+    # 64 桶映射：m_idx (0..23) → m(m_idx+1)
     for m_idx in range(24):
         predict_date = date(base_date.year + (base_date.month + m_idx - 1) // 12,
                             (base_date.month + m_idx - 1) % 12 + 1, 1)
@@ -184,103 +185,61 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
             try:
                 current = node["current"]
                 adjusted = float(months[m_idx][n_idx])
-                # 在基础数据表语义下，current_balance = adjusted_value（反算后的预测值）
-                # 13+13 期限桶按 month 归一：把 adjusted 放进对应月桶
                 adjusted_bal = adjusted
-                bucket_index = m_idx  # 0..11 → m1..y10 桶；12..23 → y15..y30 桶
-                # 简化映射：把调整量平均分配到当前月的 orig/ rem 桶
-                # orig_m3 / rem_m3 是最常用的核心桶
-                orig_buckets = {"orig_m1": 0, "orig_m3": 0, "orig_m6": 0,
-                                "orig_y1": 0, "orig_y2": 0, "orig_y3": 0,
-                                "orig_y5": 0, "orig_y10": 0}
-                rem_buckets = {"rem_m1": 0, "rem_m3": 0, "rem_m6": 0,
-                               "rem_y1": 0, "rem_y2": 0, "rem_y3": 0,
-                               "rem_y5": 0, "rem_y10": 0}
-                if bucket_index == 0:
-                    rem_buckets["rem_m1"] = adjusted_bal
-                elif bucket_index == 1:
-                    rem_buckets["rem_m3"] = adjusted_bal
-                elif bucket_index == 2:
-                    rem_buckets["rem_m6"] = adjusted_bal
-                elif bucket_index == 3:
-                    rem_buckets["rem_y1"] = adjusted_bal
-                elif bucket_index == 4:
-                    rem_buckets["rem_y2"] = adjusted_bal
-                elif bucket_index == 5:
-                    rem_buckets["rem_y3"] = adjusted_bal
-                elif bucket_index == 6:
-                    rem_buckets["rem_y5"] = adjusted_bal
+
+                # 64 桶结构：把调整量放入对应月桶（m1~m24）
+                # m_idx 0..23 → orig/rem_m1..orig/rem_m24
+                # 超过 24 月的部分暂时放 y10 占位
+                orig_cols = [f"orig_m{n}" for n in range(1, 61)] + ['orig_y10', 'orig_y15', 'orig_y20', 'orig_y30']
+                rem_cols = [f"rem_m{n}" for n in range(1, 61)] + ['rem_y10', 'rem_y15', 'rem_y20', 'rem_y30']
+
+                # 构建 INSERT 列与参数
+                insert_cols = (
+                    ['record_id', 'scheme_code', 'run_id', 'coa_scheme_id',
+                     'data_date', 'date_offset', 'offset_unit',
+                     'coa_node_id', 'node_code', 'node_name', 'node_level'] +
+                    orig_cols + rem_cols +
+                    ['current_balance', 'avg_balance', 'weighted_rate',
+                     'interest_amount', 'risk_weight', 'calc_note']
+                )
+                col_names_sql = ', '.join(insert_cols)
+                placeholders = ', '.join(f':{c}' for c in insert_cols)
+
+                params = {
+                    'record_id': scheme_code,
+                    'scheme_code': scheme_code,
+                    'run_id': run_id,
+                    'coa_scheme_id': coa_scheme_id,
+                    'data_date': predict_date,
+                    'date_offset': m_idx + 1,
+                    'offset_unit': 'M',
+                    'coa_node_id': node['id'],
+                    'node_code': node['code'],
+                    'node_name': node['name'],
+                    'node_level': node['level'],
+                }
+                # 初始化所有 orig/rem/ 桶为 0
+                for c in orig_cols + rem_cols:
+                    params[c] = 0
+                # 把 adjusted 放入对应月桶
+                if m_idx < 24:
+                    params[f'rem_m{m_idx + 1}'] = adjusted_bal
                 else:
-                    rem_buckets["rem_y10"] = adjusted_bal
+                    # 24 月以上归 y10
+                    params['rem_y10'] = adjusted_bal
+
+                params.update({
+                    'current_balance': adjusted_bal,
+                    'avg_balance': adjusted_bal,
+                    'weighted_rate': node.get('weighted_rate', 0) or 0,
+                    'interest_amount': 0,
+                    'risk_weight': node.get('risk_weight', 0) or 0,
+                    'calc_note': f'反算方案 {scheme_code} 第 {m_idx + 1} 月预测',
+                })
 
                 db.execute(
-                    text("""INSERT INTO prcp_data_reverse
-                        (record_id, scheme_code, run_id, coa_scheme_id,
-                         data_date, date_offset, offset_unit,
-                         coa_node_id, node_code, node_name, node_level,
-                         orig_d1, orig_d7, orig_m1, orig_m3, orig_m6,
-                         orig_y1, orig_y2, orig_y3, orig_y5, orig_y10,
-                         orig_y15, orig_y20, orig_y30,
-                         rem_d1, rem_d7, rem_m1, rem_m3, rem_m6,
-                         rem_y1, rem_y2, rem_y3, rem_y5, rem_y10,
-                         rem_y15, rem_y20, rem_y30,
-                         current_balance, avg_balance, weighted_rate,
-                         interest_amount, risk_weight, calc_note)
-                        VALUES (:rid, :sc, :rid2, :csid,
-                                :dd, :do, :ou,
-                                :nid, :nc, :nn, :nl,
-                                :od1, :od7, :om1, :om3, :om6,
-                                :oy1, :oy2, :oy3, :oy5, :oy10,
-                                :oy15, :oy20, :oy30,
-                                :rd1, :rd7, :rm1, :rm3, :rm6,
-                                :ry1, :ry2, :ry3, :ry5, :ry10,
-                                :ry15, :ry20, :ry30,
-                                :cb, :ab, :wr, :ia, :rw, :note)"""),
-                    {
-                        "rid": scheme_code,  # 暂存，UPDATE 时改为 scheme_code_id
-                        "sc": scheme_code,
-                        "rid2": run_id,
-                        "csid": coa_scheme_id,
-                        "dd": predict_date,
-                        "do": m_idx + 1,
-                        "ou": "M",
-                        "nid": node["id"],
-                        "nc": node["code"],
-                        "nn": node["name"],
-                        "nl": node["level"],
-                        "od1": orig_buckets["orig_m1"] if False else 0,
-                        "od7": 0,
-                        "om1": orig_buckets["orig_m1"] if bucket_index == 0 else 0,
-                        "om3": orig_buckets["orig_m3"] if bucket_index == 1 else 0,
-                        "om6": orig_buckets["orig_m6"] if bucket_index == 2 else 0,
-                        "oy1": orig_buckets["orig_y1"] if bucket_index == 3 else 0,
-                        "oy2": orig_buckets["orig_y2"] if bucket_index == 4 else 0,
-                        "oy3": orig_buckets["orig_y3"] if bucket_index == 5 else 0,
-                        "oy5": orig_buckets["orig_y5"] if bucket_index == 6 else 0,
-                        "oy10": orig_buckets["orig_y10"] if bucket_index >= 7 else 0,
-                        "oy15": 0,
-                        "oy20": 0,
-                        "oy30": 0,
-                        "rd1": 0,
-                        "rd7": 0,
-                        "rm1": rem_buckets["rem_m1"],
-                        "rm3": rem_buckets["rem_m3"],
-                        "rm6": rem_buckets["rem_m6"],
-                        "ry1": rem_buckets["rem_y1"],
-                        "ry2": rem_buckets["rem_y2"],
-                        "ry3": rem_buckets["rem_y3"],
-                        "ry5": rem_buckets["rem_y5"],
-                        "ry10": rem_buckets["rem_y10"],
-                        "ry15": 0,
-                        "ry20": 0,
-                        "ry30": 0,
-                        "cb": adjusted_bal,
-                        "ab": adjusted_bal,
-                        "wr": node.get("weighted_rate", 0) or 0,
-                        "ia": 0,
-                        "rw": node.get("risk_weight", 0) or 0,
-                        "note": f"反算方案 {scheme_code} 第 {m_idx + 1} 月预测",
-                    },
+                    text(f"INSERT INTO prcp_data_reverse ({col_names_sql}) VALUES ({placeholders})"),
+                    params,
                 )
             except Exception as ex:
                 print(f"[reverse save] {ex}")
