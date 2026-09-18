@@ -24,6 +24,8 @@ const CATEGORIES: Array<{ code: string; name: string; color: string; desc: strin
   { code: 'PRICE',     name: '4. 价格指标',         color: '#eb2f96', desc: 'FTP 利率 / 存贷利率 / 利差' },
   { code: 'FEE',       name: '5. 中收指标',         color: '#13c2c2', desc: '手续费及佣金收入' },
   { code: 'RWA',       name: '6. 资本与RWA指标',    color: '#722ed1', desc: '资本充足率 / 风险加权资产' },
+  { code: 'BALANCE',   name: '7. 资产负债表',       color: '#1890ff', desc: '按账户册 × 数据日期 × 期限的余额矩阵' },
+  { code: 'BASIC',     name: '8. 基础数据表',       color: '#2f54eb', desc: '原始/剩余期限 × 17+17 桶的金额分布' },
   { code: 'REVERSE',   name: '9. 反算结果查询',     color: '#fa8c16', desc: '反算引擎输出的未来 24 月预测（基础数据表结构）' },
 ]
 
