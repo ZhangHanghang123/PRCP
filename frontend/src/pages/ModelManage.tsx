@@ -19,7 +19,9 @@ const ALGO_LABELS: Record<string, string> = {
   LOGISTIC_GROWTH: '逻辑斯蒂增长',
   MONTE_CARLO: '蒙特卡洛',
   LINEAR_PROGRAM: '线性规划',
+  ANT_COLONY: '蚁群算法',
   ARIMA: 'ARIMA',
+  FNN_LLM: 'FNN大模型',
 }
 
 const BIZ_LABELS: Record<string, { name: string; color: string }> = {
@@ -46,6 +48,7 @@ const ModelManage: React.FC = () => {
   const [trains, setTrains] = useState<any[]>([])
   const [algorithms, setAlgorithms] = useState<any[]>([])
   const [kpiOpts, setKpiOpts] = useState<any[]>([])
+  const [schemeOpts, setSchemeOpts] = useState<any[]>([])
 
   // 选中状态
   const [activeModelId, setActiveModelId] = useState<number | null>(null)
@@ -104,11 +107,16 @@ const ModelManage: React.FC = () => {
     const r = await modelApi.kpiOptions()
     setKpiOpts(r.items || [])
   }
+  const loadSchemeOpts = async () => {
+    const r = await modelApi.schemeOptions()
+    setSchemeOpts(r.items || [])
+  }
 
   useEffect(() => {
     loadModels()
     loadAlgos()
     loadKpiOpts()
+    loadSchemeOpts()
     loadTrains()
     loadVersions()
   }, [])
@@ -165,21 +173,31 @@ const ModelManage: React.FC = () => {
     setEditingModel(null)
     modelForm.resetFields()
     modelForm.setFieldsValue({ model_type: 'LINEAR_REGRESSION', status: 'ACTIVE' })
+    loadSchemeOpts()  // 打开时拉一次最新方案
     setModelModal(true)
   }
   const onEditModel = (m: any) => {
     setEditingModel(m)
-    modelForm.setFieldsValue(m)
+    modelForm.setFieldsValue({
+      ...m,
+      kpi_scheme_id: m.kpi_scheme_id ?? undefined,
+    })
+    loadSchemeOpts()
     setModelModal(true)
   }
   const onSaveModel = async () => {
     const v = await modelForm.validateFields()
+    // 清理 payload：kpi_scheme_id 为空字符串/undefined 时置 null
+    const payload = {
+      ...v,
+      kpi_scheme_id: v.kpi_scheme_id === '' || v.kpi_scheme_id === undefined ? null : v.kpi_scheme_id,
+    }
     try {
       if (editingModel) {
-        await modelApi.updateModel(editingModel.id, v)
+        await modelApi.updateModel(editingModel.id, payload)
         message.success('已更新')
       } else {
-        await modelApi.createModel(v)
+        await modelApi.createModel(payload)
         message.success('已创建（自动生成 V1_BASELINE 版本）')
       }
       setModelModal(false)
@@ -346,6 +364,10 @@ const ModelManage: React.FC = () => {
       render: (v: string) => <Tag color="blue">{ALGO_LABELS[v] || v}</Tag> },
     { title: '业务域', dataIndex: 'biz_domain', key: 'biz_domain', width: 90,
       render: (v: string) => v ? <Tag color={BIZ_LABELS[v]?.color || 'default'}>{BIZ_LABELS[v]?.name || v}</Tag> : '-' },
+    { title: '关联指标方案', key: 'kpi_scheme', width: 200,
+      render: (_: any, r: any) => r.kpi_scheme_id
+        ? <Tag color="purple" icon={<FunctionOutlined />}>{r.kpi_scheme_code || r.kpi_scheme_id} · {r.kpi_scheme_name || '-'}</Tag>
+        : <span style={{ color: '#bbb' }}>未关联</span> },
     { title: '版本数', dataIndex: 'version_count', key: 'version_count', width: 70 },
     { title: '状态', dataIndex: 'status', key: 'status', width: 80,
       render: (v: string) => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
@@ -518,6 +540,7 @@ const ModelManage: React.FC = () => {
                   loading={false}
                   pagination={{ pageSize: 10 }}
                   size="small"
+                  scroll={{ x: 1200 }}
                   rowClassName={(r) => r.id === activeModelId ? 'ant-table-row-selected' : ''}
                   onRow={(r) => ({ onClick: () => setActiveModelId(r.id) })}
                   expandable={{
@@ -643,10 +666,27 @@ const ModelManage: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="算法" name="model_type" rules={[{ required: true }]}>
-                <Select>
-                  {algorithms.map(a => (
-                    <Select.Option key={a.code} value={a.code}>{a.name}</Select.Option>
-                  ))}
+                <Select placeholder="选择算法">
+                  {(() => {
+                    // 按 category 分组
+                    const groups: Record<string, any[]> = {}
+                    for (const a of algorithms) {
+                      const cat = a.category || '其他'
+                      if (!groups[cat]) groups[cat] = []
+                      groups[cat].push(a)
+                    }
+                    const out: any[] = []
+                    for (const cat of Object.keys(groups)) {
+                      out.push(<Select.OptGroup key={cat} title={cat}>
+                        {groups[cat].map(a => (
+                          <Select.Option key={a.code} value={a.code}>
+                            {a.name}{a.desc ? <span style={{ color: '#999', marginLeft: 6 }}>· {a.desc}</span> : null}
+                          </Select.Option>
+                        ))}
+                      </Select.OptGroup>)
+                    }
+                    return out
+                  })()}
                 </Select>
               </Form.Item>
             </Col>
@@ -661,6 +701,19 @@ const ModelManage: React.FC = () => {
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item label="关联指标方案（可空，不绑定也能用）" name="kpi_scheme_id"
+            extra="绑定后，训练任务可直接引用该方案下的 KPI 定义作为参数">
+            <Select
+              allowClear
+              showSearch
+              placeholder="选择指标方案"
+              optionFilterProp="label"
+              options={schemeOpts.map((s) => ({
+                value: s.id,
+                label: `${s.scheme_code} · ${s.scheme_name}（${s.kpi_count || 0} 个 KPI）`,
+              }))}
+            />
+          </Form.Item>
           <Form.Item label="描述" name="description">
             <Input.TextArea rows={2} />
           </Form.Item>

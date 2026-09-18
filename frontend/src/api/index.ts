@@ -215,6 +215,8 @@ export const modelApi = {
   deleteParam: (id: number) => http.delete(`/model/params/${id}`).then((r) => r.data),
   // KPI 下拉选项
   kpiOptions: () => http.get('/model/kpi-options').then((r) => r.data),
+  // 指标方案下拉选项
+  schemeOptions: () => http.get('/model/scheme-options').then((r) => r.data),
   // 训练
   listTrains: (params: any = {}) => http.get('/model/trains', { params }).then((r) => r.data),
   createTrain: (data: any) => http.post('/model/trains', data).then((r) => r.data),

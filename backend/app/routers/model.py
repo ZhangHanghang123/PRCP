@@ -23,6 +23,7 @@ class ModelIn(BaseModel):
     model_name: str
     model_type: str = "LINEAR_REGRESSION"
     biz_domain: Optional[str] = None
+    kpi_scheme_id: Optional[int] = None    # 关联指标方案 prcp_kpi_scheme.id（可空）
     description: Optional[str] = None
     algo_config: Optional[dict] = None
     status: str = "ACTIVE"
@@ -61,14 +62,30 @@ class TrainIn(BaseModel):
 
 
 # ============================================================
-# 算法注册表
+# 算法注册表（字典形式：code/name/category/desc/engine/params_schema）
 # ============================================================
 ALGORITHMS = [
-    {"code": "LINEAR_REGRESSION", "name": "线性回归", "desc": "普通最小二乘法，适合线性关系拟合"},
-    {"code": "LOGISTIC_GROWTH", "name": "逻辑斯蒂增长", "desc": "S 形曲线，适合存款增长等饱和场景"},
-    {"code": "MONTE_CARLO", "name": "蒙特卡洛模拟", "desc": "随机抽样，适合不确定性/压力测试"},
-    {"code": "LINEAR_PROGRAM", "name": "线性规划", "desc": "CVXPY 求解，适合资产结构优化"},
-    {"code": "ARIMA", "name": "ARIMA 时间序列", "desc": "自回归滑动平均（需 statsmodels）"},
+    {"code": "LINEAR_REGRESSION", "name": "线性回归",
+     "category": "传统机器学习", "engine": "sklearn.linear_model",
+     "desc": "普通最小二乘法，适合线性关系拟合"},
+    {"code": "LOGISTIC_GROWTH", "name": "逻辑斯蒂增长",
+     "category": "传统机器学习", "engine": "numpy",
+     "desc": "S 形曲线，适合存款增长等饱和场景"},
+    {"code": "MONTE_CARLO", "name": "蒙特卡洛模拟",
+     "category": "传统机器学习", "engine": "numpy",
+     "desc": "随机抽样，适合不确定性/压力测试"},
+    {"code": "LINEAR_PROGRAM", "name": "线性规划",
+     "category": "运筹优化", "engine": "cvxpy",
+     "desc": "CVXPY 求解，适合资产结构优化"},
+    {"code": "ANT_COLONY", "name": "蚁群算法",
+     "category": "智能优化", "engine": "services/ant_colony_engine",
+     "desc": "模拟蚂蚁觅食的群体智能优化，适合组合优化/路径规划"},
+    {"code": "ARIMA", "name": "ARIMA 时间序列",
+     "category": "传统机器学习", "engine": "statsmodels",
+     "desc": "自回归滑动平均（需 statsmodels）"},
+    {"code": "FNN_LLM", "name": "FNN 大模型",
+     "category": "深度学习大模型", "engine": "services/fnn_llm_engine",
+     "desc": "前馈神经网络（FNN）大模型，适合非线性特征提取与预测"},
 ]
 
 
@@ -77,8 +94,28 @@ ALGORITHMS = [
 # ============================================================
 @router.get("/algorithms")
 async def list_algorithms(user=Depends(get_current_user)):
-    """列出所有支持的算法"""
+    """列出所有支持的算法（含分类/引擎/说明）"""
     return {"items": ALGORITHMS}
+
+
+@router.get("/scheme-options")
+async def scheme_options(db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """给模型编辑下拉用：列出所有 ACTIVE 指标方案"""
+    rows = db.execute(
+        text("""SELECT id, scheme_code, scheme_name, kpi_count, status
+                FROM prcp_kpi_scheme
+                WHERE is_deleted=0 AND status='ACTIVE'
+                ORDER BY id DESC LIMIT 500"""),
+    ).fetchall()
+    return {
+        "items": [
+            {
+                "id": r[0], "scheme_code": r[1], "scheme_name": r[2],
+                "kpi_count": r[3] or 0, "status": r[4],
+            }
+            for r in rows
+        ]
+    }
 
 
 @router.get("/models")
@@ -98,9 +135,12 @@ async def list_models(
         params["st"] = status
     rows = db.execute(
         text(f"""SELECT m.id, m.model_code, m.model_name, m.model_type, m.biz_domain,
-                       m.description, m.algo_config, m.status, m.created_at, m.updated_at,
-                       (SELECT COUNT(*) FROM prcp_model_version v WHERE v.model_id=m.id AND v.is_deleted=0) AS version_count
+                       m.kpi_scheme_id, m.description, m.algo_config, m.status,
+                       m.created_at, m.updated_at,
+                       (SELECT COUNT(*) FROM prcp_model_version v WHERE v.model_id=m.id AND v.is_deleted=0) AS version_count,
+                       ks.scheme_code AS kpi_scheme_code, ks.scheme_name AS kpi_scheme_name
                 FROM prcp_model m
+                LEFT JOIN prcp_kpi_scheme ks ON ks.id=m.kpi_scheme_id AND ks.is_deleted=0
                 WHERE {' AND '.join(where)}
                 ORDER BY m.id DESC"""),
         params,
@@ -109,11 +149,13 @@ async def list_models(
         "items": [
             {
                 "id": r[0], "model_code": r[1], "model_name": r[2], "model_type": r[3],
-                "biz_domain": r[4], "description": r[5],
-                "algo_config": json.loads(r[6]) if r[6] else None,
-                "status": r[7], "version_count": r[10],
-                "created_at": r[8].isoformat() if r[8] else None,
-                "updated_at": r[9].isoformat() if r[9] else None,
+                "biz_domain": r[4], "kpi_scheme_id": r[5],
+                "kpi_scheme_code": r[12], "kpi_scheme_name": r[13],
+                "description": r[6],
+                "algo_config": json.loads(r[7]) if r[7] else None,
+                "status": r[8], "version_count": r[11],
+                "created_at": r[9].isoformat() if r[9] else None,
+                "updated_at": r[10].isoformat() if r[10] else None,
             } for r in rows
         ]
     }
@@ -122,14 +164,24 @@ async def list_models(
 @router.post("/models")
 async def create_model(p: ModelIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    # 校验 kpi_scheme_id 存在（如果提供）
+    if p.kpi_scheme_id is not None:
+        s = db.execute(
+            text("SELECT id FROM prcp_kpi_scheme WHERE id=:id AND is_deleted=0"),
+            {"id": p.kpi_scheme_id},
+        ).first()
+        if not s:
+            raise HTTPException(400, "关联的指标方案不存在")
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_model
-                (model_code, model_name, model_type, biz_domain, description, algo_config, status, created_by, updated_by)
-                VALUES (:c, :n, :t, :bd, :d, :cfg, :s, :u, :u)"""),
+                (model_code, model_name, model_type, biz_domain, kpi_scheme_id,
+                 description, algo_config, status, created_by, updated_by)
+                VALUES (:c, :n, :t, :bd, :ksid, :d, :cfg, :s, :u, :u)"""),
             {
                 "c": p.model_code, "n": p.model_name, "t": p.model_type,
-                "bd": p.biz_domain, "d": p.description,
+                "bd": p.biz_domain, "ksid": p.kpi_scheme_id,
+                "d": p.description,
                 "cfg": json.dumps(p.algo_config) if p.algo_config else None,
                 "s": p.status, "u": uid,
             },
@@ -143,20 +195,29 @@ async def create_model(p: ModelIn, db: Session = Depends(get_db), user=Depends(g
         )
     except Exception as e:
         raise HTTPException(400, f"创建失败：{e}")
-    return {"id": rid, "model_code": p.model_code, "model_name": p.model_name}
+    return {"id": rid, "model_code": p.model_code, "model_name": p.model_name,
+            "kpi_scheme_id": p.kpi_scheme_id}
 
 
 @router.put("/models/{mid}")
 async def update_model(mid: int, p: ModelIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    if p.kpi_scheme_id is not None:
+        s = db.execute(
+            text("SELECT id FROM prcp_kpi_scheme WHERE id=:id AND is_deleted=0"),
+            {"id": p.kpi_scheme_id},
+        ).first()
+        if not s:
+            raise HTTPException(400, "关联的指标方案不存在")
     r = db.execute(
         text("""UPDATE prcp_model SET
-            model_code=:c, model_name=:n, model_type=:t, biz_domain=:bd,
+            model_code=:c, model_name=:n, model_type=:t, biz_domain=:bd, kpi_scheme_id=:ksid,
             description=:d, algo_config=:cfg, status=:s, updated_by=:u
             WHERE id=:id AND is_deleted=0"""),
         {
             "c": p.model_code, "n": p.model_name, "t": p.model_type,
-            "bd": p.biz_domain, "d": p.description,
+            "bd": p.biz_domain, "ksid": p.kpi_scheme_id,
+            "d": p.description,
             "cfg": json.dumps(p.algo_config) if p.algo_config else None,
             "s": p.status, "u": uid, "id": mid,
         },
