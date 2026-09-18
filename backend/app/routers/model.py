@@ -313,7 +313,33 @@ async def list_versions(
 
 @router.post("/versions")
 async def create_version(p: VersionIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """创建版本；若同 model_id+version_code 已被软删除，则自动复活该行（避免 UNIQUE 冲突）"""
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    # 1) 检查是否已有同 code 的软删除行 → 复活（避免 UNIQUE 约束冲突）
+    ex = db.execute(
+        text("""SELECT id FROM prcp_model_version
+                WHERE model_id=:mid AND version_code=:vc AND is_deleted=1"""),
+        {"mid": p.model_id, "vc": p.version_code},
+    ).first()
+    if ex:
+        # 复活并更新为新内容
+        db.execute(
+            text("""UPDATE prcp_model_version SET
+                is_deleted=0, version_name=:vn, description=:d, status=:s,
+                updated_by=:u, created_by=:u, updated_at=NOW(), created_at=NOW()
+                WHERE id=:id"""),
+            {"vn": p.version_name, "d": p.description, "s": p.status, "u": uid, "id": ex[0]},
+        )
+        return {"id": ex[0], "version_code": p.version_code, "reactivated": True}
+    # 2) 检查是否已有 active 同 code → 报 409
+    ex2 = db.execute(
+        text("""SELECT id FROM prcp_model_version
+                WHERE model_id=:mid AND version_code=:vc AND is_deleted=0"""),
+        {"mid": p.model_id, "vc": p.version_code},
+    ).first()
+    if ex2:
+        raise HTTPException(409, f"该模型下已存在版本 {p.version_code}（id={ex2[0]}），请勿重复创建")
+    # 3) 正常插入
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_model_version
