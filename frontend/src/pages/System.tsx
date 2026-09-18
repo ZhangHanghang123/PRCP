@@ -10,6 +10,8 @@ import {
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import { adminApi } from '../api'
+import { dictApi } from '../api/dict'
+import { DictTag } from '../components'
 
 const System: React.FC = () => {
   const [tab, setTab] = useState<'users' | 'roles' | 'dicts'>('users')
@@ -32,14 +34,11 @@ const System: React.FC = () => {
   const [editingRole, setEditingRole] = useState<any>(null)
   const [roleForm] = Form.useForm()
 
-  // Dicts
-  const [dicts, setDicts] = useState<any[]>([])
+  // Dicts（基于 sys_dict 平铺表）
+  const [dicts, setDicts] = useState<any[]>([])           // 字典类别列表（含 count）
   const [dictKw, setDictKw] = useState('')
-  const [dictModal, setDictModal] = useState(false)
-  const [editingDict, setEditingDict] = useState<any>(null)
-  const [dictForm] = Form.useForm()
-  const [selectedDict, setSelectedDict] = useState<any>(null)
-  const [dictItems, setDictItems] = useState<any[]>([])
+  const [selectedDictType, setSelectedDictType] = useState<string | null>(null)
+  const [dictItems, setDictItems] = useState<any[]>([])   // 当前选中类型的字典项
   const [itemModal, setItemModal] = useState(false)
   const [editingItem, setEditingItem] = useState<any>(null)
   const [itemForm] = Form.useForm()
@@ -152,69 +151,36 @@ const System: React.FC = () => {
     }
   }
 
-  // ========== 字典 ==========
-  const loadDicts = async () => {
+  // ========== 字典（基于 sys_dict 平铺表） ==========
+  const loadDictTypes = async () => {
     setLoading(true)
     try {
-      const r = await adminApi.listDicts({ keyword: dictKw })
+      const r = await dictApi.listTypes()
       setDicts(r.items || [])
-      // 默认选第一个
-      if (!selectedDict && r.items?.length) {
-        setSelectedDict(r.items[0])
+      // 默认选第一个类型
+      if (!selectedDictType && r.items?.length) {
+        setSelectedDictType(r.items[0].dict_type)
       }
     } finally { setLoading(false) }
   }
-  const loadDictItems = async (dictId: number) => {
+  const loadDictItems = async (type: string) => {
     try {
-      const r = await adminApi.listDictItems(dictId)
+      const r = await dictApi.listByType(type, dictKw)
       setDictItems(r.items || [])
     } catch { setDictItems([]) }
   }
-  useEffect(() => { if (tab === 'dicts') loadDicts() }, [tab, dictKw])
-  useEffect(() => { if (selectedDict) loadDictItems(selectedDict.id) }, [selectedDict])
+  useEffect(() => { if (tab === 'dicts') loadDictTypes() }, [tab])
+  useEffect(() => { if (tab === 'dicts' && selectedDictType) loadDictItems(selectedDictType) }, [tab, selectedDictType, dictKw])
 
-  const onCreateDict = () => {
-    setEditingDict(null)
-    dictForm.resetFields()
-    dictForm.setFieldsValue({ status: 1 })
-    setDictModal(true)
-  }
-  const onEditDict = (d: any) => {
-    setEditingDict(d)
-    dictForm.setFieldsValue(d)
-    setDictModal(true)
-  }
-  const onSaveDict = async () => {
-    const v = await dictForm.validateFields()
-    try {
-      if (editingDict) await adminApi.updateDict(editingDict.id, v)
-      else await adminApi.createDict(v)
-      message.success('已保存')
-      setDictModal(false)
-      loadDicts()
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || '保存失败')
-    }
-  }
-  const onDeleteDict = async (did: number) => {
-    try {
-      await adminApi.deleteDict(did)
-      message.success('已删除')
-      if (selectedDict?.id === did) {
-        setSelectedDict(null); setDictItems([])
-      }
-      loadDicts()
-    } catch (e: any) {
-      message.error(e?.response?.data?.detail || '删除失败')
-    }
-  }
-
-  // 字典项
   const onCreateItem = () => {
-    if (!selectedDict) { message.warning('请先选择字典'); return }
+    if (!selectedDictType) { message.warning('请先选择字典类型'); return }
     setEditingItem(null)
     itemForm.resetFields()
-    itemForm.setFieldsValue({ sort_order: 0, status: 1 })
+    itemForm.setFieldsValue({
+      dict_type: selectedDictType,
+      sort_order: 0,
+      status: 'ACTIVE',
+    })
     setItemModal(true)
   }
   const onEditItem = (it: any) => {
@@ -225,20 +191,29 @@ const System: React.FC = () => {
   const onSaveItem = async () => {
     const v = await itemForm.validateFields()
     try {
-      if (editingItem) await adminApi.updateDictItem(editingItem.id, v)
-      else await adminApi.createDictItem(selectedDict.id, v)
+      // 把空字符串字段转为 null
+      const payload = {
+        ...v,
+        dict_type: v.dict_type || selectedDictType,
+        color: v.color || null,
+        description: v.description || null,
+      }
+      if (editingItem) await dictApi.update(editingItem.id, payload)
+      else await dictApi.create(payload)
       message.success('已保存')
       setItemModal(false)
-      loadDictItems(selectedDict.id)
+      loadDictItems(selectedDictType)
+      loadDictTypes()  // 刷新类别计数
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '保存失败')
     }
   }
   const onDeleteItem = async (iid: number) => {
     try {
-      await adminApi.deleteDictItem(iid)
+      await dictApi.remove(iid)
       message.success('已删除')
-      loadDictItems(selectedDict.id)
+      loadDictItems(selectedDictType)
+      loadDictTypes()
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '删除失败')
     }
@@ -295,43 +270,28 @@ const System: React.FC = () => {
     },
   ]
 
-  const dictCols: ColumnsType<any> = [
-    { title: '字典编码', dataIndex: 'dict_code', width: 150, render: (c) => <code>{c}</code> },
-    { title: '字典名称', dataIndex: 'dict_name', width: 150 },
-    { title: '描述', dataIndex: 'description', ellipsis: true },
-    { title: '项数', dataIndex: 'item_count', width: 80, render: (n) => <Tag color="blue">{n || 0}</Tag> },
-    { title: '状态', dataIndex: 'status', width: 80,
-      render: (s) => <Tag color={s === 1 ? 'green' : 'default'}>{s === 1 ? '启用' : '禁用'}</Tag> },
-    {
-      title: '操作', width: 150, fixed: 'right' as const,
-      render: (_, r) => (
-        <Space size="small">
-          <Button size="small" type={r.id === selectedDict?.id ? 'primary' : 'default'}
-            onClick={() => { setSelectedDict(r); loadDictItems(r.id) }}>
-            查看项
-          </Button>
-          <Button size="small" icon={<EditOutlined />} onClick={() => onEditDict(r)}>编辑</Button>
-          <Popconfirm title="确认删除？" description="将同时软删所有字典项" onConfirm={() => onDeleteDict(r.id)}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
-    },
+  const dictTypeCols: ColumnsType<any> = [
+    { title: '字典类别', dataIndex: 'dict_type', width: 220,
+      render: (t: string) => <code style={{ background: '#f0f4ff', padding: '2px 8px', borderRadius: 3 }}>{t}</code> },
+    { title: '项数', dataIndex: 'count', width: 80,
+      render: (n: number) => <Tag color="blue">{n || 0}</Tag> },
   ]
 
-  const itemCols: ColumnsType<any> = [
-    { title: '项编码', dataIndex: 'item_code', width: 130, render: (c) => <code>{c}</code> },
-    { title: '项名称', dataIndex: 'item_name', width: 150 },
-    { title: '项值', dataIndex: 'item_value', width: 150 },
+  const dictItemCols: ColumnsType<any> = [
+    { title: '字典值', dataIndex: 'dict_key', width: 160,
+      render: (c: string) => <code style={{ background: '#f0f4ff', padding: '2px 8px', borderRadius: 3 }}>{c}</code> },
+    { title: '显示标签', dataIndex: 'dict_label', width: 160 },
+    { title: '颜色', dataIndex: 'color', width: 90,
+      render: (c: string) => c ? <Tag color={c}>{c}</Tag> : '-' },
     { title: '排序', dataIndex: 'sort_order', width: 80 },
-    { title: '状态', dataIndex: 'status', width: 80,
-      render: (s) => <Tag color={s === 1 ? 'green' : 'default'}>{s === 1 ? '启用' : '禁用'}</Tag> },
+    { title: '状态', dataIndex: 'status', width: 100,
+      render: (s: string) => <DictTag dictType="PRCP_STATUS" value={s} /> },
     {
-      title: '操作', width: 120, fixed: 'right' as const,
+      title: '操作', width: 140, fixed: 'right' as const,
       render: (_, r) => (
         <Space size="small">
           <Button size="small" icon={<EditOutlined />} onClick={() => onEditItem(r)}>编辑</Button>
-          <Popconfirm title="确认删除？" onConfirm={() => onDeleteItem(r.id)}>
+          <Popconfirm title="确认删除字典项？" description="软删除后可由字典管理恢复" onConfirm={() => onDeleteItem(r.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -415,41 +375,43 @@ const System: React.FC = () => {
             // ========== 字典管理 ==========
             { key: 'dicts', label: <span><BookOutlined /> 字典管理</span>, children: (
               <div style={{ padding: 16 }}>
+                <Alert type="info" showIcon style={{ marginBottom: 12 }}
+                  message="PRCP 通用字典（sys_dict）"
+                  description="所有字典共用一张表，按 dict_type 分类。前端下拉 / Tag 颜色都从此表动态加载。新增字典项后刷新业务页面即生效。" />
                 <Row gutter={16}>
-                  <Col span={10}>
+                  <Col span={8}>
                     <Space style={{ marginBottom: 12 }}>
+                      <Button icon={<ReloadOutlined />} onClick={loadDictTypes}>刷新</Button>
+                    </Space>
+                    <Table size="small" rowKey="dict_type" dataSource={dicts} columns={dictTypeCols}
+                      pagination={false}
+                      onRow={(r) => ({ onClick: () => setSelectedDictType(r.dict_type), style: { cursor: 'pointer', background: r.dict_type === selectedDictType ? '#e6f4ff' : undefined } })}
+                    />
+                  </Col>
+                  <Col span={16}>
+                    <Space style={{ marginBottom: 12 }}>
+                      {selectedDictType ? (
+                        <>
+                          <Tag color="purple">当前字典：{selectedDictType}</Tag>
+                          <Tag>{dictItems.length} 项</Tag>
+                        </>
+                      ) : (
+                        <Tag>请选择左侧字典类型</Tag>
+                      )}
                       <Input.Search
-                        placeholder="搜索编码 / 名称"
+                        placeholder="搜索 dict_key / dict_label"
                         value={dictKw}
                         onChange={(e) => setDictKw(e.target.value)}
                         style={{ width: 200 }}
                         allowClear
                       />
-                      <Button icon={<ReloadOutlined />} onClick={loadDicts}>刷新</Button>
-                      <Button type="primary" icon={<PlusOutlined />} onClick={onCreateDict}>新增字典</Button>
-                    </Space>
-                    <Table size="small" rowKey="id" dataSource={dicts} columns={dictCols}
-                      pagination={{ pageSize: 10 }}
-                      onRow={(r) => ({ onClick: () => { setSelectedDict(r); loadDictItems(r.id) }, style: { cursor: 'pointer', background: r.id === selectedDict?.id ? '#e6f4ff' : undefined } })}
-                    />
-                  </Col>
-                  <Col span={14}>
-                    <Space style={{ marginBottom: 12 }}>
-                      {selectedDict ? (
-                        <>
-                          <Tag color="purple">当前字典：{selectedDict.dict_code} · {selectedDict.dict_name}</Tag>
-                          <Tag>{dictItems.length} 项</Tag>
-                        </>
-                      ) : (
-                        <Tag>请选择左侧字典</Tag>
-                      )}
                       <Button type="primary" icon={<PlusOutlined />} onClick={onCreateItem}
-                        disabled={!selectedDict}>新增字典项</Button>
+                        disabled={!selectedDictType}>新增字典项</Button>
                     </Space>
-                    {!selectedDict ? (
-                      <Empty description="请在左侧选择一个字典" />
+                    {!selectedDictType ? (
+                      <Empty description="请在左侧选择一个字典类型" />
                     ) : (
-                      <Table size="small" rowKey="id" dataSource={dictItems} columns={itemCols}
+                      <Table size="small" rowKey="id" dataSource={dictItems} columns={dictItemCols}
                         pagination={{ pageSize: 20 }} />
                     )}
                   </Col>
@@ -547,54 +509,41 @@ const System: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 字典编辑 */}
-      <Modal title={editingDict ? '编辑字典' : '新增字典'} open={dictModal}
-        onCancel={() => setDictModal(false)} onOk={onSaveDict} width={520}>
-        <Form form={dictForm} layout="vertical">
-          <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="dict_code" label="字典编码" rules={[{ required: true }]}>
-                <Input disabled={!!editingDict} placeholder="如 CURRENCY" />
-              </Form.Item>
-            </Col>
-            <Col span={12}>
-              <Form.Item name="dict_name" label="字典名称" rules={[{ required: true }]}>
-                <Input placeholder="如：币种" />
-              </Form.Item>
-            </Col>
-          </Row>
-          <Form.Item name="description" label="描述">
-            <Input.TextArea rows={2} />
-          </Form.Item>
-          <Form.Item name="status" label="状态" initialValue={1}>
-            <Select options={[
-              { value: 1, label: '启用' },
-              { value: 0, label: '禁用' },
-            ]} />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      {/* 字典项编辑 */}
+      {/* 字典项编辑（sys_dict 平铺表） */}
       <Modal title={editingItem ? '编辑字典项' : '新增字典项'} open={itemModal}
-        onCancel={() => setItemModal(false)} onOk={onSaveItem} width={520}>
+        onCancel={() => setItemModal(false)} onOk={onSaveItem} width={560}>
         <Form form={itemForm} layout="vertical">
           <Row gutter={16}>
             <Col span={12}>
-              <Form.Item name="item_code" label="项编码" rules={[{ required: true }]}>
-                <Input placeholder="如 CNY" />
+              <Form.Item name="dict_type" label="字典类别" rules={[{ required: true }]}>
+                <Input disabled={!!editingItem} placeholder="如 PRCP_ALGO" />
               </Form.Item>
             </Col>
             <Col span={12}>
-              <Form.Item name="item_name" label="项名称" rules={[{ required: true }]}>
-                <Input placeholder="如：人民币" />
+              <Form.Item name="dict_key" label="字典值（代码）" rules={[{ required: true }]}>
+                <Input disabled={!!editingItem} placeholder="如 LINEAR_REGRESSION" />
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="dict_label" label="显示标签（中文）" rules={[{ required: true }]}>
+            <Input placeholder="如：线性回归" />
+          </Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item name="item_value" label="项值">
-                <Input placeholder="可选：关联业务值" />
+            <Col span={8}>
+              <Form.Item name="color" label="AntD 颜色">
+                <Select allowClear placeholder="如 blue / red">
+                  <Select.Option value="blue">blue</Select.Option>
+                  <Select.Option value="purple">purple</Select.Option>
+                  <Select.Option value="cyan">cyan</Select.Option>
+                  <Select.Option value="green">green</Select.Option>
+                  <Select.Option value="gold">gold</Select.Option>
+                  <Select.Option value="orange">orange</Select.Option>
+                  <Select.Option value="red">red</Select.Option>
+                  <Select.Option value="magenta">magenta</Select.Option>
+                  <Select.Option value="volcano">volcano</Select.Option>
+                  <Select.Option value="geekblue">geekblue</Select.Option>
+                  <Select.Option value="default">default</Select.Option>
+                </Select>
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -602,12 +551,18 @@ const System: React.FC = () => {
                 <Input type="number" />
               </Form.Item>
             </Col>
-            <Col span={4}>
-              <Form.Item name="status" label="状态" initialValue={1}>
-                <Select options={[{ value: 1, label: '启用' }, { value: 0, label: '禁用' }]} />
+            <Col span={8}>
+              <Form.Item name="status" label="状态" initialValue="ACTIVE">
+                <Select options={[
+                  { value: 'ACTIVE', label: 'ACTIVE（启用）' },
+                  { value: 'DEPRECATED', label: 'DEPRECATED（停用）' },
+                ]} />
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item name="description" label="描述">
+            <Input.TextArea rows={2} placeholder="字典项说明（可选）" />
+          </Form.Item>
         </Form>
       </Modal>
     </Spin>

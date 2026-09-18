@@ -73,26 +73,34 @@ async def list_all_items(db: Session = Depends(get_db), user=Depends(get_current
 
 
 @router.get("/{dict_type}")
-async def list_by_type(dict_type: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """按类型拉取字典项"""
-    rows = db.execute(
-        text("""SELECT id, dict_type, dict_key, dict_label, color, sort_order, status, extra_json
-                FROM sys_dict
-                WHERE dict_type=:t AND is_deleted=0 AND status='ACTIVE'
-                ORDER BY sort_order, dict_key"""),
-        {"t": dict_type},
-    ).fetchall()
+async def list_by_type(dict_type: str, keyword: str = "", include_inactive: bool = False,
+                       db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """按类型拉取字典项（管理端默认查看所有状态）"""
+    where = ["dict_type=:t", "is_deleted=0"]
+    params: dict = {"t": dict_type}
+    if not include_inactive:
+        where.append("status='ACTIVE'")
+    if keyword:
+        where.append("(dict_key LIKE :kw OR dict_label LIKE :kw)")
+        params["kw"] = f"%{keyword}%"
+    sql = f"""SELECT id, dict_type, dict_key, dict_label, color, sort_order, status, extra_json
+              FROM sys_dict
+              WHERE {' AND '.join(where)}
+              ORDER BY sort_order, dict_key"""
+    rows = db.execute(text(sql), params).fetchall()
+    import json as _json
     return {
         "dict_type": dict_type,
         "items": [
             {
                 "id": r[0],
+                "dict_type": r[1],
                 "dict_key": r[2],
                 "dict_label": r[3],
                 "color": r[4],
                 "sort_order": r[5],
                 "status": r[6],
-                "extra": __import__('json').loads(r[7]) if r[7] else None,
+                "extra": _json.loads(r[7]) if r[7] else None,
             } for r in rows
         ],
     }

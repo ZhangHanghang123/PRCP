@@ -165,15 +165,7 @@ export const adminApi = {
   createRole: (data: any) => http.post('/admin/roles', data).then((r) => r.data),
   updateRole: (id: number, data: any) => http.put(`/admin/roles/${id}`, data).then((r) => r.data),
   deleteRole: (id: number) => http.delete(`/admin/roles/${id}`).then((r) => r.data),
-  // 字典
-  listDicts: (params: any = {}) => http.get('/admin/dicts', { params }).then((r) => r.data),
-  createDict: (data: any) => http.post('/admin/dicts', data).then((r) => r.data),
-  updateDict: (id: number, data: any) => http.put(`/admin/dicts/${id}`, data).then((r) => r.data),
-  deleteDict: (id: number) => http.delete(`/admin/dicts/${id}`).then((r) => r.data),
-  listDictItems: (dictId: number) => http.get(`/admin/dicts/${dictId}/items`).then((r) => r.data),
-  createDictItem: (dictId: number, data: any) => http.post(`/admin/dicts/${dictId}/items`, data).then((r) => r.data),
-  updateDictItem: (id: number, data: any) => http.put(`/admin/dict-items/${id}`, data).then((r) => r.data),
-  deleteDictItem: (id: number) => http.delete(`/admin/dict-items/${id}`).then((r) => r.data),
+  // 字典：已迁移至 src/api/dict.ts（基于 sys_dict 平铺表），旧 admin/dicts 接口下线
 }
 
 // 数据维护（6 类指标 + 取数逻辑 + 按月出指标）
