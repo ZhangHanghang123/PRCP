@@ -419,9 +419,9 @@ const BasicDataSheet: React.FC = () => {
       <div className="page-title">
         <span className="page-title-icon" />
         <span>
-          基础数据表（13+13 期限桶 · 余额/利率/风险权重）
+          基础数据表（17+17 期限桶 · 余额/利率/风险权重）
           <span style={{ color: '#999', fontSize: 14, fontWeight: 'normal', marginLeft: 8 }}>
-            ——原始期限 + 剩余期限 × 1日/7日/1M/3M/6M/1Y/2Y/3Y/5Y/10Y/15Y/20Y/30Y
+            ——原始期限 + 剩余期限 × 1M/2M/3M/4M/5M/6M/7M/8M/9M/10M/11M/12M/1Y/10Y/15Y/20Y/30Y
           </span>
         </span>
       </div>
