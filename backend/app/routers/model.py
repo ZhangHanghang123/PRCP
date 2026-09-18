@@ -48,7 +48,8 @@ class ParamIn(BaseModel):
     param_name: str
     param_type: str = "BASE"
     param_category: Optional[str] = None   # DATA_ESG / NEURAL_NETWORK / LOSS_FUNCTION / TRAINING / OPTIMIZER / KPI_DRIVEN
-    param_value: float
+    param_value: float = 0.0
+    param_value_str: Optional[str] = None   # 字符串型参数值（如 HJM_PCA / RELU / ADAM）
     unit: Optional[str] = None
     formula: Optional[str] = None
     formula_desc: Optional[str] = None
@@ -424,7 +425,7 @@ async def list_params(
         params["vid"] = version_id
     rows = db.execute(
         text(f"""SELECT p.id, p.version_id, p.kpi_id, p.kpi_code, p.param_code, p.param_name,
-                       p.param_type, p.param_category, p.param_value, p.unit,
+                       p.param_type, p.param_category, p.param_value, p.param_value_str, p.unit,
                        p.formula, p.formula_desc,
                        p.sort_order, p.description, p.created_at, p.updated_at,
                        k.kpi_name AS ref_kpi_name, k.formula AS ref_formula
@@ -443,12 +444,13 @@ async def list_params(
                 "id": r[0], "version_id": r[1], "kpi_id": r[2], "kpi_code": r[3],
                 "param_code": r[4], "param_name": r[5],
                 "param_type": r[6], "param_category": r[7],
-                "param_value": float(r[8]), "unit": r[9],
-                "formula": r[10], "formula_desc": r[11],
-                "sort_order": r[12], "description": r[13],
-                "ref_kpi_name": r[16], "ref_formula": r[17],
-                "created_at": r[14].isoformat() if r[14] else None,
-                "updated_at": r[15].isoformat() if r[15] else None,
+                "param_value": float(r[8]) if r[8] is not None else None,
+                "param_value_str": r[9], "unit": r[10],
+                "formula": r[11], "formula_desc": r[12],
+                "sort_order": r[13], "description": r[14],
+                "ref_kpi_name": r[17], "ref_formula": r[18],
+                "created_at": r[15].isoformat() if r[15] else None,
+                "updated_at": r[16].isoformat() if r[16] else None,
             } for r in rows
         ]
     }
@@ -478,12 +480,13 @@ async def create_param(p: ParamIn, db: Session = Depends(get_db), user=Depends(g
         rid = db.execute(
             text("""INSERT INTO prcp_model_param
                 (version_id, kpi_id, kpi_code, param_code, param_name, param_type, param_category,
-                 param_value, unit, formula, formula_desc, sort_order, description, created_by, updated_by)
+                 param_value, param_value_str, unit, formula, formula_desc, sort_order, description, created_by, updated_by)
                 VALUES (:vid, :kid, :kc, :pc, :pn, :pt, :pcat,
-                 :pv, :u2, :f, :fd, :so, :d, :u, :u)"""),
+                 :pv, :pvs, :u2, :f, :fd, :so, :d, :u, :u)"""),
             {"vid": p.version_id, "kid": p.kpi_id, "kc": kpi_code_resolved,
              "pc": p.param_code, "pn": p.param_name, "pt": p.param_type, "pcat": p.param_category,
-             "pv": p.param_value, "u2": p.unit, "f": p.formula, "fd": p.formula_desc,
+             "pv": p.param_value, "pvs": p.param_value_str, "u2": p.unit,
+             "f": p.formula, "fd": p.formula_desc,
              "so": p.sort_order, "d": p.description, "u": uid},
         ).lastrowid
         # 更新版本的 param_count
@@ -505,12 +508,13 @@ async def update_param(pid: int, p: ParamIn, db: Session = Depends(get_db), user
         text("""UPDATE prcp_model_param SET
             kpi_id=:kid, kpi_code=:kc, param_code=:pc, param_name=:pn,
             param_type=:pt, param_category=:pcat,
-            param_value=:pv, unit=:u2, formula=:f, formula_desc=:fd,
+            param_value=:pv, param_value_str=:pvs, unit=:u2,
+            formula=:f, formula_desc=:fd,
             sort_order=:so, description=:d, updated_by=:u
             WHERE id=:id AND is_deleted=0"""),
         {"kid": p.kpi_id, "kc": p.kpi_code, "pc": p.param_code, "pn": p.param_name,
          "pt": p.param_type, "pcat": p.param_category,
-         "pv": p.param_value, "u2": p.unit,
+         "pv": p.param_value, "pvs": p.param_value_str, "u2": p.unit,
          "f": p.formula, "fd": p.formula_desc, "so": p.sort_order,
          "d": p.description, "u": uid, "id": pid},
     )
@@ -597,6 +601,12 @@ async def apply_param_template(vid: int, payload: dict,
         if cat not in TEMPLATES:
             continue
         for idx, t in enumerate(TEMPLATES[cat]):
+            # 判断值类型
+            raw_value = t["value"]
+            if isinstance(raw_value, (int, float)):
+                pvs, pv = None, float(raw_value)
+            else:
+                pvs, pv = str(raw_value), 0.0
             # 已有同名 param_code 处理
             ex = db.execute(
                 text("SELECT id FROM prcp_model_param WHERE version_id=:v AND param_code=:c AND is_deleted=0"),
@@ -608,10 +618,10 @@ async def apply_param_template(vid: int, payload: dict,
                 db.execute(
                     text("""UPDATE prcp_model_param SET
                         param_name=:pn, param_type=:pt, param_category=:cat,
-                        param_value=:pv, unit=:u, description=:d, updated_by=:u2
+                        param_value=:pv, param_value_str=:pvs, unit=:u, description=:d, updated_by=:u2
                         WHERE id=:id"""),
                     {"pn": t["name"], "pt": t.get("type", "BASE"), "cat": cat,
-                     "pv": t["value"], "u": t.get("unit"), "d": t.get("desc", ""),
+                     "pv": pv, "pvs": pvs, "u": t.get("unit"), "d": t.get("desc", ""),
                      "u2": uid, "id": ex[0]},
                 )
                 updated += 1
@@ -619,10 +629,10 @@ async def apply_param_template(vid: int, payload: dict,
                 db.execute(
                     text("""INSERT INTO prcp_model_param
                         (version_id, param_code, param_name, param_type, param_category,
-                         param_value, unit, description, sort_order, created_by, updated_by)
-                        VALUES (:v, :pc, :pn, :pt, :cat, :pv, :u, :d, :so, :u2, :u2)"""),
+                         param_value, param_value_str, unit, description, sort_order, created_by, updated_by)
+                        VALUES (:v, :pc, :pn, :pt, :cat, :pv, :pvs, :u, :d, :so, :u2, :u2)"""),
                     {"v": vid, "pc": t["code"], "pn": t["name"], "pt": t.get("type", "BASE"),
-                     "cat": cat, "pv": t["value"], "u": t.get("unit"),
+                     "cat": cat, "pv": pv, "pvs": pvs, "u": t.get("unit"),
                      "d": t.get("desc", ""), "so": sort_base * 100 + idx, "u2": uid},
                 )
                 inserted += 1

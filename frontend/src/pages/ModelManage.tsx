@@ -474,8 +474,15 @@ const paramColumns = [
       } },
     { title: '关联 KPI', dataIndex: 'kpi_code', key: 'kc', width: 130,
       render: (v: string, r: any) => v ? <Tooltip title={r.ref_formula}><Tag color="geekblue">{v}</Tag></Tooltip> : '-' },
-    { title: '参数值', dataIndex: 'param_value', key: 'pv', width: 110,
-      render: (v: number, r: any) => <strong>{typeof v === 'number' ? v.toFixed(4) : v} {r.unit}</strong> },
+    { title: '参数值', key: 'pv', width: 110,
+      render: (_: any, r: any) => {
+        // 字符串值优先（如 HJM_PCA/RELU/ADAM），否则显示数值
+        if (r.param_value_str) {
+          return <Tag color="geekblue">{r.param_value_str}</Tag>
+        }
+        const v = r.param_value
+        return <strong>{typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(4)) : v} {r.unit}</strong>
+      } },
     { title: '排序', dataIndex: 'sort_order', key: 'so', width: 60 },
     { title: '描述', dataIndex: 'description', key: 'd', ellipsis: true },
     { title: '操作', key: 'op', width: 100, render: (_: any, r: any) => (
@@ -942,8 +949,8 @@ const paramColumns = [
               </Form.Item>
             </Col>
             <Col span={8}>
-              <Form.Item label="参数值" name="param_value" rules={[{ required: true }]}>
-                <InputNumber step={0.01} style={{ width: '100%' }} />
+              <Form.Item label="参数值（数字）" name="param_value">
+                <InputNumber step={0.01} style={{ width: '100%' }} placeholder="数值型参数" />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -957,6 +964,10 @@ const paramColumns = [
               </Form.Item>
             </Col>
           </Row>
+          <Form.Item label="参数值（字符串/枚举，如 HJM_PCA / RELU / ADAM）" name="param_value_str"
+            extra="与【参数值（数字）】二选一：枚举/路径/列表等非数值用此项">
+            <Input placeholder="如 HJM_PCA / [128, 64, 32] / 5Y" />
+          </Form.Item>
           <Form.Item label="公式（可选，覆盖 KPI 公式）" name="formula">
             <Input placeholder="如 [001001] * 1.05" />
           </Form.Item>
