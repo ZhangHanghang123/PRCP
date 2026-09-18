@@ -125,22 +125,29 @@ const ModelManage: React.FC = () => {
       message.warning('请先选择一个模型（左侧版本列表上方）')
       return
     }
-    // 若没选中版本，自动创建一个 V1_BASELINE
+    // 若没选中版本：先尝试在已有版本里找 V1_BASELINE，没找到才新建
     if (!activeVersionId) {
-      try {
-        const r = await modelApi.createVersion({
-          model_id: activeModelId,
-          version_code: 'V1_BASELINE',
-          version_name: '基准情景',
-          description: '通过应用超参数模板自动创建',
-          status: 'DRAFT',
-        })
-        message.success(`已自动创建版本 V1_BASELINE（id=${r.id}）`)
-        await loadVersions(activeModelId)
-        setActiveVersionId(r.id)
-      } catch (e: any) {
-        message.error('自动创建版本失败：' + (e?.response?.data?.detail || '请前往「参数版本维护」Tab 手动新建'))
-        return
+      const existed = versions.find((v: any) => v.model_id === activeModelId && v.version_code === 'V1_BASELINE')
+      if (existed) {
+        // 直接选中已有版本，不创建
+        setActiveVersionId(existed.id)
+        message.info(`已自动选中已有版本 V1_BASELINE（id=${existed.id}）`)
+      } else {
+        try {
+          const r = await modelApi.createVersion({
+            model_id: activeModelId,
+            version_code: 'V1_BASELINE',
+            version_name: '基准情景',
+            description: '通过应用超参数模板自动创建',
+            status: 'DRAFT',
+          })
+          message.success(`已自动创建版本 V1_BASELINE（id=${r.id}${r.reactivated ? '，复活原行' : ''}）`)
+          await loadVersions(activeModelId)
+          setActiveVersionId(r.id)
+        } catch (e: any) {
+          message.error('自动创建版本失败：' + (e?.response?.data?.detail || '请前往「参数版本维护」Tab 手动新建'))
+          return
+        }
       }
     }
     if (!paramTemplates) await loadParamTemplates()
@@ -667,7 +674,7 @@ const paramColumns = [
                       title={!activeModelId
                         ? '请先在「参数版本维护」Tab 选择一个模型'
                         : !activeVersionId
-                          ? '点击后将自动创建 V1_BASELINE 版本并应用模板'
+                          ? '点击后自动选中/创建 V1_BASELINE 版本并应用模板'
                           : '将超参数模板注入当前选中的版本'}
                     >
                       <Button icon={<ThunderboltOutlined />} onClick={onOpenTemplateModal} disabled={!activeModelId}>
