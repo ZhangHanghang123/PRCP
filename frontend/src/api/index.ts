@@ -6,7 +6,7 @@ export const getToken = () => localStorage.getItem(TOKEN_KEY) || ''
 export const setToken = (t: string) => localStorage.setItem(TOKEN_KEY, t)
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY)
 
-const http: AxiosInstance = axios.create({ baseURL: '/prcp/api', timeout: 30000 })
+export const http: AxiosInstance = axios.create({ baseURL: '/prcp/api', timeout: 30000 })
 http.interceptors.request.use((c) => {
   const t = getToken(); if (t) c.headers.Authorization = `Bearer ${t}`; return c
 })
