@@ -11,6 +11,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { kpiApi, reportsApi } from '../api'
+import { DictSelect, DictTag } from '../components'
 import KpiScore from './KpiScore'
 
 const KPI: React.FC = () => {
@@ -479,7 +480,7 @@ const KPI: React.FC = () => {
       render: (_, r) => r.indicator_type === 2
         ? <code style={{ fontSize: 12, color: '#d46b08' }}>{r.script_path || '-'} :: {r.script_name || 'calc'}</code>
         : <code style={{ fontSize: 12 }}>{r.formula}</code> },
-    { title: '单位', dataIndex: 'calc_unit', width: 80, render: (u) => <Tag>{u}</Tag> },
+    { title: '单位', dataIndex: 'calc_unit', width: 80, render: (u) => <DictTag dictType="PRCP_CALC_UNIT" value={u} /> },
     { title: '状态', dataIndex: 'status', width: 80, render: (s) => <Tag color={s === 'ACTIVE' ? 'green' : 'default'}>{s}</Tag> },
     {
       title: '操作', width: 180, fixed: 'right' as const,
@@ -782,12 +783,7 @@ const KPI: React.FC = () => {
             <Col span={8}><Form.Item name="kpi_code" label="指标编码" rules={[{ required: true }]}><Input placeholder="KPI_NIM" /></Form.Item></Col>
             <Col span={8}><Form.Item name="kpi_name" label="指标名称" rules={[{ required: true }]}><Input /></Form.Item></Col>
             <Col span={8}><Form.Item name="calc_unit" label="单位">
-              <Select options={[
-                { value: 'PERCENT', label: '百分比 %' },
-                { value: 'BP', label: '基点 BP' },
-                { value: 'RATIO', label: '比率' },
-                { value: 'AMOUNT', label: '金额' },
-              ]} />
+              <DictSelect dictType="PRCP_CALC_UNIT" />
             </Form.Item></Col>
           </Row>
           {/* 公式工具栏：符号 + 函数 + 退格一键插入 */}

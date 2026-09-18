@@ -11,18 +11,7 @@ import {
   AimOutlined,
 } from '@ant-design/icons'
 import { reverseApi } from '../api'
-
-const ALGO_LABELS: Record<string, string> = {
-  CVXPY_QP: '二次规划',
-  CVXPY_LP: '线性规划',
-  HEURISTIC: '启发式',
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  DRAFT: 'default', READY: 'cyan', ACTIVE: 'green', DEPRECATED: 'red',
-  PENDING: 'default', RUNNING: 'processing',
-  SUCCESS: 'green', FAILED: 'red', CANCELLED: 'orange',
-}
+import { DictSelect, DictTag } from '../components'
 
 const CONSTRAINT_LABELS: Record<string, { label: string; color: string }> = {
   GE: { label: '≥', color: 'green' },
@@ -266,7 +255,7 @@ const ReverseCalc: React.FC = () => {
       render: (v: string) => <strong style={{ color: '#534ab7' }}>{v}</strong> },
     { title: '方案名称', dataIndex: 'scheme_name', key: 'sn' },
     { title: '算法', dataIndex: 'algorithm', key: 'algo', width: 110,
-      render: (v: string) => <Tag color="purple">{ALGO_LABELS[v] || v}</Tag> },
+      render: (v: string) => <DictTag dictType="PRCP_REVERSE_ALGO" value={v} /> },
     { title: '计量模型', key: 'model', width: 200,
       render: (_: any, r: any) => r.model_id
         ? <Tag color="geekblue" icon={<ExperimentOutlined />}>{r.model_code} · {r.model_name}</Tag>
@@ -279,7 +268,9 @@ const ReverseCalc: React.FC = () => {
     { title: '目标', dataIndex: 'target_count', key: 'tc', width: 60 },
     { title: '执行', dataIndex: 'run_count', key: 'rc', width: 60 },
     { title: '状态', dataIndex: 'status', key: 's', width: 90,
-      render: (v: string) => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
+      render: (v: string) => v?.startsWith('PENDING') || v === 'RUNNING' || v === 'SUCCESS' || v === 'FAILED' || v === 'CANCELLED'
+        ? <DictTag dictType="PRCP_RUN_STATUS" value={v} />
+        : <DictTag dictType="PRCP_STATUS" value={v} /> },
     { title: '操作', key: 'op', width: 160, render: (_: any, r: any) => (
       <Space>
         <Button size="small" icon={<AimOutlined />} onClick={() => setActiveSchemeId(r.id)}>选择</Button>
@@ -327,7 +318,9 @@ const ReverseCalc: React.FC = () => {
         />
       )},
     { title: '状态', dataIndex: 'status', key: 's', width: 100,
-      render: (v: string) => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
+      render: (v: string) => v?.startsWith('PENDING') || v === 'RUNNING' || v === 'SUCCESS' || v === 'FAILED' || v === 'CANCELLED'
+        ? <DictTag dictType="PRCP_RUN_STATUS" value={v} />
+        : <DictTag dictType="PRCP_STATUS" value={v} /> },
     { title: '目标值', dataIndex: 'optimal_value', key: 'ov', width: 100,
       render: (v: number) => v != null ? v.toFixed(4) : '-' },
     { title: '耗时', dataIndex: 'duration_sec', key: 'ds', width: 70,
@@ -503,19 +496,12 @@ const ReverseCalc: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="方案类型" name="scheme_type">
-                <Select>
-                  <Select.Option value="OPTIMIZE">OPTIMIZE（最优求解）</Select.Option>
-                  <Select.Option value="SCENARIO">SCENARIO（情景模拟）</Select.Option>
-                </Select>
+                <DictSelect dictType="PRCP_SCHEME_TYPE" />
               </Form.Item>
             </Col>
             <Col span={12}>
               <Form.Item label="算法" name="algorithm">
-                <Select>
-                  <Select.Option value="CVXPY_QP">二次规划（推荐）</Select.Option>
-                  <Select.Option value="CVXPY_LP">线性规划</Select.Option>
-                  <Select.Option value="HEURISTIC">启发式</Select.Option>
-                </Select>
+                <DictSelect dictType="PRCP_REVERSE_ALGO" />
               </Form.Item>
             </Col>
           </Row>
@@ -552,11 +538,7 @@ const ReverseCalc: React.FC = () => {
             </Col>
             <Col span={12}>
               <Form.Item label="状态" name="status">
-                <Select>
-                  <Select.Option value="DRAFT">草稿</Select.Option>
-                  <Select.Option value="READY">就绪</Select.Option>
-                  <Select.Option value="ACTIVE">启用</Select.Option>
-                </Select>
+                <DictSelect dictType="PRCP_STATUS" />
               </Form.Item>
             </Col>
           </Row>
@@ -666,11 +648,11 @@ const ReverseCalc: React.FC = () => {
         {logRun && (
           <>
             <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
-              <Descriptions.Item label="状态"><Tag color={STATUS_COLOR[logRun.status]}>{logRun.status}</Tag></Descriptions.Item>
+              <Descriptions.Item label="状态"><DictTag dictType="PRCP_RUN_STATUS" value={logRun.status} /></Descriptions.Item>
               <Descriptions.Item label="进度"><Progress percent={logRun.progress} size="small" style={{ width: 120 }} /></Descriptions.Item>
               <Descriptions.Item label="耗时">{logRun.duration_sec || '-'} s</Descriptions.Item>
               <Descriptions.Item label="方案" span={3}>{logRun.scheme_code} · {logRun.scheme_name}</Descriptions.Item>
-              <Descriptions.Item label="算法" span={3}><Tag color="purple">{ALGO_LABELS[logRun.algorithm] || logRun.algorithm}</Tag></Descriptions.Item>
+              <Descriptions.Item label="算法" span={3}><DictTag dictType="PRCP_REVERSE_ALGO" value={logRun.algorithm} /></Descriptions.Item>
             </Descriptions>
             <div style={{ background: '#0f172a', color: '#94a3b8', fontFamily: 'Consolas, monospace', fontSize: 12, padding: 12, borderRadius: 6, maxHeight: 400, overflow: 'auto' }}>
               {logLines.length === 0 && <div style={{ color: '#64748b' }}>暂无日志...</div>}
@@ -705,7 +687,7 @@ const ReverseCalc: React.FC = () => {
         {resultData?.run && (
           <>
             <Descriptions size="small" column={4} bordered style={{ marginBottom: 12 }}>
-              <Descriptions.Item label="状态"><Tag color={STATUS_COLOR[resultData.run.status]}>{resultData.run.status}</Tag></Descriptions.Item>
+              <Descriptions.Item label="状态"><DictTag dictType="PRCP_RUN_STATUS" value={resultData.run.status} /></Descriptions.Item>
               <Descriptions.Item label="耗时">{resultData.run.duration_sec || '-'} s</Descriptions.Item>
               <Descriptions.Item label="目标值">{resultData.run.optimal_value?.toFixed(4) || '-'}</Descriptions.Item>
               <Descriptions.Item label="预测项数">{resultData.items?.length || 0}</Descriptions.Item>

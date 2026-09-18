@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import dayjs, { Dayjs } from 'dayjs'
 import { rateApi } from '../api'
+import { DictSelect, DictTag } from '../components'
 
 // 13 个期限点
 const TERM_KEYS = ['d1', 'd7', 'm1', 'm3', 'm6', 'y1', 'y2', 'y3', 'y5', 'y10', 'y15', 'y20', 'y30']
@@ -19,14 +20,6 @@ const TERM_NAMES: Record<string, string> = {
   y10: '10Y', y15: '15Y', y20: '20Y', y30: '30Y',
 }
 const KEY_TERMS = ['y1', 'y5', 'y10']
-const CURVE_TYPE_NAMES: Record<string, string> = {
-  SOVEREIGN: '国债', POLICY: '政金', CD: '同业存单',
-  LPR: 'LPR', FTP: 'FTP', CUSTOM: '自定义',
-}
-const CURVE_TYPE_COLORS: Record<string, string> = {
-  SOVEREIGN: 'blue', POLICY: 'green', CD: 'orange',
-  LPR: 'purple', FTP: 'magenta', CUSTOM: 'default',
-}
 
 const RateCurve: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
@@ -241,9 +234,7 @@ const RateCurve: React.FC = () => {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Tag color={CURVE_TYPE_COLORS[s.curve_type]} style={{ margin: 0 }}>
-                  {CURVE_TYPE_NAMES[s.curve_type]}
-                </Tag>
+                <DictTag dictType="PRCP_CURVE_TYPE" value={s.curve_type} />
                 <span style={{ fontWeight: activeScheme === s.curve_code ? 600 : 400 }}>
                   {s.curve_code}
                 </span>
@@ -473,7 +464,7 @@ const RateCurve: React.FC = () => {
           { title: '曲线名称', dataIndex: 'curve_name', ellipsis: true },
           { title: '类型', dataIndex: 'curve_type', width: 90,
             render: (v: string) => (
-              <Tag color={CURVE_TYPE_COLORS[v]}>{CURVE_TYPE_NAMES[v] || v}</Tag>
+              <DictTag dictType="PRCP_CURVE_TYPE" value={v} />
             ) },
           { title: '币种', dataIndex: 'ccy', width: 70 },
           { title: '数据源', dataIndex: 'data_source', width: 100 },
@@ -585,9 +576,7 @@ const RateCurve: React.FC = () => {
             <Input placeholder="如 中国国债收益率曲线（人民币）" />
           </Form.Item>
           <Form.Item name="curve_type" label="曲线类型" rules={[{ required: true }]}>
-            <Select options={Object.entries(CURVE_TYPE_NAMES).map(([k, v]) => ({
-              value: k, label: `${k} ${v}`,
-            }))} />
+            <DictSelect dictType="PRCP_CURVE_TYPE" />
           </Form.Item>
           <Form.Item name="ccy" label="币种">
             <Select options={['CNY', 'USD', 'EUR'].map((v) => ({ value: v, label: v }))} />

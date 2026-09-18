@@ -14,33 +14,12 @@ import { modelApi } from '../api'
 
 const { RangePicker } = DatePicker
 
-const ALGO_LABELS: Record<string, string> = {
-  LINEAR_REGRESSION: '线性回归',
-  LOGISTIC_GROWTH: '逻辑斯蒂增长',
-  MONTE_CARLO: '蒙特卡洛',
-  LINEAR_PROGRAM: '线性规划',
-  ANT_COLONY: '蚁群算法',
-  ARIMA: 'ARIMA',
-  FNN_LLM: 'FNN大模型',
-}
-
-const BIZ_LABELS: Record<string, { name: string; color: string }> = {
-  DEPOSIT: { name: '存款', color: 'blue' },
-  LOAN: { name: '贷款', color: 'cyan' },
-  NIM: { name: '净息差', color: 'purple' },
-  RWA: { name: '资本', color: 'green' },
-  ASSET: { name: '资产', color: 'gold' },
-  LIAB: { name: '负债', color: 'orange' },
-}
-
-const STATUS_COLOR: Record<string, string> = {
-  ACTIVE: 'green', DEPRECATED: 'red',
-  DRAFT: 'default', READY: 'cyan',
-  PENDING: 'default', RUNNING: 'processing',
-  SUCCESS: 'green', FAILED: 'red', CANCELLED: 'orange',
-}
+import { DictSelect, DictTag } from '../components'
+import { useDictContext } from '../provider/DictProvider'
 
 const ModelManage: React.FC = () => {
+  const { getItems } = useDictContext()
+  const getDictItem = (type: string, key: string) => getItems(type).find(d => d.dict_key === key)
   const [tab, setTab] = useState<'version' | 'param' | 'train'>('version')
   const [models, setModels] = useState<any[]>([])
   const [versions, setVersions] = useState<any[]>([])
@@ -424,16 +403,16 @@ const ModelManage: React.FC = () => {
       render: (v: string, r: any) => <strong style={{ color: '#667eea' }}>{v}</strong> },
     { title: '模型名称', dataIndex: 'model_name', key: 'model_name' },
     { title: '算法', dataIndex: 'model_type', key: 'model_type', width: 110,
-      render: (v: string) => <Tag color="blue">{ALGO_LABELS[v] || v}</Tag> },
+      render: (v: string) => <DictTag dictType="PRCP_ALGO" value={v} /> },
     { title: '业务域', dataIndex: 'biz_domain', key: 'biz_domain', width: 90,
-      render: (v: string) => v ? <Tag color={BIZ_LABELS[v]?.color || 'default'}>{BIZ_LABELS[v]?.name || v}</Tag> : '-' },
+      render: (v: string) => v ? <DictTag dictType="PRCP_BIZ_DOMAIN" value={v} /> : '-' },
     { title: '关联指标方案', key: 'kpi_scheme', width: 200,
       render: (_: any, r: any) => r.kpi_scheme_id
         ? <Tag color="purple" icon={<FunctionOutlined />}>{r.kpi_scheme_code || r.kpi_scheme_id} · {r.kpi_scheme_name || '-'}</Tag>
         : <span style={{ color: '#bbb' }}>未关联</span> },
     { title: '版本数', dataIndex: 'version_count', key: 'version_count', width: 70 },
     { title: '状态', dataIndex: 'status', key: 'status', width: 80,
-      render: (v: string) => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
+      render: (v: string) => <DictTag dictType="PRCP_STATUS" value={v} /> },
     { title: '操作', key: 'op', width: 160, render: (_: any, r: any) => (
       <Space>
         <Button size="small" icon={<ExperimentOutlined />} onClick={() => { setActiveModelId(r.id); setTab('param') }}>管理</Button>
@@ -449,7 +428,7 @@ const ModelManage: React.FC = () => {
     { title: '版本编码', dataIndex: 'version_code', key: 'version_code', width: 140,
       render: (v: string, r: any) => (
         <Space>
-          <Tag color={STATUS_COLOR[r.status]}>{r.status}</Tag>
+          <Tag><DictTag dictType="PRCP_STATUS" value={r.status} /></Tag>
           <strong style={{ color: '#534ab7' }}>{v}</strong>
         </Space>
       ) },
@@ -471,33 +450,14 @@ const ModelManage: React.FC = () => {
     )},
   ]
 
-  const CATEGORY_LABELS: Record<string, { name: string; icon: string; color: string }> = {
-  DATA_DATE:      { name: '数据日期',  icon: '📅', color: 'geekblue' },
-  DATA_ESG:       { name: '数据/ESG',  icon: '📊', color: 'blue' },
-  NEURAL_NETWORK: { name: '神经网络',  icon: '🧠', color: 'purple' },
-  LOSS_FUNCTION:  { name: '损失函数',  icon: '🎯', color: 'red' },
-  TRAINING:       { name: '训练',      icon: '🏋️', color: 'cyan' },
-  OPTIMIZER:      { name: '优化器',    icon: '⚡', color: 'gold' },
-  KPI_DRIVEN:     { name: 'KPI 驱动',  icon: '📈', color: 'default' },
-}
-
 const paramColumns = [
     { title: '参数编码', dataIndex: 'param_code', key: 'pc', width: 150,
       render: (v: string) => <code style={{ background: '#f0f4ff', padding: '2px 6px', borderRadius: 3 }}>{v}</code> },
     { title: '参数名称', dataIndex: 'param_name', key: 'pn' },
     { title: '分类', dataIndex: 'param_category', key: 'pcat', width: 120,
-      render: (v: string) => {
-        const cfg = CATEGORY_LABELS[v]
-        return cfg
-          ? <Tag color={cfg.color}>{cfg.icon} {cfg.name}</Tag>
-          : <Tag color="default">-</Tag>
-      } },
+      render: (v: string) => v ? <DictTag dictType="PRCP_PARAM_CATEGORY" value={v} /> : '-' },
     { title: '类型', dataIndex: 'param_type', key: 'pt', width: 80,
-      render: (v: string) => {
-        const colors: any = { BASE: 'blue', SCENARIO: 'purple', STRESS: 'red', SENSITIVITY: 'cyan' }
-        const labels: any = { BASE: '基准', SCENARIO: '情景', STRESS: '压力', SENSITIVITY: '敏感度' }
-        return <Tag color={colors[v]}>{labels[v] || v}</Tag>
-      } },
+      render: (v: string) => <DictTag dictType="PRCP_PARAM_TYPE" value={v} /> },
     { title: '关联 KPI', dataIndex: 'kpi_code', key: 'kc', width: 130,
       render: (v: string, r: any) => v ? <Tooltip title={r.ref_formula}><Tag color="geekblue">{v}</Tag></Tooltip> : '-' },
     { title: '参数值', key: 'pv', width: 110,
@@ -539,7 +499,7 @@ const paramColumns = [
         />
       ) },
     { title: '状态', dataIndex: 'status', key: 's', width: 100,
-      render: (v: string) => <Tag color={STATUS_COLOR[v]}>{v}</Tag> },
+      render: (v: string) => <DictTag dictType="PRCP_STATUS" value={v} /> },
     { title: '耗时', dataIndex: 'duration_sec', key: 'ds', width: 70,
       render: (v: number) => v ? `${v}s` : '-' },
     { title: '操作', key: 'op', width: 220, render: (_: any, r: any) => (
@@ -790,12 +750,7 @@ const paramColumns = [
             </Col>
             <Col span={12}>
               <Form.Item label="业务域" name="biz_domain">
-                <Select allowClear>
-                  <Select.Option value="DEPOSIT">存款</Select.Option>
-                  <Select.Option value="LOAN">贷款</Select.Option>
-                  <Select.Option value="NIM">净息差</Select.Option>
-                  <Select.Option value="RWA">资本</Select.Option>
-                </Select>
+                <DictSelect dictType="PRCP_BIZ_DOMAIN" allowClear />
               </Form.Item>
             </Col>
           </Row>
@@ -895,12 +850,12 @@ const paramColumns = [
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {(paramTemplates.templates || []).map((cat: any) => {
-                const cfg = CATEGORY_LABELS[cat.category] || { name: cat.category_name, icon: '·', color: 'default' }
+                const cfg = getDictItem('PRCP_PARAM_CATEGORY', cat.category)
                 return (
                   <Card
                     key={cat.category}
                     size="small"
-                    title={<span>{cfg.icon} {cat.category_name} <Tag color={cfg.color}>{cat.items.length} 项</Tag></span>}
+                    title={<span>{cat.category_name} <Tag color={cfg?.color}>{cat.items.length} 项</Tag></span>}
                     style={{ borderColor: selectedCats.includes(cat.category) ? '#667eea' : '#f0f0f0' }}
                   >
                     <Checkbox
@@ -954,11 +909,7 @@ const paramColumns = [
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="参数分类" name="param_category">
-                <Select allowClear placeholder="选择参数分类（可空）">
-                  {Object.entries(CATEGORY_LABELS).map(([k, v]) => (
-                    <Select.Option key={k} value={k}>{v.icon} {v.name}</Select.Option>
-                  ))}
-                </Select>
+                <DictSelect dictType="PRCP_PARAM_CATEGORY" allowClear showSearch placeholder="选择参数分类（可空）" />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -974,12 +925,7 @@ const paramColumns = [
           <Row gutter={16}>
             <Col span={8}>
               <Form.Item label="参数类型" name="param_type">
-                <Select>
-                  <Select.Option value="BASE">基准</Select.Option>
-                  <Select.Option value="SCENARIO">情景</Select.Option>
-                  <Select.Option value="STRESS">压力</Select.Option>
-                  <Select.Option value="SENSITIVITY">敏感度</Select.Option>
-                </Select>
+                <DictSelect dictType="PRCP_PARAM_TYPE" />
               </Form.Item>
             </Col>
             <Col span={8}>
@@ -1066,7 +1012,7 @@ const paramColumns = [
         {logTrain && (
           <>
             <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
-              <Descriptions.Item label="状态"><Tag color={STATUS_COLOR[logTrain.status]}>{logTrain.status}</Tag></Descriptions.Item>
+              <Descriptions.Item label="状态"><DictTag dictType="PRCP_STATUS" value={logTrain.status} /></Descriptions.Item>
               <Descriptions.Item label="进度"><Progress percent={logTrain.progress} size="small" style={{ width: 120 }} /></Descriptions.Item>
               <Descriptions.Item label="耗时">{logTrain.duration_sec || '-'} s</Descriptions.Item>
               <Descriptions.Item label="模型" span={3}>{logTrain.model_code} · {logTrain.model_name}</Descriptions.Item>
@@ -1108,7 +1054,7 @@ const paramColumns = [
         {resultData?.train && (
           <>
             <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
-              <Descriptions.Item label="状态"><Tag color={STATUS_COLOR[resultData.train.status]}>{resultData.train.status}</Tag></Descriptions.Item>
+              <Descriptions.Item label="状态"><DictTag dictType="PRCP_STATUS" value={resultData.train.status} /></Descriptions.Item>
               <Descriptions.Item label="耗时">{resultData.train.duration_sec || '-'} s</Descriptions.Item>
               <Descriptions.Item label="预测期数">{resultData.items?.length || 0}</Descriptions.Item>
             </Descriptions>

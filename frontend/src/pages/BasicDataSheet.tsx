@@ -12,6 +12,7 @@ import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { basicApi, coaApi } from '../api'
 import { BUCKETS } from '../constants/buckets'
+import { DictSelect, DictTag } from '../components'
 
 // 额外度量列
 const EXTRAS = [
@@ -237,19 +238,15 @@ const BasicDataSheet: React.FC = () => {
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               display: 'inline-block', maxWidth: 185,
             }}>
-              {r.node_level === 1 && <Tag color="blue" style={{ marginRight: 6 }}>大类</Tag>}
-              {r.node_level === 2 && <Tag color="purple" style={{ marginRight: 6 }}>分组</Tag>}
+              {r.node_level && <Tag style={{ marginRight: 6 }}><DictTag dictType="PRCP_NODE_LEVEL" value={String(r.node_level)} /></Tag>}
               {n}
             </span>
           </Tooltip>
         )
       },
     },
-    { title: '大类', dataIndex: 'category', width: 50, fixed: 'left' as const,
-      render: (v) => {
-        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
-        return <Tag color={color} style={{ marginRight: 0 }}>{v || '-'}</Tag>
-      },
+    { title: '大类', dataIndex: 'category', width: 60, fixed: 'left' as const,
+      render: (v) => <DictTag dictType="PRCP_COA_CATEGORY" value={v} />,
     },
   ]
 
@@ -357,10 +354,7 @@ const BasicDataSheet: React.FC = () => {
   }))
   const categoryBaseCols: ColumnsType<any> = [
     { title: '大类', dataIndex: 'category', width: 100, fixed: 'left' as const,
-      render: (v) => {
-        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : v === '权益' ? 'gold' : v === '表外' ? 'purple' : 'default'
-        return <Tag color={color} style={{ fontSize: 14 }}>{v}</Tag>
-      },
+      render: (v) => <DictTag dictType="PRCP_COA_CATEGORY" value={v} />,
     },
     { title: '账户册数', dataIndex: 'account_count', width: 100, fixed: 'left' as const },
   ]

@@ -12,6 +12,7 @@ import {
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
 import { balanceApi, coaApi } from '../api'
+import { DictTag } from '../components'
 
 const { DirectoryTree } = Tree
 
@@ -232,19 +233,15 @@ const BalanceSheet: React.FC = () => {
               display: 'inline-block',
               maxWidth: 185,
             }}>
-              {r.node_level === 1 && <Tag color="blue" style={{ marginRight: 6 }}>大类</Tag>}
-              {r.node_level === 2 && <Tag color="purple" style={{ marginRight: 6 }}>分组</Tag>}
+              {r.node_level && <Tag style={{ marginRight: 6 }}><DictTag dictType="PRCP_NODE_LEVEL" value={String(r.node_level)} /></Tag>}
               {n}
             </span>
           </Tooltip>
         )
       },
     },
-    { title: '大类', dataIndex: 'category', width: 50, fixed: 'left' as const,
-      render: (v) => {
-        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
-        return <Tag color={color} style={{ marginRight: 0 }}>{v || '-'}</Tag>
-      },
+    { title: '大类', dataIndex: 'category', width: 60, fixed: 'left' as const,
+      render: (v) => <DictTag dictType="PRCP_COA_CATEGORY" value={v} />,
     },
   ]
 
@@ -301,7 +298,6 @@ const BalanceSheet: React.FC = () => {
   const categoryBaseCols: ColumnsType<any> = [
     { title: '大类', dataIndex: 'category', width: 110, fixed: 'left' as const,
       render: (v, r) => {
-        const color = v === '资产' ? 'blue' : v === '负债' ? 'orange' : 'purple'
         const subs = matrixNodes
           .filter((n) => n.path?.startsWith(`/L1_${r.category}`) && n.node_level === 3)
           .map((n) => `${n.node_code} ${n.node_name}`)
@@ -315,7 +311,7 @@ const BalanceSheet: React.FC = () => {
         )
         return (
           <Tooltip title={tipContent} placement="topLeft">
-            <Tag color={color} style={{ fontSize: 14, cursor: 'help' }}>{v}（{subs.length}）</Tag>
+            <DictTag dictType="PRCP_COA_CATEGORY" value={v} />
           </Tooltip>
         )
       },
