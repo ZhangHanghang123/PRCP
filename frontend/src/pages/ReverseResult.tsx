@@ -1,25 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  Card, Tree as AntTree, Select, Space, Button, Tag, Empty, Spin,
-  Row, Col, Tooltip, Statistic, message,
+  Card, Tabs, Select, Space, Button, Table,
+  message, Spin, Empty, Row, Col,
+  Tooltip, Badge,
 } from 'antd'
 import {
-  ReloadOutlined, DownloadOutlined, FundProjectionScreenOutlined,
-  DatabaseOutlined, ClockCircleOutlined,
+  ReloadOutlined, DownloadOutlined, BankOutlined,
+  FundProjectionScreenOutlined,
 } from '@ant-design/icons'
+import type { ColumnsType } from 'antd/es/table'
 import { dataReverseApi } from '../api'
 import { BUCKETS } from '../constants/buckets'
+import { DictTag } from '../components'
 
-// 度量列
+// 度量列（反算结果无 ASF/HQLA，仅保留余额/利率/风险）
 const EXTRAS = [
   { key: 'current_balance', name: '当前余额',  width: 95, isPercent: false, precision: 2 },
   { key: 'avg_balance',     name: '平均余额',  width: 95, isPercent: false, precision: 2 },
   { key: 'weighted_rate',   name: '加权利率',  width: 70, isPercent: true,  precision: 4 },
-  { key: 'interest_amount', name: '利息收支',  width: 80, isPercent: false, precision: 2 },
   { key: 'risk_weight',     name: '风险权重',  width: 80, isPercent: true,  precision: 4 },
 ]
-
-const { DirectoryTree } = AntTree
 
 const ReverseResult: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
@@ -32,7 +32,6 @@ const ReverseResult: React.FC = () => {
   const [matrixNodes, setMatrixNodes] = useState<any[]>([])
   const [categoriesAgg, setCategoriesAgg] = useState<Record<string, Record<string, any>>>({})
   const [loading, setLoading] = useState(false)
-  const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
 
   // 1. 加载有反算结果的方案
   const loadSchemes = async () => {
@@ -79,10 +78,6 @@ const ReverseResult: React.FC = () => {
       setMatrix(r.matrix || {})
       setMatrixNodes(r.nodes || [])
       setCategoriesAgg(r.categories || {})
-
-      // 默认展开 L1
-      const l1Keys = (r.nodes || []).filter((n: any) => n.node_level === 1).map((n: any) => String(n.coa_node_id))
-      setExpandedKeys(l1Keys)
     } finally { setLoading(false) }
   }
   useEffect(() => { loadMatrix() }, [activeScheme, activeRun, activeMonth])
@@ -107,55 +102,176 @@ const ReverseResult: React.FC = () => {
     }
   }
 
-  // 树形结构构建（按 path 字典序，保证父在前）
-  const treeData = useMemo(() => {
+  // 树形行（仅保留 L1-L3 详情行）
+  const accountRows = useMemo(() => {
+    const nodes = matrixNodes.filter((n) => n.node_level >= 1 && n.node_level <= 3)
     const byParent: Record<number, any[]> = {}
-    matrixNodes.forEach((n) => {
+    nodes.forEach((n) => {
       const key = n.parent_id || 0
       if (!byParent[key]) byParent[key] = []
       byParent[key].push(n)
     })
-    Object.values(byParent).forEach((arr) => arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)))
-
-    const build = (parentId: number): any[] => {
-      const children = byParent[parentId] || []
-      return children.map((c) => {
-        const hasData = !!matrix[c.coa_node_id]
-        return {
-          key: String(c.coa_node_id),
-          title: (
-            <span>
-              <Tag color={c.node_level === 1 ? 'blue' : c.node_level === 2 ? 'cyan' : 'default'} style={{ marginRight: 4 }}>
-                L{c.node_level}
-              </Tag>
-              <span style={{ fontWeight: c.node_level === 1 ? 600 : 400 }}>
-                {c.node_code} {c.node_name}
-              </span>
-              {hasData && <span style={{ color: '#999', marginLeft: 8, fontSize: 12 }}>
-                ¥{(matrix[c.coa_node_id].current_balance / 1).toFixed(2)} 亿
-              </span>}
-            </span>
-          ),
-          children: build(c.coa_node_id),
-        }
+    Object.values(byParent).forEach((arr) =>
+      arr.sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
+    )
+    const flat: any[] = []
+    const walk = (parentId: number | null) => {
+      const children = byParent[parentId || 0] || []
+      children.forEach((c) => {
+        flat.push(c)
+        if (c.node_level < 3) walk(c.coa_node_id)
       })
     }
-    return build(0)
-  }, [matrixNodes, matrix])
+    walk(null)
+    return flat
+  }, [matrixNodes])
+
+  const indent = (level: number) => ({ paddingLeft: (level - 1) * 20 })
 
   // 大类汇总行
-  const categoryRows = useMemo(() => {
-    return Object.entries(categoriesAgg).map(([cat, m]: any) => ({
-      key: cat, category: cat,
-      current_balance: m.current_balance || 0,
-      avg_balance: m.avg_balance || 0,
-      weighted_rate: m.weighted_rate || 0,
-      risk_weight: m.risk_weight || 0,
-    }))
-  }, [categoriesAgg])
+  const categoryNameOrder = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
+  const existingCategories = Object.keys(categoriesAgg).sort((a, b) => {
+    const ia = categoryNameOrder.indexOf(a); const ib = categoryNameOrder.indexOf(b)
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib)
+  })
+  const categoryRows = existingCategories.map((cat) => ({
+    category: cat,
+    account_count: matrixNodes.filter((n) => {
+      const code = n.node_code || ''
+      if (cat === 'ASSET') return code.startsWith('ZX_A') || n.path?.startsWith('/L1_ASSET')
+      if (cat === 'LIABILITY') return code.startsWith('ZX_L') || n.path?.startsWith('/L1_LIABILITY')
+      if (cat === 'EQUITY') return code.startsWith('ZX_E')
+      if (cat === 'OFF_BALANCE') return n.path?.startsWith('/L1_OFF_BALANCE')
+      return false
+    }).length,
+  }))
 
-  const currentRun = runs.find((r: any) => r.id === activeRun)
-  const currentMonth = monthsList.find((m: any) => m.date_offset === activeMonth)
+  // 表格列定义
+  const baseCols: ColumnsType<any> = [
+    { title: '账户册编码', dataIndex: 'node_code', width: 70, fixed: 'left' as const,
+      render: (c, r) => (
+        <span style={{ ...indent(r.node_level) }}>
+          <code style={{ color: r.node_level === 3 ? '#1d39c4' : '#999', fontSize: 12, fontWeight: r.node_level < 3 ? 600 : 400 }}>{c}</code>
+        </span>
+      ),
+    },
+    { title: '账户册名称', dataIndex: 'node_name', width: 220, fixed: 'left' as const,
+      render: (n, r) => {
+        const fontSize = r.node_level === 1 ? 15 : r.node_level === 2 ? 14 : 13
+        const fontWeight = r.node_level < 3 ? 700 : 500
+        const color = r.node_level === 1 ? '#1d39c4' : r.node_level === 2 ? '#722ed1' : '#262626'
+        return (
+          <Tooltip title={n} placement="topLeft">
+            <span style={{
+              ...indent(r.node_level),
+              fontSize, fontWeight, color,
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              display: 'inline-block', maxWidth: 205,
+            }}>
+              {n}
+            </span>
+          </Tooltip>
+        )
+      },
+    },
+    { title: '大类', dataIndex: 'category', width: 80, fixed: 'left' as const,
+      render: (v) => <DictTag dictType="PRCP_COA_CATEGORY" value={v} />,
+    },
+  ]
+
+  // 单元格渲染（金额）
+  const makeCell = (colKey: string, color: string, precision: number) =>
+    (_v: any, r: any) => {
+      const cell = matrix[String(r.coa_node_id)] || {}
+      const v = cell[colKey]
+      if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+      return (
+        <span style={{ color, fontFamily: 'monospace' }}>
+          {(v as number).toLocaleString(undefined, { maximumFractionDigits: precision })}
+        </span>
+      )
+    }
+
+  // 二级表头（原 BasicDataSheet 风格）
+  const origGroup = {
+    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>原始期限（金额）</span>,
+    children: BUCKETS.map((b) => ({
+      title: <span style={{ fontSize: 12, color: '#13c2c2' }}>{b.name}</span>,
+      dataIndex: `orig_${b.key}`,
+      width: b.width, align: 'right' as const,
+      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+      render: makeCell(`orig_${b.key}`, '#13c2c2', 2),
+    })),
+  }
+  const remGroup = {
+    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>剩余期限（金额）</span>,
+    children: BUCKETS.map((b) => ({
+      title: <span style={{ fontSize: 12, color: '#722ed1' }}>{b.name}</span>,
+      dataIndex: `rem_${b.key}`,
+      width: b.width, align: 'right' as const,
+      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+      render: makeCell(`rem_${b.key}`, '#722ed1', 2),
+    })),
+  }
+  const extraGroup = {
+    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>度量</span>,
+    children: EXTRAS.map((m) => ({
+      title: <span style={{ fontSize: 12, color: '#eb2f96' }}>{m.name}</span>,
+      dataIndex: m.key,
+      width: m.width, align: 'right' as const,
+      onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+      render: (_v: any, r: any) => {
+        const cell = matrix[String(r.coa_node_id)] || {}
+        const v = cell[m.key]
+        if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+        const formatted = m.isPercent
+          ? (v as number).toFixed(m.precision) + '%'
+          : (v as number).toLocaleString(undefined, { maximumFractionDigits: m.precision })
+        return (
+          <span style={{ color: '#eb2f96', fontFamily: m.isPercent ? 'monospace' : undefined }}>
+            {formatted}
+          </span>
+        )
+      },
+    })),
+  }
+
+  const allCols: ColumnsType<any> = [...baseCols, origGroup, remGroup, extraGroup]
+
+  // 大类汇总列
+  const categoryBaseCols: ColumnsType<any> = [
+    { title: '大类', dataIndex: 'category', width: 100, fixed: 'left' as const,
+      render: (v) => <DictTag dictType="PRCP_COA_CATEGORY" value={v} />,
+    },
+    { title: '账户册数', dataIndex: 'account_count', width: 100, fixed: 'left' as const },
+  ]
+  const categoryGroups: any[] = [
+    { title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>原始期限（合计）</span>,
+      children: BUCKETS.map((b) => ({
+        title: <span style={{ fontSize: 12 }}>{b.name}</span>,
+        width: b.width, align: 'right' as const,
+        render: (_v: any, r: any) => {
+          const cell = categoriesAgg[r.category] || {}
+          const v = cell[`orig_${b.key}`]
+          if (v === undefined) return <span style={{ color: '#ccc' }}>-</span>
+          return <span>{(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        },
+      })),
+    },
+    { title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>剩余期限（合计）</span>,
+      children: BUCKETS.map((b) => ({
+        title: <span style={{ fontSize: 12 }}>{b.name}</span>,
+        width: b.width, align: 'right' as const,
+        render: (_v: any, r: any) => {
+          const cell = categoriesAgg[r.category] || {}
+          const v = cell[`rem_${b.key}`]
+          if (v === undefined) return <span style={{ color: '#ccc' }}>-</span>
+          return <span>{(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        },
+      })),
+    },
+  ]
+  const allCatCols: ColumnsType<any> = [...categoryBaseCols, ...categoryGroups]
 
   if (!schemes.length) {
     return (
@@ -189,7 +305,7 @@ const ReverseResult: React.FC = () => {
             <Select
               value={activeScheme}
               onChange={setActiveScheme}
-              style={{ width: 220 }}
+              style={{ width: 240 }}
               options={schemes.map((s) => ({
                 value: s.scheme_code,
                 label: `${s.scheme_code} · ${s.scheme_name}`,
@@ -232,189 +348,46 @@ const ReverseResult: React.FC = () => {
         </Row>
       </Card>
 
-      {/* KPI 概览 */}
-      {currentRun && (
-        <Row gutter={16} style={{ marginBottom: 16 }}>
-          <Col span={6}>
-            <Card bordered={false} size="small">
-              <Statistic
-                title="Run ID"
-                value={`#${currentRun.id}`}
-                prefix={<DatabaseOutlined />}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card bordered={false} size="small">
-              <Statistic
-                title="预测状态"
-                value={currentRun.status}
-                valueStyle={{ color: currentRun.status === 'SUCCESS' ? '#52c41a' : '#f5222d' }}
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card bordered={false} size="small">
-              <Statistic
-                title="数据行数"
-                value={currentRun.row_count || 0}
-                suffix="行"
-              />
-            </Card>
-          </Col>
-          <Col span={6}>
-            <Card bordered={false} size="small">
-              <Statistic
-                title="当前月份"
-                value={currentMonth ? `M${currentMonth.date_offset} · ${currentMonth.data_date}` : '-'}
-                prefix={<ClockCircleOutlined />}
-              />
-            </Card>
-          </Col>
-        </Row>
-      )}
-
-      {/* 主内容：左侧账户册树 + 右侧矩阵 */}
-      <Row gutter={16}>
-        <Col span={6}>
-          <Card
-            title={<span><FundProjectionScreenOutlined /> 账户册层级</span>}
-            size="small"
-            bordered={false}
-            bodyStyle={{ padding: 8, maxHeight: 700, overflowY: 'auto' }}
-          >
-            <DirectoryTree
-              treeData={treeData}
-              expandedKeys={expandedKeys}
-              onExpand={(keys) => setExpandedKeys(keys as React.Key[])}
-              showLine
-              blockNode
-            />
-          </Card>
-        </Col>
-        <Col span={18}>
-          <Card
-            title={<span>数据矩阵（M{activeMonth} 预测值）</span>}
-            size="small"
-            bordered={false}
-            bodyStyle={{ padding: 8, overflowX: 'auto' }}
-          >
-            {categoryRows.length > 0 && (
-              <div style={{ marginBottom: 12, padding: 8, background: '#fafafa', borderRadius: 4 }}>
-                <div style={{ fontSize: 12, color: '#999', marginBottom: 4 }}>大类汇总</div>
-                <Space size="middle" wrap>
-                  {categoryRows.map((row) => (
-                    <Tooltip key={row.key} title="当前余额">
-                      <Tag color={row.category === 'ASSET' ? 'blue' : row.category === 'LIABILITY' ? 'orange' : 'green'}>
-                        {row.category}: ¥{row.current_balance.toFixed(2)} 亿
-                      </Tag>
-                    </Tooltip>
-                  ))}
-                </Space>
-              </div>
-            )}
-
-            {/* 矩阵表格（横向 13+13+5 列） */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ background: '#f5f5f5' }}>
-                  <th style={{ ...thStyle, width: 80 }}>编码</th>
-                  <th style={{ ...thStyle, width: 200 }}>账户册名称</th>
-                  <th style={{ ...thStyle, width: 50 }}>层级</th>
-                  {BUCKETS.slice(0, 8).map((b) => (
-                    <th key={`o-${b.key}`} style={{ ...thStyle, width: b.width }} colSpan={1}>
-                      原<b>{b.name}</b>
-                    </th>
-                  ))}
-                  {BUCKETS.slice(8).map((b) => (
-                    <th key={`o-${b.key}`} style={{ ...thStyle, width: b.width }}>
-                      原<b>{b.name}</b>
-                    </th>
-                  ))}
-                  {BUCKETS.map((b) => (
-                    <th key={`r-${b.key}`} style={{ ...thStyle, width: b.width }}>
-                      余<b>{b.name}</b>
-                    </th>
-                  ))}
-                  {EXTRAS.map((e) => (
-                    <th key={e.key} style={{ ...thStyle, width: e.width }}>{e.name}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {matrixNodes.filter((n) => n.node_level >= 1 && n.node_level <= 4).map((n: any) => {
-                  const cell = matrix[n.coa_node_id]
-                  const indent = '　'.repeat(Math.max((n.node_level || 1) - 1, 0))
-                  return (
-                    <tr
-                      key={n.coa_node_id}
-                      style={{
-                        background: n.node_level === 1 ? '#f0f5fa' : n.node_level === 2 ? '#f7fafd' : '#fff',
-                      }}
-                    >
-                      <td style={{ ...tdStyle, fontWeight: n.node_level === 1 ? 600 : 400 }}>
-                        {n.node_code}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: n.node_level === 1 ? 600 : 400 }}>
-                        {indent}{n.node_name}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'center' }}>
-                        <Tag color={n.node_level === 1 ? 'blue' : 'default'} style={{ margin: 0 }}>
-                          L{n.node_level}
-                        </Tag>
-                      </td>
-                      {BUCKETS.map((b) => {
-                        const v = cell ? cell[`orig_${b.key}`] : 0
-                        return (
-                          <td key={`o-${b.key}`} style={{ ...tdStyle, textAlign: 'right' }}>
-                            {v ? formatNum(v) : '—'}
-                          </td>
-                        )
-                      })}
-                      {BUCKETS.map((b) => {
-                        const v = cell ? cell[`rem_${b.key}`] : 0
-                        return (
-                          <td key={`r-${b.key}`} style={{ ...tdStyle, textAlign: 'right' }}>
-                            {v ? formatNum(v) : '—'}
-                          </td>
-                        )
-                      })}
-                      {EXTRAS.map((e) => {
-                        const v = cell ? cell[e.key] : 0
-                        const display = e.isPercent
-                          ? v ? `${(v * 100).toFixed(e.precision)}%` : '—'
-                          : v ? formatNum(v, e.precision) : '—'
-                        return <td key={e.key} style={{ ...tdStyle, textAlign: 'right' }}>{display}</td>
-                      })}
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </Card>
-        </Col>
-      </Row>
+      <Card bordered={false} bodyStyle={{ paddingTop: 8 }}>
+        <Tabs
+          defaultActiveKey="matrix"
+          items={[
+            {
+              key: 'matrix',
+              label: <span><BankOutlined /> 账户册矩阵（二级表头） <Badge count={accountRows.length} showZero color="#1d39c4" /></span>,
+              children: (
+                <Table
+                  size="small"
+                  rowKey="coa_node_id"
+                  dataSource={accountRows}
+                  columns={allCols as any}
+                  scroll={{ x: 70 + 220 + 80 + 64 * 50 + 4 * 80, y: 'calc(100vh - 380px)' }}
+                  pagination={false}
+                  bordered
+                  locale={{ emptyText: <Empty description="该预测月份下无反算结果" /> }}
+                />
+              ),
+            },
+            {
+              key: 'category',
+              label: <span><FundProjectionScreenOutlined /> 大类汇总（资产/负债/权益/表外）</span>,
+              children: (
+                <Table
+                  size="small"
+                  rowKey="category"
+                  dataSource={categoryRows}
+                  columns={allCatCols as any}
+                  scroll={{ x: 100 + 100 + 64 * 50, y: 'calc(100vh - 380px)' }}
+                  pagination={false}
+                  bordered
+                />
+              ),
+            },
+          ]}
+        />
+      </Card>
     </Spin>
   )
-}
-
-const thStyle: React.CSSProperties = {
-  border: '1px solid #e8e8e8',
-  padding: '6px 4px',
-  textAlign: 'center',
-  whiteSpace: 'nowrap',
-  fontWeight: 600,
-}
-
-const tdStyle: React.CSSProperties = {
-  border: '1px solid #f0f0f0',
-  padding: '4px 6px',
-  whiteSpace: 'nowrap',
-}
-
-function formatNum(v: number, precision: number = 2): string {
-  if (Math.abs(v) >= 10000) return (v / 10000).toFixed(precision) + '万'
-  return v.toFixed(precision)
 }
 
 export default ReverseResult
