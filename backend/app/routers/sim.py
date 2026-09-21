@@ -35,6 +35,7 @@ class TermRatioIn(BaseModel):
     term_value: int = Field(..., ge=1, le=60, description="期限值（1~60 月）")
     term_unit: str = Field("MONTH", description="期限单位（当前固定 MONTH）")
     business_ratio: float = Field(..., ge=0, le=100, description="业务占比（0~100）")
+    interest_rate: float = Field(0.0, ge=0, le=100, description="新业务利率（%），0~100")
     sort_order: int = 0
 
 
@@ -387,7 +388,7 @@ async def get_node_config(
             "scheme_data_date": scheme_data_date,
         }
     rows = db.execute(
-        text("""SELECT id, term_value, term_unit, business_ratio, sort_order, remark
+        text("""SELECT id, term_value, term_unit, business_ratio, interest_rate, sort_order, remark
                 FROM prcp_sim_term_ratio
                 WHERE config_id=:cid AND is_deleted=0
                 ORDER BY sort_order, term_value"""),
@@ -404,7 +405,8 @@ async def get_node_config(
             {
                 "id": r[0], "term_value": r[1], "term_unit": r[2],
                 "business_ratio": float(r[3]) if r[3] is not None else 0.0,
-                "sort_order": r[4], "remark": r[5],
+                "interest_rate": float(r[4]) if r[4] is not None else 0.0,
+                "sort_order": r[5], "remark": r[6],
             } for r in rows
         ],
         "scheme_data_date": scheme_data_date,
@@ -508,10 +510,11 @@ async def save_node_config(
             raise HTTPException(400, "期限单位当前仅支持 MONTH（月）")
         db.execute(
             text("""INSERT INTO prcp_sim_term_ratio
-                (config_id, term_value, term_unit, business_ratio, sort_order, remark, created_by, updated_by)
-                VALUES (:cid, :tv, :tu, :br, :so, NULL, :u, :u)"""),
+                (config_id, term_value, term_unit, business_ratio, interest_rate, sort_order, remark, created_by, updated_by)
+                VALUES (:cid, :tv, :tu, :br, :ir, :so, NULL, :u, :u)"""),
             {"cid": cfg_id, "tv": r.term_value, "tu": tu,
-             "br": r.business_ratio, "so": r.sort_order or (idx + 1), "u": uid},
+             "br": r.business_ratio, "ir": r.interest_rate,
+             "so": r.sort_order or (idx + 1), "u": uid},
         )
     # 7) 更新 term_count + config_node_count
     db.execute(

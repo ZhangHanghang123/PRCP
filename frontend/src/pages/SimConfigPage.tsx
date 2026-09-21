@@ -24,6 +24,7 @@ interface RatioRow {
   term_value: number
   term_unit: 'MONTH'
   business_ratio: number
+  interest_rate: number
   sort_order: number
 }
 
@@ -129,6 +130,7 @@ const SimConfigPage: React.FC = () => {
           term_value: row.term_value,
           term_unit: 'MONTH' as const,
           business_ratio: row.business_ratio,
+          interest_rate: row.interest_rate || 0,
           sort_order: row.sort_order || idx + 1,
         })))
         setConfigId(r.config.id)
@@ -186,7 +188,8 @@ const SimConfigPage: React.FC = () => {
     }
     setRatios([...ratios, {
       key: `new-${Date.now()}-${next}`,
-      term_value: next, term_unit: 'MONTH', business_ratio: 0, sort_order: ratios.length + 1,
+      term_value: next, term_unit: 'MONTH', business_ratio: 0, interest_rate: 0,
+      sort_order: ratios.length + 1,
     }])
     setDirty(true)
   }
@@ -238,6 +241,7 @@ const SimConfigPage: React.FC = () => {
           term_value: r.term_value,
           term_unit: 'MONTH',
           business_ratio: r.business_ratio,
+          interest_rate: r.interest_rate || 0,
           sort_order: idx + 1,
         })),
       }
@@ -309,6 +313,26 @@ const SimConfigPage: React.FC = () => {
           value={v}
           onChange={(val) => updateRatioRow(idx, 'business_ratio', val || 0)}
           addonAfter="%" style={{ width: '100%' }}
+        />
+      ),
+    },
+    {
+      title: (
+        <Space size={4}>
+          新业务利率
+          <Tooltip title="新业务定价利率（%），0~100；如 3.85 表示新业务按 3.85% 定价">
+            <ExclamationCircleOutlined style={{ color: '#999' }} />
+          </Tooltip>
+        </Space>
+      ),
+      dataIndex: 'interest_rate', width: 140,
+      render: (v: number, _r: any, idx: number) => (
+        <InputNumber
+          min={0} max={100} step={0.0001} precision={4}
+          value={v}
+          onChange={(val) => updateRatioRow(idx, 'interest_rate', val || 0)}
+          addonAfter="%" style={{ width: '100%' }}
+          placeholder="如 3.85"
         />
       ),
     },
@@ -554,7 +578,7 @@ const SimConfigPage: React.FC = () => {
                       dataSource={ratios}
                       pagination={false}
                       size="small"
-                      scroll={{ x: 600 }}
+                      scroll={{ x: 760 }}
                       footer={() => (
                         <div style={{ textAlign: 'right' }}>
                           <Space>
