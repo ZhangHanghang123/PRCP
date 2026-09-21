@@ -6,12 +6,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Form, Input, Select, Button, Table, Space, Tag, Modal, message,
-  Popconfirm, Tooltip, Row, Col, InputNumber, Statistic, DatePicker,
+  Popconfirm, Tooltip, Row, Col, InputNumber, Statistic, DatePicker, Progress, Alert,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
   SettingOutlined, PlayCircleOutlined, CheckCircleOutlined, StopOutlined,
-  CalendarOutlined,
+  CalendarOutlined, RocketOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
@@ -142,6 +142,45 @@ const SimSchemeList: React.FC = () => {
     navigate(`/sim/config/${row.id}`)
   }
 
+  // ============== 引擎计量 ==============
+  const [runModalOpen, setRunModalOpen] = useState(false)
+  const [runningScheme, setRunningScheme] = useState<any>(null)
+  const [running, setRunning] = useState(false)
+  const [runResult, setRunResult] = useState<any>(null)
+  const [progress, setProgress] = useState(0)
+  const [pollTimer, setPollTimer] = useState<any>(null)
+
+  const openRun = (row: any) => {
+    setRunningScheme(row)
+    setRunResult(null)
+    setProgress(0)
+    setRunModalOpen(true)
+  }
+
+  const startRun = async (monthCount: number) => {
+    if (!runningScheme) return
+    setRunning(true)
+    setProgress(0)
+    setRunResult(null)
+    try {
+      const r = await simApi.runEngine(runningScheme.id, monthCount)
+      message.success(`引擎执行成功 run_id=${r.run_id}`)
+      setRunResult(r)
+      setProgress(100)
+      // 自动跳转结果页
+      setTimeout(() => {
+        setRunModalOpen(false)
+        navigate(`/sim/results/${runningScheme.scheme_code}`)
+      }, 1500)
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '引擎执行失败')
+      setRunResult({ status: 'FAILED', error_message: e?.response?.data?.detail || '未知错误' })
+    } finally {
+      setRunning(false)
+      if (pollTimer) { clearInterval(pollTimer); setPollTimer(null) }
+    }
+  }
+
   // ============== 统计 KPI ==============
   const stats = useMemo(() => {
     const total = schemes.length
@@ -208,14 +247,21 @@ const SimSchemeList: React.FC = () => {
       render: (v: string) => v ? <span style={{ fontSize: 12, color: '#666' }}>{v.replace('T', ' ').slice(0, 19)}</span> : '-',
     },
     {
-      title: '操作', width: 260, fixed: 'right',
+      title: '操作', width: 340, fixed: 'right',
       render: (_: any, r: any) => (
         <Space size="small">
-          <Tooltip title="参数配置">
+          <Tooltip title="参数配置（节点年化增长 + 期限占比）">
             <Button
-              type="primary" size="small" icon={<SettingOutlined />}
+              size="small" icon={<SettingOutlined />}
               onClick={() => goConfig(r)}
             >参数配置</Button>
+          </Tooltip>
+          <Tooltip title="触发引擎按月滚动生成 24 月快照">
+            <Button
+              type="primary" size="small" icon={<RocketOutlined />}
+              onClick={() => openRun(r)}
+              disabled={r.status !== 'ACTIVE' || r.config_node_count === 0}
+            >引擎计量</Button>
           </Tooltip>
           <Button size="small" icon={<EditOutlined />} onClick={() => openEdit(r)}>编辑</Button>
           <Tooltip title={r.status === 'ACTIVE' ? '停用' : '启用'}>
@@ -429,6 +475,92 @@ const SimSchemeList: React.FC = () => {
             <Input.TextArea rows={3} placeholder="方案的用途和说明" maxLength={500} showCount />
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* 引擎计量 Modal */}
+      <Modal
+        title={
+          <Space>
+            <RocketOutlined style={{ color: '#722ed1' }} />
+            <span>引擎计量 — 按月滚动生成 24 月快照</span>
+          </Space>
+        }
+        open={runModalOpen}
+        onCancel={() => { if (!running) setRunModalOpen(false) }}
+        footer={null}
+        width={560}
+        destroyOnClose
+        maskClosable={false}
+      >
+        {runningScheme && (
+          <Space direction="vertical" style={{ width: '100%' }} size={16}>
+            <Card size="small" style={{ background: '#f9f0ff' }}>
+              <Space direction="vertical" size={4}>
+                <span><strong>方案：</strong>
+                  <Tag color="purple">{runningScheme.scheme_code}</Tag>
+                  {runningScheme.scheme_name}
+                </span>
+                <span><strong>起始月：</strong>
+                  <Tag color="cyan" style={{ fontFamily: 'monospace' }}>{runningScheme.data_date}</Tag>
+                </span>
+                <span><strong>已配置节点：</strong>
+                  <Tag color="blue">{runningScheme.config_node_count || 0}</Tag>
+                </span>
+              </Space>
+            </Card>
+
+            {!runResult && !running && (
+              <Form
+                layout="inline"
+                initialValues={{ month_count: 24 }}
+                onFinish={(v) => startRun(v.month_count)}
+              >
+                <Form.Item label="生成月份数" name="month_count" rules={[{ required: true }]}>
+                  <InputNumber min={1} max={60} style={{ width: 100 }} />
+                </Form.Item>
+                <Form.Item>
+                  <Button type="primary" htmlType="submit" icon={<ThunderboltOutlined />}>
+                    开始执行
+                  </Button>
+                </Form.Item>
+              </Form>
+            )}
+
+            {running && (
+              <Card size="small">
+                <Space direction="vertical" style={{ width: '100%' }}>
+                  <span style={{ color: '#1890ff' }}>
+                    <ThunderboltOutlined spin /> 引擎执行中…
+                  </span>
+                  <Progress percent={progress} status="active" />
+                  <span style={{ fontSize: 12, color: '#999' }}>
+                    正在为每个节点按月滚动计算 64+64 期限桶 + 4 主指标…
+                  </span>
+                </Space>
+              </Card>
+            )}
+
+            {runResult && runResult.status === 'SUCCESS' && (
+              <Alert
+                type="success" showIcon
+                message={`✅ 引擎执行成功 run_id=${runResult.run_id}`}
+                description={
+                  <div>
+                    已生成 <strong>{runResult.month_count}</strong> 月快照，1.5 秒后跳转到结果查看页…
+                  </div>
+                }
+              />
+            )}
+
+            {runResult && runResult.status === 'FAILED' && (
+              <Alert
+                type="error" showIcon
+                message="❌ 引擎执行失败"
+                description={<code>{runResult.error_message}</code>}
+              />
+            )}
+          </Space>
+        )}
       </Modal>
     </div>
   )

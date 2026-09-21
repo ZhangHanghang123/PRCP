@@ -314,4 +314,10 @@ export const simApi = {
   saveNodeConfig: (schemeId: number, data: any) =>
     http.post('/sim/node-config', data, { params: { scheme_id: schemeId } }).then((r) => r.data),
   deleteNodeConfig: (cfgId: number) => http.delete(`/sim/node-config/${cfgId}`).then((r) => r.data),
+  // 引擎计量
+  runEngine: (schemeId: number, monthCount: number = 24) =>
+    http.post(`/sim/schemes/${schemeId}/run`, null, { params: { month_count: monthCount } }).then((r) => r.data),
+  getRun: (runId: number) => http.get(`/sim/runs/${runId}`).then((r) => r.data),
+  listRuns: (params: any = {}) => http.get('/sim/runs', { params }).then((r) => r.data),
+  listResults: (params: any = {}) => http.get('/sim/results', { params }).then((r) => r.data),
 }
