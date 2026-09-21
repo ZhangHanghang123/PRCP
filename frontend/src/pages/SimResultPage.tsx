@@ -2,10 +2,10 @@
  *
  * 入口：/sim/results/:sim_scheme_code（从方案列表「查看结果」按钮跳转）
  * 布局：左侧账户册 DirectoryTree（仅显示引擎跑过的节点）
- *      + 右侧选中节点的 24 月快照 Tabs
+ *      + 右侧选中节点的 24 月快照 Tabs（每 Tab 一个节点 × 64+64 桶二级表头表格）
  *
- * 顶部：方案下拉 + Run 选择 + 4 KPI 汇总
- * 主体：左 320px 树 + 右 节点结果 Tabs
+ * 顶部：方案下拉 + Run 选择 + 4 全局 KPI 汇总
+ * 主体：左 7 列账户册树 + 右 17 列节点 24 月快照
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import {
@@ -21,6 +21,7 @@ import type { ColumnsType } from 'antd/es/table'
 import type { DataNode } from 'antd/es/tree'
 import { useParams, useNavigate } from 'react-router-dom'
 import { simApi } from '../api'
+import { BUCKETS } from '../constants/buckets'
 
 interface ResultRow {
   id: number
@@ -37,6 +38,8 @@ interface ResultRow {
   avg_balance: number
   weighted_rate: number
   interest_amount: number
+  // 128 桶（仅 with_buckets=true 时填充）
+  [key: string]: any
 }
 
 const SimResultPage: React.FC = () => {
@@ -53,7 +56,7 @@ const SimResultPage: React.FC = () => {
   const [treeData, setTreeData] = useState<DataNode[]>([])
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null)
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([])
-  const [coaSchemeId, setCoaSchemeId] = useState<number | null>(null)
+  const [activeMonthTab, setActiveMonthTab] = useState<string>('1')
 
   // =================== 数据加载 ===================
 
@@ -79,11 +82,12 @@ const SimResultPage: React.FC = () => {
     }
   }
 
+  // 不带 128 桶的全局 results（用于顶部 KPI / 树命中 / 节点级 KPI）
   const loadResults = async (runId: number | null) => {
     if (!runId) { setResults([]); return }
     setLoading(true)
     try {
-      const r = await simApi.listResults({ run_id: runId, category })
+      const r = await simApi.listResults({ run_id: runId, category, with_buckets: true })
       setResults(r.items || [])
     } catch (e: any) {
       message.error('结果加载失败')
@@ -92,12 +96,9 @@ const SimResultPage: React.FC = () => {
     }
   }
 
-  // 加载账户册树（基于方案的 coa_scheme_id）
   const loadCoaTree = async (sid: number) => {
     try {
       const t = await simApi.coaTree(sid)
-      setCoaSchemeId(sid)
-      // 将 API 返回的 items 转为 antd DataNode
       const toDataNode = (n: any): DataNode => ({
         key: String(n.id),
         title: (
@@ -111,7 +112,6 @@ const SimResultPage: React.FC = () => {
         children: n.children?.map(toDataNode),
       })
       setTreeData((t.items || []).map(toDataNode))
-      // 默认展开所有 L1/L2 节点
       const expandKeys: string[] = []
       const collect = (ns: any[]) => {
         for (const n of ns) {
@@ -138,32 +138,24 @@ const SimResultPage: React.FC = () => {
   }, [schemeCode])
   useEffect(() => { loadResults(activeRun) }, [activeRun, category])
 
-  // 加载账户册树：取当前方案的 coa_scheme_id
+  const currentScheme = schemes.find(s => s.scheme_code === schemeCode)
   useEffect(() => {
     const s = schemes.find(x => x.scheme_code === schemeCode)
     if (s?.coa_scheme_id) loadCoaTree(s.coa_scheme_id)
   }, [schemes, schemeCode])
 
-  // =================== 派生数据 ===================
-
-  const currentScheme = schemes.find(s => s.scheme_code === schemeCode)
   const currentRun = runs.find(r => r.id === activeRun)
 
-  // 引擎跑过的节点 ID 集合（用于高亮树节点）
-  const runnedNodeIds = useMemo(() => {
-    return new Set(results.map(r => r.coa_node_id))
-  }, [results])
+  // =================== 派生数据 ===================
 
-  // 引擎跑过的节点 ID → 节点元数据映射
+  const runnedNodeIds = useMemo(() => new Set(results.map(r => r.coa_node_id)), [results])
   const runnedNodeMap = useMemo(() => {
     const m = new Map<number, ResultRow>()
-    for (const r of results) {
-      if (!m.has(r.coa_node_id)) m.set(r.coa_node_id, r)
-    }
+    for (const r of results) if (!m.has(r.coa_node_id)) m.set(r.coa_node_id, r)
     return m
   }, [results])
 
-  // 顶部 KPI（全部节点的当前/平均余额汇总）
+  // 顶部 KPI（全部节点）
   const kpi = useMemo(() => {
     if (results.length === 0) return null
     const total_current = results.reduce((a, r) => a + (r.current_balance || 0), 0)
@@ -191,7 +183,13 @@ const SimResultPage: React.FC = () => {
     }
   }, [results, runnedNodeIds])
 
-  // 自定义树渲染：跑过的节点加 Tag 标记
+  // 当切换节点时，重置月份 Tab 到 M1
+  useEffect(() => {
+    setActiveMonthTab('1')
+  }, [selectedNodeId])
+
+  // =================== 表格：单月 64+64 桶（类似 BasicDataSheet） ===================
+
   const renderTreeTitle = (node: any) => {
     const id = Number(node.key)
     const runned = runnedNodeIds.has(id)
@@ -207,42 +205,80 @@ const SimResultPage: React.FC = () => {
     )
   }
 
-  // =================== 表格列 ===================
+  // 单月快照数据：1 行 = 当前选中节点 × 当前选中月份
+  const currentMonthRow = useMemo(() => {
+    return selectedNodeResults.find(r => r.date_offset === Number(activeMonthTab)) || null
+  }, [selectedNodeResults, activeMonthTab])
 
-  const columns: ColumnsType<ResultRow> = [
-    {
-      title: '月份', dataIndex: 'date_offset', width: 80, fixed: 'left',
-      render: (v: number) => <Tag color="blue">M{v}</Tag>,
-    },
-    {
-      title: '日期', dataIndex: 'data_date', width: 110,
-      render: (v: string) => <span style={{ fontFamily: 'monospace', fontSize: 12 }}>{v}</span>,
-    },
-    {
-      title: '当前余额', dataIndex: 'current_balance', width: 160,
-      align: 'right' as const,
-      render: (v: number) => v ? <strong style={{ color: '#2f54eb' }}>{v.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}</strong> : '-',
-    },
-    {
-      title: '平均余额', dataIndex: 'avg_balance', width: 150,
-      align: 'right' as const,
-      render: (v: number) => v ? v.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '-',
-    },
-    {
-      title: '加权平均利率(%)', dataIndex: 'weighted_rate', width: 140,
-      align: 'right' as const,
-      render: (v: number) => v ? <span style={{ color: '#fa8c16' }}>{v.toFixed(4)}</span> : '-',
-    },
-    {
-      title: '当月利息', dataIndex: 'interest_amount', width: 140,
-      align: 'right' as const,
-      render: (v: number) => v ? v.toLocaleString('zh-CN', { maximumFractionDigits: 2 }) : '-',
-    },
-    {
-      title: '类别', dataIndex: 'category', width: 90,
-      render: (v: string) => v ? <Tag color={v === 'ASSET' ? 'blue' : v === 'LIABILITY' ? 'orange' : 'default'}>{v}</Tag> : '-',
-    },
-  ]
+  // 二级表头：原始期限（#13c2c2 青）+ 剩余期限（#722ed1 紫）+ 度量（#eb2f96 粉）
+  const monthTableColumns: ColumnsType<any> = useMemo(() => {
+    const baseCol: ColumnsType<any>[number] = {
+      title: '账户册节点',
+      key: 'node',
+      fixed: 'left',
+      width: 200,
+      render: () => currentMonthRow ? (
+        <span>
+          <code style={{ fontSize: 11, background: '#f5f5f5', padding: '1px 4px', borderRadius: 3 }}>
+            {currentMonthRow.node_code}
+          </code>
+          <div style={{ fontSize: 12, marginTop: 2 }}>{currentMonthRow.node_name}</div>
+        </span>
+      ) : '-',
+    }
+    const origGroup = {
+      title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>原始期限金额（{currentMonthRow?.data_date || '-'}）</span>,
+      children: BUCKETS.map((b) => ({
+        title: <span style={{ fontSize: 12, color: '#13c2c2' }}>{b.name}</span>,
+        key: `orig_${b.key}`,
+        width: b.width,
+        align: 'right' as const,
+        onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+        render: () => {
+          if (!currentMonthRow) return <span style={{ color: '#ccc' }}>-</span>
+          const v = currentMonthRow[`orig_${b.key}`]
+          if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+          if (Math.abs(v) < 0.005) return <span style={{ color: '#bbb' }}>·</span>
+          return <span style={{ color: '#13c2c2', fontFamily: 'monospace' }}>{(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        },
+      })),
+    }
+    const remGroup = {
+      title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>剩余期限金额</span>,
+      children: BUCKETS.map((b) => ({
+        title: <span style={{ fontSize: 12, color: '#722ed1' }}>{b.name}</span>,
+        key: `rem_${b.key}`,
+        width: b.width,
+        align: 'right' as const,
+        onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+        render: () => {
+          if (!currentMonthRow) return <span style={{ color: '#ccc' }}>-</span>
+          const v = currentMonthRow[`rem_${b.key}`]
+          if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+          if (Math.abs(v) < 0.005) return <span style={{ color: '#bbb' }}>·</span>
+          return <span style={{ color: '#722ed1', fontFamily: 'monospace' }}>{(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+        },
+      })),
+    }
+    const measureGroup = {
+      title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>度量</span>,
+      children: [
+        { title: '当前余额', key: 'current_balance', width: 110, align: 'right' as const,
+          onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+          render: () => currentMonthRow ? <strong style={{ color: '#2f54eb' }}>{(currentMonthRow.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong> : '-' },
+        { title: '平均余额', key: 'avg_balance', width: 110, align: 'right' as const,
+          onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+          render: () => currentMonthRow ? (currentMonthRow.avg_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-' },
+        { title: '加权利率', key: 'weighted_rate', width: 85, align: 'right' as const,
+          onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+          render: () => currentMonthRow ? <span style={{ color: '#fa8c16' }}>{(currentMonthRow.weighted_rate || 0).toFixed(4)}%</span> : '-' },
+        { title: '当月利息', key: 'interest_amount', width: 100, align: 'right' as const,
+          onHeaderCell: () => ({ style: { background: '#fafafa' } }),
+          render: () => currentMonthRow ? (currentMonthRow.interest_amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-' },
+      ],
+    }
+    return [baseCol, origGroup, remGroup, measureGroup] as any
+  }, [currentMonthRow])
 
   const selectedMeta = selectedNodeId ? runnedNodeMap.get(selectedNodeId) : null
 
@@ -309,29 +345,12 @@ const SimResultPage: React.FC = () => {
       {currentRun && (
         <Card size="small" style={{ marginTop: 12 }}>
           <Row gutter={16}>
-            <Col span={4}>
-              <Statistic title="Run ID" value={currentRun.id} prefix={<LineChartOutlined style={{ color: '#722ed1' }} />} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="状态" value={currentRun.status}
-                valueStyle={{ color: currentRun.status === 'SUCCESS' ? '#52c41a' : '#f5222d' }} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="节点数" value={currentRun.total_nodes} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="生成月份" value={currentRun.month_count} />
-            </Col>
-            <Col span={4}>
-              <Statistic title="耗时" value={currentRun.duration_ms || '-'} suffix="ms" />
-            </Col>
-            <Col span={4}>
-              <Statistic
-                title="基准月 → 目标月"
-                value={`${currentRun.base_data_date} → ${currentRun.target_data_date}`}
-                valueStyle={{ fontSize: 13 }}
-              />
-            </Col>
+            <Col span={4}><Statistic title="Run ID" value={currentRun.id} prefix={<LineChartOutlined style={{ color: '#722ed1' }} />} /></Col>
+            <Col span={4}><Statistic title="状态" value={currentRun.status} valueStyle={{ color: currentRun.status === 'SUCCESS' ? '#52c41a' : '#f5222d' }} /></Col>
+            <Col span={4}><Statistic title="节点数" value={currentRun.total_nodes} /></Col>
+            <Col span={4}><Statistic title="生成月份" value={currentRun.month_count} /></Col>
+            <Col span={4}><Statistic title="耗时" value={currentRun.duration_ms || '-'} suffix="ms" /></Col>
+            <Col span={4}><Statistic title="基准月 → 目标月" value={`${currentRun.base_data_date} → ${currentRun.target_data_date}`} valueStyle={{ fontSize: 13 }} /></Col>
           </Row>
           {currentRun.status === 'FAILED' && (
             <div style={{ marginTop: 12, color: '#f5222d' }}>
@@ -341,29 +360,20 @@ const SimResultPage: React.FC = () => {
         </Card>
       )}
 
-      {/* KPI 汇总（全节点） */}
+      {/* KPI 汇总 */}
       {kpi && (
         <Card size="small" style={{ marginTop: 12, background: '#f0f5ff' }}>
           <Row gutter={16}>
-            <Col span={6}>
-              <Statistic title="汇总当前余额" value={kpi.total_current} precision={2} valueStyle={{ color: '#2f54eb' }} />
-            </Col>
-            <Col span={6}>
-              <Statistic title="汇总平均余额" value={kpi.total_avg} precision={2} valueStyle={{ color: '#52c41a' }} />
-            </Col>
-            <Col span={6}>
-              <Statistic title="加权平均利率" value={kpi.avg_wr} precision={4} suffix="%" valueStyle={{ color: '#fa8c16' }} />
-            </Col>
-            <Col span={6}>
-              <Statistic title="汇总当月利息" value={kpi.total_interest} precision={2} valueStyle={{ color: '#722ed1' }} />
-            </Col>
+            <Col span={6}><Statistic title="汇总当前余额" value={kpi.total_current} precision={2} valueStyle={{ color: '#2f54eb' }} /></Col>
+            <Col span={6}><Statistic title="汇总平均余额" value={kpi.total_avg} precision={2} valueStyle={{ color: '#52c41a' }} /></Col>
+            <Col span={6}><Statistic title="加权平均利率" value={kpi.avg_wr} precision={4} suffix="%" valueStyle={{ color: '#fa8c16' }} /></Col>
+            <Col span={6}><Statistic title="汇总当月利息" value={kpi.total_interest} precision={2} valueStyle={{ color: '#722ed1' }} /></Col>
           </Row>
         </Card>
       )}
 
-      {/* 主体：左树 + 右结果 */}
+      {/* 主体：左树 + 右 24M Tab 快照 */}
       <Row gutter={12} style={{ marginTop: 12 }}>
-        {/* 左侧账户册树 */}
         <Col span={7}>
           <Card
             size="small"
@@ -372,9 +382,7 @@ const SimResultPage: React.FC = () => {
                 <ApartmentOutlined style={{ color: '#722ed1' }} />
                 <span>账户册节点</span>
                 {runnedNodeIds.size > 0 && (
-                  <Tag color="purple" style={{ marginLeft: 4 }}>
-                    已模拟 {runnedNodeIds.size} / {treeData.length > 0 ? '...' : '?'}
-                  </Tag>
+                  <Tag color="purple">已模拟 {runnedNodeIds.size}</Tag>
                 )}
               </Space>
             }
@@ -403,13 +411,12 @@ const SimResultPage: React.FC = () => {
           </Card>
         </Col>
 
-        {/* 右侧节点结果 */}
         <Col span={17}>
           <Card
             size="small"
             title={
               <Space>
-                <span>节点结果快照</span>
+                <span>节点 24 月快照</span>
                 {selectedMeta ? (
                   <Space size={6} style={{ fontWeight: 'normal' }}>
                     <Tag color="purple">{selectedMeta.node_code}</Tag>
@@ -454,48 +461,45 @@ const SimResultPage: React.FC = () => {
                   {/* 节点级 KPI */}
                   <Row gutter={16} style={{ marginBottom: 12 }}>
                     <Col span={6}>
-                      <Statistic
-                        title={`M1 当前余额（${selectedNodeResults[0]?.data_date}）`}
-                        value={selectedNodeResults[0]?.current_balance || 0}
-                        precision={2}
-                        valueStyle={{ color: '#2f54eb', fontSize: 16 }}
-                      />
+                      <Statistic title={`M1 当前余额`} value={selectedNodeResults[0]?.current_balance || 0} precision={2} valueStyle={{ color: '#2f54eb', fontSize: 16 }} />
                     </Col>
                     <Col span={6}>
-                      <Statistic
-                        title={`M${selectedNodeResults.length} 当前余额（${selectedNodeResults[selectedNodeResults.length-1]?.data_date}）`}
-                        value={selectedNodeResults[selectedNodeResults.length-1]?.current_balance || 0}
-                        precision={2}
-                        valueStyle={{ color: '#52c41a', fontSize: 16 }}
-                      />
+                      <Statistic title={`M${selectedNodeResults.length} 当前余额`} value={selectedNodeResults[selectedNodeResults.length-1]?.current_balance || 0} precision={2} valueStyle={{ color: '#52c41a', fontSize: 16 }} />
                     </Col>
                     <Col span={6}>
-                      <Statistic
-                        title={`M${selectedNodeResults.length} 加权利率`}
-                        value={selectedNodeResults[selectedNodeResults.length-1]?.weighted_rate || 0}
-                        precision={4}
-                        suffix="%"
-                        valueStyle={{ color: '#fa8c16', fontSize: 16 }}
-                      />
+                      <Statistic title={`M${selectedNodeResults.length} 加权利率`} value={selectedNodeResults[selectedNodeResults.length-1]?.weighted_rate || 0} precision={4} suffix="%" valueStyle={{ color: '#fa8c16', fontSize: 16 }} />
                     </Col>
                     <Col span={6}>
-                      <Statistic
-                        title={`累计利息（${selectedNodeResults.length} 月）`}
-                        value={selectedNodeResults.reduce((a, r) => a + (r.interest_amount || 0), 0)}
-                        precision={2}
-                        valueStyle={{ color: '#722ed1', fontSize: 16 }}
-                      />
+                      <Statistic title={`累计利息（${selectedNodeResults.length} 月）`} value={selectedNodeResults.reduce((a, r) => a + (r.interest_amount || 0), 0)} precision={2} valueStyle={{ color: '#722ed1', fontSize: 16 }} />
                     </Col>
                   </Row>
 
-                  {/* 24 月快照表格 */}
-                  <Table
-                    rowKey={(r) => `${r.run_id}-${r.coa_node_id}-${r.date_offset}`}
-                    columns={columns}
-                    dataSource={selectedNodeResults}
-                    size="small"
-                    pagination={{ pageSize: 24, showSizeChanger: false }}
-                    scroll={{ x: 900 }}
+                  {/* 24 月 Tab：每个 Tab 一个 64+64 桶表格 */}
+                  <Tabs
+                    activeKey={activeMonthTab}
+                    onChange={setActiveMonthTab}
+                    type="card"
+                    items={selectedNodeResults.map((r) => ({
+                      key: String(r.date_offset),
+                      label: (
+                        <Space size={4}>
+                          <Tag color={r.date_offset === Number(activeMonthTab) ? 'purple' : 'blue'} style={{ margin: 0 }}>M{r.date_offset}</Tag>
+                          <span style={{ fontSize: 11, color: '#999', fontFamily: 'monospace' }}>{r.data_date?.slice(5)}</span>
+                        </Space>
+                      ),
+                      children: (
+                        <Table
+                          rowKey={() => r.id}
+                          columns={monthTableColumns}
+                          dataSource={[r]}
+                          size="small"
+                          pagination={false}
+                          scroll={{ x: 7700, y: null }}
+                          bordered
+                          style={{ background: '#fafafa' }}
+                        />
+                      ),
+                    }))}
                   />
                 </>
               )}

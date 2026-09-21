@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user
+from app.services.buckets import ORIG_COLS, REM_COLS
 
 router = APIRouter(prefix="/sim", tags=["新业务模拟方案"])
 
@@ -701,6 +702,7 @@ async def list_results(
     date_offset: Optional[int] = Query(None, ge=1, le=60),
     coa_node_id: Optional[int] = Query(None),
     category: Optional[str] = Query(None),
+    with_buckets: bool = Query(False, description="是否返回 64+64 期限桶（数据量会变大）"),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -708,6 +710,7 @@ async def list_results(
 
     不传 sim_scheme_code → 返回所有方案
     不传 run_id → 自动取该方案的最新 SUCCESS run
+    with_buckets=true → 返回 64+64 桶（供结果快照表格类似基础数据界面展示）
     """
     where = ["r.is_deleted=0"]
     params = {}
@@ -731,20 +734,32 @@ async def list_results(
         where.append("r.category=:cat")
         params["cat"] = category
 
-    rows = db.execute(
-        text(f"""SELECT r.id, r.sim_scheme_code, r.run_id, r.data_date, r.date_offset,
-                       r.coa_scheme_id, r.coa_node_id, r.node_code, r.node_name,
-                       r.node_level, r.category,
-                       r.current_balance, r.avg_balance, r.weighted_rate, r.interest_amount,
-                       r.calc_note
+    base_cols = """r.id, r.sim_scheme_code, r.run_id, r.data_date, r.date_offset,
+                  r.coa_scheme_id, r.coa_node_id, r.node_code, r.node_name,
+                  r.node_level, r.category,
+                  r.current_balance, r.avg_balance, r.weighted_rate, r.interest_amount,
+                  r.calc_note"""
+    if with_buckets:
+        # 拼接 128 桶列
+        bucket_select = ", " + ", ".join(f"r.{c}" for c in ORIG_COLS + REM_COLS)
+        sql = f"""SELECT {base_cols}{bucket_select}
                 FROM prcp_sim_result r
                 WHERE {' AND '.join(where)}
                 ORDER BY r.date_offset, r.coa_node_id
-                LIMIT 2000"""),
-        params,
-    ).fetchall()
-    return {"items": [
-        {
+                LIMIT 2000"""
+    else:
+        sql = f"""SELECT {base_cols}
+                FROM prcp_sim_result r
+                WHERE {' AND '.join(where)}
+                ORDER BY r.date_offset, r.coa_node_id
+                LIMIT 2000"""
+
+    rows = db.execute(text(sql), params).fetchall()
+    bucket_idx_start = 16  # base cols 数量
+
+    items = []
+    for r in rows:
+        item = {
             "id": r[0],
             "sim_scheme_code": r[1], "run_id": r[2],
             "data_date": r[3].isoformat() if r[3] else None,
@@ -757,5 +772,11 @@ async def list_results(
             "weighted_rate": float(r[13]) if r[13] is not None else 0.0,
             "interest_amount": float(r[14]) if r[14] is not None else 0.0,
             "calc_note": r[15],
-        } for r in rows
-    ]}
+        }
+        if with_buckets:
+            for i, col in enumerate(ORIG_COLS + REM_COLS):
+                v = r[bucket_idx_start + i]
+                item[col] = float(v) if v is not None else 0.0
+        items.append(item)
+
+    return {"items": items}
