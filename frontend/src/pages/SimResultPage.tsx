@@ -126,6 +126,12 @@ const SimResultPage: React.FC = () => {
     }
   }
 
+  // 切换方案
+  const switchScheme = (code: string) => {
+    if (code === schemeCode) return
+    navigate(`/sim/results/${code}`)
+  }
+
   useEffect(() => { loadSchemes() }, [])
   useEffect(() => {
     if (schemeCode) loadRuns(schemeCode)
