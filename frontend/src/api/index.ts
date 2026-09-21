@@ -290,3 +290,28 @@ export const rateApi = {
   exportXlsxUrl: (curveCode: string) =>
     `/prcp/api/rate/export-xlsx?curve_code=${encodeURIComponent(curveCode)}`,
 }
+
+// 新业务模拟方案
+export const simApi = {
+  // 账户册方案下拉（参数配置页 + 列表筛选）
+  listCoaSchemes: () => http.get('/sim/coa-schemes').then((r) => r.data),
+  // 账户册节点树
+  coaTree: (coaSchemeId: number) =>
+    http.get('/sim/coa-tree', { params: { coa_scheme_id: coaSchemeId } }).then((r) => r.data),
+  // 节点基础信息 + 当前余额
+  nodeInfo: (coaNodeId: number) =>
+    http.get(`/sim/node-info/${coaNodeId}`).then((r) => r.data),
+  // 方案 CRUD
+  listSchemes: (params: any = {}) => http.get('/sim/schemes', { params }).then((r) => r.data),
+  createScheme: (data: any) => http.post('/sim/schemes', data).then((r) => r.data),
+  updateScheme: (id: number, data: any) => http.put(`/sim/schemes/${id}`, data).then((r) => r.data),
+  toggleStatus: (id: number, status: string) =>
+    http.patch(`/sim/schemes/${id}/status`, { status }).then((r) => r.data),
+  deleteScheme: (id: number) => http.delete(`/sim/schemes/${id}`).then((r) => r.data),
+  // 节点配置
+  getNodeConfig: (schemeId: number, coaNodeId: number) =>
+    http.get('/sim/node-config', { params: { scheme_id: schemeId, coa_node_id: coaNodeId } }).then((r) => r.data),
+  saveNodeConfig: (schemeId: number, data: any) =>
+    http.post('/sim/node-config', data, { params: { scheme_id: schemeId } }).then((r) => r.data),
+  deleteNodeConfig: (cfgId: number) => http.delete(`/sim/node-config/${cfgId}`).then((r) => r.data),
+}

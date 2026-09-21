@@ -12,6 +12,7 @@ import {
   ExperimentOutlined,
   AimOutlined,
   LineChartOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { clearToken } from '../api'
@@ -47,6 +48,7 @@ const MainLayout: React.FC = () => {
     { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },
     { key: '/reverse', icon: <AimOutlined />, label: '组合反算' },
     { key: '/rate', icon: <LineChartOutlined />, label: '利率管理' },
+    { key: '/sim/list', icon: <PlayCircleOutlined />, label: '新业务模拟方案' },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 

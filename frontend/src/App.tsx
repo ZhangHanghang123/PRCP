@@ -13,6 +13,8 @@ import System from './pages/System'
 import ModelManage from './pages/ModelManage'
 import ReverseCalc from './pages/ReverseCalc'
 import RateCurve from './pages/RateCurve'
+import SimSchemeList from './pages/SimSchemeList'
+import SimConfigPage from './pages/SimConfigPage'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -41,6 +43,8 @@ const App: React.FC = () => (
         <Route path="model" element={<ModelManage />} />
         <Route path="reverse" element={<ReverseCalc />} />
         <Route path="rate" element={<RateCurve />} />
+        <Route path="sim/list" element={<SimSchemeList />} />
+        <Route path="sim/config/:scheme_id" element={<SimConfigPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
