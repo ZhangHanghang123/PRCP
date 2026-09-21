@@ -11,7 +11,8 @@ import {
 import {
   ArrowLeftOutlined, SaveOutlined, ReloadOutlined, PlusOutlined,
   DeleteOutlined, FolderOutlined, FileTextOutlined, CheckCircleOutlined,
-  ExclamationCircleOutlined, ApartmentOutlined,
+  ExclamationCircleOutlined, ApartmentOutlined, CalendarOutlined,
+  SettingOutlined,
 } from '@ant-design/icons'
 import type { DataNode } from 'antd/es/tree'
 import type { ColumnsType } from 'antd/es/table'
@@ -349,6 +350,13 @@ const SimConfigPage: React.FC = () => {
                 <code style={{ background: '#f5f5f5', padding: '2px 6px', borderRadius: 3 }}>
                   {scheme.coa_scheme_code} | {scheme.coa_scheme_name}
                 </code>
+                {scheme.data_date && (
+                  <Tooltip title="模拟的基准数据日期（起始月）；引擎从此月开始按月滚动">
+                    <Tag color="cyan" icon={<CalendarOutlined />} style={{ fontFamily: 'monospace' }}>
+                      起始月 {scheme.data_date}
+                    </Tag>
+                  </Tooltip>
+                )}
                 <Tag color={scheme.status === 'ACTIVE' ? 'green' : 'default'}>{scheme.status}</Tag>
               </Space>
             )}

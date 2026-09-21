@@ -18,10 +18,11 @@ router = APIRouter(prefix="/sim", tags=["新业务模拟方案"])
 # Schemas
 # ============================================================
 class SchemeIn(BaseModel):
-    """方案新增/编辑入参（创建后 coa_scheme_id 不可改）"""
+    """方案新增/编辑入参（创建后 coa_scheme_id / data_date 不可改）"""
     scheme_code: str = Field(..., max_length=32)
     scheme_name: str = Field(..., max_length=64)
     coa_scheme_id: int
+    data_date: str = Field(..., description="基准数据日期 YYYY-MM-DD（模拟起始月）")
     description: Optional[str] = None
     status: str = "ACTIVE"
 
@@ -198,7 +199,7 @@ async def list_schemes(
 
     rows = db.execute(
         text(f"""SELECT s.id, s.scheme_code, s.scheme_name, s.coa_scheme_id,
-                       s.description, s.config_node_count, s.status,
+                       s.data_date, s.description, s.config_node_count, s.status,
                        s.created_at, s.updated_at,
                        cs.scheme_code AS coa_code, cs.scheme_name AS coa_name
                 FROM prcp_sim_scheme s
@@ -211,11 +212,12 @@ async def list_schemes(
         "items": [
             {
                 "id": r[0], "scheme_code": r[1], "scheme_name": r[2],
-                "coa_scheme_id": r[3], "description": r[4],
-                "config_node_count": r[5] or 0, "status": r[6],
-                "created_at": r[7].isoformat() if r[7] else None,
-                "updated_at": r[8].isoformat() if r[8] else None,
-                "coa_scheme_code": r[9], "coa_scheme_name": r[10],
+                "coa_scheme_id": r[3], "data_date": r[4].isoformat() if r[4] else None,
+                "description": r[5],
+                "config_node_count": r[6] or 0, "status": r[7],
+                "created_at": r[8].isoformat() if r[8] else None,
+                "updated_at": r[9].isoformat() if r[9] else None,
+                "coa_scheme_code": r[10], "coa_scheme_name": r[11],
             } for r in rows
         ]
     }
@@ -227,7 +229,7 @@ async def create_scheme(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """新建方案（coa_scheme_id 必须存在）"""
+    """新建方案（coa_scheme_id 必须存在；data_date 必填 YYYY-MM-DD）"""
     uid = _uid(user)
     # 校验账户册方案存在
     coa = db.execute(
@@ -236,20 +238,26 @@ async def create_scheme(
     ).first()
     if not coa:
         raise HTTPException(400, "关联账户册方案不存在或已停用")
+    # 校验 data_date 格式
+    try:
+        from datetime import datetime
+        datetime.strptime(p.data_date, "%Y-%m-%d")
+    except Exception:
+        raise HTTPException(400, f"data_date 格式错误：应为 YYYY-MM-DD，实际 {p.data_date!r}")
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_sim_scheme
-                (scheme_code, scheme_name, coa_scheme_id, description, status, created_by, updated_by)
-                VALUES (:c, :n, :cs, :d, :st, :u, :u)"""),
+                (scheme_code, scheme_name, coa_scheme_id, data_date, description, status, created_by, updated_by)
+                VALUES (:c, :n, :cs, :dd, :d, :st, :u, :u)"""),
             {"c": p.scheme_code, "n": p.scheme_name, "cs": p.coa_scheme_id,
-             "d": p.description, "st": p.status, "u": uid},
+             "dd": p.data_date, "d": p.description, "st": p.status, "u": uid},
         ).lastrowid
     except Exception as e:
         msg = str(e)
         if "Duplicate" in msg or "uk_scheme_code" in msg:
             raise HTTPException(400, f"方案编码已存在：{p.scheme_code}")
         raise HTTPException(400, f"创建失败：{e}")
-    return {"id": rid, "scheme_code": p.scheme_code, "scheme_name": p.scheme_name}
+    return {"id": rid, "scheme_code": p.scheme_code, "scheme_name": p.scheme_name, "data_date": p.data_date}
 
 
 @router.put("/schemes/{sid}")
@@ -259,18 +267,18 @@ async def update_scheme(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """更新方案（coa_scheme_id 创建后不可改，应用层忽略）"""
+    """更新方案（coa_scheme_id / data_date 创建后不可改，应用层忽略）"""
     uid = _uid(user)
-    # 校验方案存在 + 取当前 coa_scheme_id
+    # 校验方案存在 + 取当前 coa_scheme_id + data_date
     cur = db.execute(
-        text("SELECT coa_scheme_id FROM prcp_sim_scheme WHERE id=:id AND is_deleted=0"),
+        text("SELECT coa_scheme_id, data_date FROM prcp_sim_scheme WHERE id=:id AND is_deleted=0"),
         {"id": sid},
     ).first()
     if not cur:
         raise HTTPException(404, "方案不存在")
 
-    # 应用层强制 coa_scheme_id 不变（即便前端传了不同的）
     actual_coa = cur[0]
+    actual_data_date = cur[1].isoformat() if cur[1] else None
     try:
         result = db.execute(
             text("""UPDATE prcp_sim_scheme
@@ -289,7 +297,11 @@ async def update_scheme(
         if "Duplicate" in msg or "uk_scheme_code" in msg:
             raise HTTPException(400, f"方案编码已存在：{p.scheme_code}")
         raise HTTPException(400, f"更新失败：{e}")
-    return {"ok": True, "coa_scheme_id_locked": actual_coa}
+    return {
+        "ok": True,
+        "coa_scheme_id_locked": actual_coa,
+        "data_date_locked": actual_data_date,
+    }
 
 
 @router.patch("/schemes/{sid}/status")
@@ -355,6 +367,13 @@ async def get_node_config(
     user=Depends(get_current_user),
 ):
     """获取某个节点在该方案下的配置 + 期限占比子表"""
+    # 取方案 data_date（用于配置页展示）
+    sch = db.execute(
+        text("SELECT data_date FROM prcp_sim_scheme WHERE id=:id AND is_deleted=0"),
+        {"id": scheme_id},
+    ).first()
+    scheme_data_date = sch[0].isoformat() if sch and sch[0] else None
+
     cfg = db.execute(
         text("""SELECT id, scheme_id, coa_node_id, coa_node_code,
                        annual_growth_rate, term_unit, term_count, remark
@@ -363,7 +382,10 @@ async def get_node_config(
         {"s": scheme_id, "n": coa_node_id},
     ).first()
     if not cfg:
-        return {"exists": False, "config": None, "ratios": []}
+        return {
+            "exists": False, "config": None, "ratios": [],
+            "scheme_data_date": scheme_data_date,
+        }
     rows = db.execute(
         text("""SELECT id, term_value, term_unit, business_ratio, sort_order, remark
                 FROM prcp_sim_term_ratio
@@ -385,6 +407,7 @@ async def get_node_config(
                 "sort_order": r[4], "remark": r[5],
             } for r in rows
         ],
+        "scheme_data_date": scheme_data_date,
     }
 
 

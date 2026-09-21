@@ -6,13 +6,15 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Form, Input, Select, Button, Table, Space, Tag, Modal, message,
-  Popconfirm, Tooltip, Row, Col, InputNumber, Statistic,
+  Popconfirm, Tooltip, Row, Col, InputNumber, Statistic, DatePicker,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
   SettingOutlined, PlayCircleOutlined, CheckCircleOutlined, StopOutlined,
+  CalendarOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
+import dayjs, { Dayjs } from 'dayjs'
 import { useNavigate } from 'react-router-dom'
 import { simApi } from '../api'
 
@@ -73,7 +75,10 @@ const SimSchemeList: React.FC = () => {
   const openCreate = () => {
     setEditing(null)
     form.resetFields()
-    form.setFieldsValue({ status: 'ACTIVE' })
+    form.setFieldsValue({
+      status: 'ACTIVE',
+      data_date: dayjs().startOf('month'),  // 默认本月第一天
+    })
     setModalOpen(true)
   }
 
@@ -83,6 +88,7 @@ const SimSchemeList: React.FC = () => {
       scheme_code: row.scheme_code,
       scheme_name: row.scheme_name,
       coa_scheme_id: row.coa_scheme_id,
+      data_date: row.data_date ? dayjs(row.data_date) : null,
       description: row.description,
       status: row.status,
     })
@@ -91,13 +97,18 @@ const SimSchemeList: React.FC = () => {
 
   const handleSave = async () => {
     const v = await form.validateFields()
+    // 转 dayjs → 'YYYY-MM-DD'
+    const payload = {
+      ...v,
+      data_date: v.data_date ? (v.data_date as Dayjs).format('YYYY-MM-DD') : null,
+    }
     try {
       if (editing) {
-        await simApi.updateScheme(editing.id, v)
-        message.success('方案已更新')
+        await simApi.updateScheme(editing.id, payload)
+        message.success('方案已更新（coa_scheme_id / data_date 不可改）')
       } else {
-        const r = await simApi.createScheme(v)
-        message.success(`方案已创建 id=${r.id}`)
+        const r = await simApi.createScheme(payload)
+        message.success(`方案已创建 id=${r.id}，起始月=${r.data_date}`)
       }
       setModalOpen(false)
       loadSchemes()
@@ -165,6 +176,16 @@ const SimSchemeList: React.FC = () => {
           <span style={{ fontSize: 12, color: '#666' }}>{r.coa_scheme_name || '-'}</span>
         </Space>
       ),
+    },
+    {
+      title: (
+        <Space size={4}>
+          <CalendarOutlined />
+          数据日期
+        </Space>
+      ),
+      dataIndex: 'data_date', width: 120,
+      render: (v: string) => v ? <Tag color="cyan" style={{ fontFamily: 'monospace' }}>{v}</Tag> : <span style={{ color: '#999' }}>-</span>,
     },
     {
       title: '已配置节点', dataIndex: 'config_node_count', width: 110,
@@ -377,9 +398,33 @@ const SimSchemeList: React.FC = () => {
               }))}
             />
           </Form.Item>
-          <Form.Item label="状态" name="status" rules={[{ required: true }]}>
-            <Select options={STATUS_OPTIONS} />
-          </Form.Item>
+          <Row gutter={16}>
+            <Col span={12}>
+              <Form.Item
+                label="数据日期（模拟起始月）"
+                name="data_date"
+                rules={[{ required: true, message: '请选择基准数据日期' }]}
+                extra={
+                  editing
+                    ? <span style={{ color: '#fa8c16' }}>⚠ 创建后不可修改</span>
+                    : <span style={{ color: '#666' }}>引擎从该月开始按月滚动生成快照</span>
+                }
+              >
+                <DatePicker
+                  picker="month"
+                  format="YYYY-MM"
+                  placeholder="选择起始月"
+                  disabled={!!editing}
+                  style={{ width: '100%' }}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={12}>
+              <Form.Item label="状态" name="status" rules={[{ required: true }]}>
+                <Select options={STATUS_OPTIONS} />
+              </Form.Item>
+            </Col>
+          </Row>
           <Form.Item label="描述" name="description">
             <Input.TextArea rows={3} placeholder="方案的用途和说明" maxLength={500} showCount />
           </Form.Item>
