@@ -53,8 +53,8 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     row = db.execute(
         text(f"""SELECT {cols}, {main_cols},
                        n.node_code, n.node_name, n.node_level,
-                       n.parent_code, n.is_leaf, COALESCE(b.category, n.category) AS category,
-                       n.scheme_id AS coa_scheme_id
+                       n.parent_id, n.scheme_id AS coa_scheme_id,
+                       b.category
                 FROM prcp_data_basic b
                 JOIN prcp_coa_node n ON n.id = b.coa_node_id
                 WHERE b.coa_node_id=:nid AND b.data_date=:d AND b.is_deleted=0
@@ -78,14 +78,16 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     state["weighted_rate"] = float(row[offset + 2]) if row[offset + 2] is not None else 0.0
     state["interest_amount"] = float(row[offset + 3]) if row[offset + 3] is not None else 0.0
     # 元数据（从 prcp_coa_node JOIN 取）
+    # SQL 返回顺序：node_code, node_name, node_level, parent_id, coa_scheme_id, category
     meta = offset + 4
     state["node_code"] = row[meta] or ""
     state["node_name"] = row[meta + 1] or ""
     state["node_level"] = int(row[meta + 2]) if row[meta + 2] is not None else 0
-    state["parent_code"] = row[meta + 3] or ""
-    state["is_leaf"] = int(row[meta + 4]) if row[meta + 4] is not None else 0
+    state["parent_id"] = int(row[meta + 3]) if row[meta + 3] is not None else None
+    state["coa_scheme_id"] = int(row[meta + 4]) if row[meta + 4] is not None else 0
     state["category"] = row[meta + 5] or ""
-    state["coa_scheme_id"] = int(row[meta + 6]) if row[meta + 6] is not None else 0
+    state["parent_code"] = ""  # 服务器 prcp_coa_node 无此字段，留空
+    state["is_leaf"] = 1  # 引擎只对叶子节点配置，此处固定为 1
 
     return state
 
