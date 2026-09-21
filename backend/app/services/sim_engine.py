@@ -43,18 +43,22 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     """从 prcp_data_basic 取 T 月数据作为引擎初始状态
 
     返回 state dict，含 orig_*/rem_* 64+64 桶 + 4 主指标
+    节点元数据（node_code/name/level/parent_code/is_leaf/category）从 prcp_coa_node JOIN 获取
     找不到则返回 None（跳过该节点）
     """
-    # 查询基础数据表（date_offset=0, offset_unit='D'）
-    cols = ", ".join(ORIG_COLS + REM_COLS + [
-        "current_balance", "avg_balance", "weighted_rate", "interest_amount",
-        "node_code", "node_name", "node_level", "category",
-    ])
+    # 查询基础数据表 + JOIN prcp_coa_node 取节点元数据
+    # （prcp_data_basic 旧数据这些字段是 NULL，需要从 coa_node 取）
+    cols = ", ".join([f"b.{c}" for c in (ORIG_COLS + REM_COLS)])
+    main_cols = ", ".join([f"b.{c}" for c in ["current_balance", "avg_balance", "weighted_rate", "interest_amount"]])
     row = db.execute(
-        text(f"""SELECT {cols}
-                FROM prcp_data_basic
-                WHERE coa_node_id=:nid AND data_date=:d AND is_deleted=0
-                ORDER BY date_offset ASC LIMIT 1"""),
+        text(f"""SELECT {cols}, {main_cols},
+                       n.node_code, n.node_name, n.node_level,
+                       n.parent_code, n.is_leaf, COALESCE(b.category, n.category) AS category,
+                       n.scheme_id AS coa_scheme_id
+                FROM prcp_data_basic b
+                JOIN prcp_coa_node n ON n.id = b.coa_node_id
+                WHERE b.coa_node_id=:nid AND b.data_date=:d AND b.is_deleted=0
+                ORDER BY b.date_offset ASC LIMIT 1"""),
         {"nid": coa_node_id, "d": base_date},
     ).first()
     if not row:
@@ -73,11 +77,15 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     state["avg_balance"] = float(row[offset + 1]) if row[offset + 1] is not None else 0.0
     state["weighted_rate"] = float(row[offset + 2]) if row[offset + 2] is not None else 0.0
     state["interest_amount"] = float(row[offset + 3]) if row[offset + 3] is not None else 0.0
-    # 元数据
-    state["node_code"] = row[offset + 4] or ""
-    state["node_name"] = row[offset + 5] or ""
-    state["node_level"] = int(row[offset + 6]) if row[offset + 6] is not None else 0
-    state["category"] = row[offset + 7] or ""
+    # 元数据（从 prcp_coa_node JOIN 取）
+    meta = offset + 4
+    state["node_code"] = row[meta] or ""
+    state["node_name"] = row[meta + 1] or ""
+    state["node_level"] = int(row[meta + 2]) if row[meta + 2] is not None else 0
+    state["parent_code"] = row[meta + 3] or ""
+    state["is_leaf"] = int(row[meta + 4]) if row[meta + 4] is not None else 0
+    state["category"] = row[meta + 5] or ""
+    state["coa_scheme_id"] = int(row[meta + 6]) if row[meta + 6] is not None else 0
 
     return state
 

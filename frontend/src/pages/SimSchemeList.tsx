@@ -11,7 +11,7 @@ import {
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
   SettingOutlined, PlayCircleOutlined, CheckCircleOutlined, StopOutlined,
-  CalendarOutlined, RocketOutlined, ThunderboltOutlined,
+  CalendarOutlined, RocketOutlined, ThunderboltOutlined, EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
@@ -142,6 +142,10 @@ const SimSchemeList: React.FC = () => {
     navigate(`/sim/config/${row.id}`)
   }
 
+  const goResults = (row: any) => {
+    navigate(`/sim/results/${row.scheme_code}`)
+  }
+
   // ============== 引擎计量 ==============
   const [runModalOpen, setRunModalOpen] = useState(false)
   const [runningScheme, setRunningScheme] = useState<any>(null)
@@ -250,6 +254,13 @@ const SimSchemeList: React.FC = () => {
       title: '操作', width: 340, fixed: 'right',
       render: (_: any, r: any) => (
         <Space size="small">
+          <Tooltip title="查看引擎历史运行结果快照">
+            <Button
+              size="small" icon={<EyeOutlined />}
+              onClick={() => goResults(r)}
+              disabled={(r.config_node_count || 0) === 0}
+            >查看结果</Button>
+          </Tooltip>
           <Tooltip title="参数配置（节点年化增长 + 期限占比）">
             <Button
               size="small" icon={<SettingOutlined />}
