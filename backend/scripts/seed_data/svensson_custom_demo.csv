@@ -1,0 +1,13 @@
+date,theta0,theta1,theta2,theta3,lambda1,lambda2,raw_data_json
+2024-01-01,2.812941,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-02-01,2.825,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-03-01,2.835355,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-04-01,2.843301,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-05-01,2.848296,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-06-01,2.85,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-07-01,2.848296,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-08-01,2.843301,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-09-01,2.835355,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-10-01,2.825,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-11-01,2.812941,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"
+2024-12-01,2.8,-0.8,1.5,-1.2,2.0,8.0,"{""source"": ""CUSTOM"", ""comment"": ""demo \u5e73\u7f13\u66f2\u7ebf""}"

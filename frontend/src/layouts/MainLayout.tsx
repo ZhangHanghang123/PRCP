@@ -13,6 +13,7 @@ import {
   AimOutlined,
   LineChartOutlined,
   PlayCircleOutlined,
+  AreaChartOutlined,
 } from '@ant-design/icons'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import { clearToken } from '../api'
@@ -49,6 +50,16 @@ const MainLayout: React.FC = () => {
     { key: '/reverse', icon: <AimOutlined />, label: '组合反算' },
     { key: '/rate', icon: <LineChartOutlined />, label: '利率管理' },
     { key: '/sim/list', icon: <PlayCircleOutlined />, label: '新业务模拟方案' },
+    {
+      key: '/esg',
+      icon: <AreaChartOutlined />,
+      label: 'ESG 场景工厂',
+      children: [
+        { key: '/esg', label: '① 方案管理' },
+        { key: '/esg/curve', label: '② 曲线还原' },
+        { key: '/esg/results', label: '③ 结果汇总' },
+      ],
+    },
     { key: '/system', icon: <SettingOutlined />, label: '系统管理' },
   ]
 

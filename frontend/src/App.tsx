@@ -16,6 +16,10 @@ import RateCurve from './pages/RateCurve'
 import SimSchemeList from './pages/SimSchemeList'
 import SimConfigPage from './pages/SimConfigPage'
 import SimResultPage from './pages/SimResultPage'
+import EsgSchemes from './pages/EsgSchemes'
+import EsgSchemeDetail from './pages/EsgSchemeDetail'
+import EsgCurve from './pages/EsgCurve'
+import EsgResults from './pages/EsgResults'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -47,6 +51,10 @@ const App: React.FC = () => (
         <Route path="sim/list" element={<SimSchemeList />} />
         <Route path="sim/config/:scheme_id" element={<SimConfigPage />} />
         <Route path="sim/results/:sim_scheme_code" element={<SimResultPage />} />
+        <Route path="esg" element={<EsgSchemes />} />
+        <Route path="esg/detail/:scheme_id" element={<EsgSchemeDetail />} />
+        <Route path="esg/curve" element={<EsgCurve />} />
+        <Route path="esg/results" element={<EsgResults />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
