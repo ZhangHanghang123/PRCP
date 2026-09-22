@@ -524,17 +524,46 @@ async def scheme_generate_scenarios(scheme_id: int, body: dict, db: Session = De
     sc.save_to_npz(file_path)
     file_size = os.path.getsize(file_path)
 
-    # 写 prcp_esg_scenario
+    # B 方案：把 .npz 完整字节流读入 BLOB
+    with open(file_path, "rb") as f:
+        paths_blob = f.read()
+
+    # D 方案：预计算 9 个 JSON 统计（前端展示免算）
+    summary = sc.to_summary_json()
+    n_zeros = int((paths == 0).sum())
+    n_negatives = int((paths < 0).sum())
+
+    # 写 prcp_esg_scenario（B+D 双写：blob + 派生统计 + 元数据）
     sc_id = db.execute(text("""
         INSERT INTO prcp_esg_scenario
         (scheme_id, scenario_code, scenario_type, file_path, n_scenarios, n_steps, n_maturities, seed,
-         maturities_json, file_size_bytes, description, created_by)
-        VALUES (:s, :sc, 'esg_factory', :f, :ns, :nst, :nm, :sd, :mj, :fs, :desc, :u)
+         maturities_json, file_size_bytes, description, created_by,
+         paths_blob,
+         p10_json, p50_json, p90_json,
+         final_mean_json, final_std_json, final_min_json, final_max_json,
+         vol_per_maturity_json, n_zeros, n_negatives)
+        VALUES
+        (:s, :sc, 'esg_factory', :f, :ns, :nst, :nm, :sd,
+         :mj, :fs, :desc, :u,
+         :blob,
+         :p10, :p50, :p90,
+         :fmean, :fstd, :fmin, :fmax,
+         :vol, :nz, :nn)
     """), {
         "s": scheme_id, "sc": scenario_code, "f": file_path,
         "ns": paths.shape[0], "nst": paths.shape[1], "nm": paths.shape[2],
         "sd": sc.seed, "mj": json.dumps(generator.maturities.tolist()),
         "fs": file_size, "desc": sc.description, "u": uid,
+        "blob": paths_blob,
+        "p10": json.dumps(summary["p10"]),
+        "p50": json.dumps(summary["p50"]),
+        "p90": json.dumps(summary["p90"]),
+        "fmean": json.dumps(summary["final_distribution_mean"]),
+        "fstd": json.dumps(summary["final_distribution_std"]),
+        "fmin": json.dumps(summary["final_distribution_min"]),
+        "fmax": json.dumps(summary["final_distribution_max"]),
+        "vol": json.dumps(summary["vol_per_maturity"]),
+        "nz": n_zeros, "nn": n_negatives,
     }).lastrowid
 
     # 写 prcp_esg_run
@@ -568,7 +597,7 @@ async def scheme_run_all(scheme_id: int, db: Session = Depends(get_db), user=Dep
         "pca_run_id": pca_r["run_id"],
         "hjm_run_id": hjm_r["run_id"],
         "scenario_run_id": sc_r["run_id"],
-        "scenario_id": sc_r["scenario_id"],
+        "scenario_code": sc_r["scenario_code"],
         "sc_id": sc_r["sc_id"],
         "file_path": sc_r["file_path"],
     }
@@ -684,7 +713,9 @@ async def list_scenarios(scheme_id: Optional[int] = None,
     rows = db.execute(text(f"""
         SELECT id, scheme_id, scenario_code, last_run_id, scenario_type, file_path, n_scenarios,
                n_steps, n_maturities, seed, maturities_json, file_size_bytes,
-               description, created_at
+               description, created_at,
+               paths_blob IS NOT NULL AND LENGTH(paths_blob) > 0 AS has_blob,
+               n_zeros, n_negatives
         FROM prcp_esg_scenario
         WHERE {' AND '.join(where)}
         ORDER BY id DESC
@@ -701,20 +732,26 @@ async def list_scenarios(scheme_id: Optional[int] = None,
             "seed": r[9], "maturities_months": json.loads(r[10]) if r[10] else None,
             "file_size_bytes": r[11], "description": r[12],
             "created_at": r[13].isoformat() if r[13] else None,
+            # B+D v2 字段
+            "has_blob": bool(r[14]),  # paths_blob 是否非空
+            "n_zeros": r[15] or 0,
+            "n_negatives": r[16] or 0,
         })
     return {"items": items, "total": int(total), "page": page, "page_size": page_size}
 
 
-@router.get("/scenarios/{scenario_id}")
-async def get_scenario(scenario_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+@router.get("/scenarios/{scenario_code}")
+async def get_scenario(scenario_code: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
     row = db.execute(text("""
         SELECT id, scheme_id, scenario_code, last_run_id, scenario_type, file_path, n_scenarios,
                n_steps, n_maturities, seed, maturities_json, file_size_bytes,
-               description, created_at
+               description, created_at,
+               paths_blob IS NOT NULL AND LENGTH(paths_blob) > 0 AS has_blob,
+               n_zeros, n_negatives
         FROM prcp_esg_scenario WHERE scenario_code=:sc AND is_deleted=0
-    """), {"sc": scenario_id}).first()
+    """), {"sc": scenario_code}).first()
     if not row:
-        raise HTTPException(404, f"scenario {scenario_id} 不存在")
+        raise HTTPException(404, f"scenario {scenario_code} 不存在")
     return {
         "id": row[0], "scheme_id": row[1], "scenario_code": row[2], "last_run_id": row[3],
         "scenario_type": row[4], "file_path": row[5],
@@ -722,25 +759,91 @@ async def get_scenario(scenario_id: str, db: Session = Depends(get_db), user=Dep
         "seed": row[9], "maturities_months": json.loads(row[10]) if row[10] else None,
         "file_size_bytes": row[11], "description": row[12],
         "created_at": row[13].isoformat() if row[13] else None,
+        # B+D v2 字段
+        "has_blob": bool(row[14]),
+        "n_zeros": row[15] or 0,
+        "n_negatives": row[16] or 0,
     }
 
 
-@router.get("/scenarios/{scenario_id}/download")
-async def download_scenario(scenario_id: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    from fastapi.responses import FileResponse
+@router.get("/scenarios/{scenario_code}/stats")
+async def get_scenario_stats(scenario_code: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """获取预计算的派生统计（前端展示免算）
+
+    返回：
+      - p10/p50/p90: (n_steps, n_maturities) 二维数组
+      - final_mean/final_std/final_min/final_max: (n_maturities,) 一维数组
+      - vol_per_maturity: (n_maturities,) 一维数组
+      - n_zeros/n_negatives: 异常计数
+    """
     row = db.execute(text("""
-        SELECT file_path, scheme_id FROM prcp_esg_scenario WHERE scenario_code=:sc AND is_deleted=0
-    """), {"sc": scenario_id}).first()
+        SELECT n_scenarios, n_steps, n_maturities, seed, maturities_json,
+               p10_json, p50_json, p90_json,
+               final_mean_json, final_std_json, final_min_json, final_max_json,
+               vol_per_maturity_json, n_zeros, n_negatives
+        FROM prcp_esg_scenario
+        WHERE scenario_code=:sc AND is_deleted=0
+    """), {"sc": scenario_code}).first()
     if not row:
-        raise HTTPException(404, "scenario 不存在")
-    file_path = row[0]
-    if not os.path.exists(file_path):
-        raise HTTPException(404, f"文件不存在：{file_path}")
-    return FileResponse(
-        file_path,
-        media_type="application/octet-stream",
-        filename=os.path.basename(file_path),
-    )
+        raise HTTPException(404, f"scenario {scenario_code} 不存在")
+    if row[5] is None:
+        raise HTTPException(409, f"scenario {scenario_code} 没有预计算统计（旧数据请先迁移）")
+    return {
+        "scenario_code": scenario_code,
+        "n_scenarios": row[0], "n_steps": row[1], "n_maturities": row[2],
+        "seed": row[3], "maturities_months": json.loads(row[4]) if row[4] else None,
+        "p10": json.loads(row[5]),
+        "p50": json.loads(row[6]),
+        "p90": json.loads(row[7]),
+        "final_mean": json.loads(row[8]),
+        "final_std": json.loads(row[9]),
+        "final_min": json.loads(row[10]),
+        "final_max": json.loads(row[11]),
+        "vol_per_maturity": json.loads(row[12]),
+        "n_zeros": row[13] or 0,
+        "n_negatives": row[14] or 0,
+    }
+
+
+@router.get("/scenarios/{scenario_code}/download")
+async def download_scenario(scenario_code: str, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """下载 .npz 文件
+    B+D 方案：优先从 paths_blob 读取，缺失则回退到 file_path
+    """
+    from fastapi.responses import Response
+    row = db.execute(text("""
+        SELECT paths_blob, file_path, scenario_code FROM prcp_esg_scenario
+        WHERE scenario_code=:sc AND is_deleted=0
+    """), {"sc": scenario_code}).first()
+    if not row:
+        raise HTTPException(404, f"scenario {scenario_code} 不存在")
+    paths_blob, file_path, sc_code = row[0], row[1], row[2]
+
+    # 优先从 blob 读取
+    if paths_blob is not None and len(paths_blob) > 0:
+        return Response(
+            content=paths_blob,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="scenario_{sc_code}.npz"',
+                "Content-Length": str(len(paths_blob)),
+            },
+        )
+
+    # 兼容旧场景（仅有 file_path）：从磁盘读取
+    if file_path and os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            data = f.read()
+        return Response(
+            content=data,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="scenario_{sc_code}.npz"',
+                "Content-Length": str(len(data)),
+            },
+        )
+
+    raise HTTPException(404, f"scenario {sc_code} 数据源不可用（blob 和 file_path 都为空）")
 
 
 # ===================== 一键演示 =====================
