@@ -1,6 +1,10 @@
-"""新业务模拟方案配置 API — 方案 CRUD + 节点配置 + 期限占比子表
+"""新业务模拟方案管理 API — 方案 CRUD + 节点配置 + 期限占比子表
 
 模块前缀：/prcp/api/sim
+
+注意：
+- 引擎计量相关 endpoint 已抽到 routers/engines.py
+- 算法实现见 app.services.calculate_engine.new_business.engine
 """
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,7 +14,6 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.auth import get_current_user
-from app.services.buckets import ORIG_COLS, REM_COLS
 
 router = APIRouter(prefix="/sim", tags=["新业务模拟方案"])
 
@@ -578,205 +581,5 @@ async def delete_node_config(
 
 
 # ============================================================
-# 6. 引擎计量（5 步按月滚动算法）
+# 引擎计量相关 endpoint 已抽到 routers/engines.py
 # ============================================================
-@router.post("/schemes/{sid}/run")
-async def run_engine(
-    sid: int,
-    month_count: int = Query(24, ge=1, le=60, description="生成月份数（1..60，默认 24）"),
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """触发引擎计量：按月滚动生成快照
-
-    流程：
-      1) 创建 prcp_sim_run 记录 (status=RUNNING)
-      2) 取所有已配置的节点
-      3) 取每个节点的初始状态 (prcp_data_basic[T月])
-      4) 按月滚动 1..month_count
-      5) 批量 INSERT prcp_sim_result
-      6) 更新 run 状态
-    """
-    from app.services.sim_engine import run_engine as _run_engine
-    try:
-        run_id = _run_engine(db, sid, user, month_count)
-        return {
-            "ok": True,
-            "run_id": run_id,
-            "month_count": month_count,
-            "status": "SUCCESS",
-        }
-    except ValueError as e:
-        raise HTTPException(400, str(e))
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(500, f"引擎执行失败：{e}")
-
-
-@router.get("/runs/{run_id}")
-async def get_run(
-    run_id: int,
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """查询引擎执行状态（前端轮询用）"""
-    row = db.execute(
-        text("""SELECT id, sim_scheme_id, sim_scheme_code, base_data_date, month_count,
-                       target_data_date, status, progress, total_nodes, processed_nodes,
-                       duration_ms, error_message, started_at, finished_at, created_at
-                FROM prcp_sim_run WHERE id=:id"""),
-        {"id": run_id},
-    ).first()
-    if not row:
-        raise HTTPException(404, "Run 不存在")
-    return {
-        "id": row[0],
-        "sim_scheme_id": row[1],
-        "sim_scheme_code": row[2],
-        "base_data_date": row[3].isoformat() if row[3] else None,
-        "month_count": row[4],
-        "target_data_date": row[5].isoformat() if row[5] else None,
-        "status": row[6],
-        "progress": row[7],
-        "total_nodes": row[8],
-        "processed_nodes": row[9],
-        "duration_ms": row[10],
-        "error_message": row[11],
-        "started_at": row[12].isoformat() if row[12] else None,
-        "finished_at": row[13].isoformat() if row[13] else None,
-        "created_at": row[14].isoformat() if row[14] else None,
-    }
-
-
-@router.get("/runs")
-async def list_runs(
-    sim_scheme_id: Optional[int] = None,
-    sim_scheme_code: Optional[str] = None,
-    status: Optional[str] = None,
-    limit: int = Query(20, le=100),
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """列出某方案的所有 Run（按创建时间倒序）"""
-    where = ["1=1"]
-    params = {"limit": limit}
-    if sim_scheme_id:
-        where.append("sim_scheme_id=:sid")
-        params["sid"] = sim_scheme_id
-    if sim_scheme_code:
-        where.append("sim_scheme_code=:sc")
-        params["sc"] = sim_scheme_code
-    if status:
-        where.append("status=:st")
-        params["st"] = status
-    rows = db.execute(
-        text(f"""SELECT id, sim_scheme_id, sim_scheme_code, base_data_date, month_count,
-                       target_data_date, status, progress, total_nodes, processed_nodes,
-                       duration_ms, started_at, finished_at, created_at
-                FROM prcp_sim_run
-                WHERE {' AND '.join(where)}
-                ORDER BY id DESC LIMIT :limit"""),
-        params,
-    ).fetchall()
-    return {"items": [
-        {
-            "id": r[0], "sim_scheme_id": r[1], "sim_scheme_code": r[2],
-            "base_data_date": r[3].isoformat() if r[3] else None,
-            "month_count": r[4],
-            "target_data_date": r[5].isoformat() if r[5] else None,
-            "status": r[6], "progress": r[7],
-            "total_nodes": r[8], "processed_nodes": r[9],
-            "duration_ms": r[10],
-            "started_at": r[11].isoformat() if r[11] else None,
-            "finished_at": r[12].isoformat() if r[12] else None,
-            "created_at": r[13].isoformat() if r[13] else None,
-        } for r in rows
-    ]}
-
-
-@router.get("/results")
-async def list_results(
-    sim_scheme_code: Optional[str] = Query(None, description="业务量方案编码"),
-    run_id: Optional[int] = Query(None, description="执行 ID（不传取最新 SUCCESS）"),
-    date_offset: Optional[int] = Query(None, ge=1, le=60),
-    coa_node_id: Optional[int] = Query(None),
-    category: Optional[str] = Query(None),
-    with_buckets: bool = Query(False, description="是否返回 64+64 期限桶（数据量会变大）"),
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """查询引擎快照结果
-
-    不传 sim_scheme_code → 返回所有方案
-    不传 run_id → 自动取该方案的最新 SUCCESS run
-    with_buckets=true → 返回 64+64 桶（供结果快照表格类似基础数据界面展示）
-    """
-    where = ["r.is_deleted=0"]
-    params = {}
-    if sim_scheme_code:
-        where.append("r.sim_scheme_code=:sc")
-        params["sc"] = sim_scheme_code
-    if run_id:
-        where.append("r.run_id=:rid")
-        params["rid"] = run_id
-    else:
-        # 取最新 SUCCESS run
-        if sim_scheme_code:
-            where.append("r.run_id = (SELECT MAX(id) FROM prcp_sim_run WHERE sim_scheme_code=:sc AND status='SUCCESS')")
-    if date_offset:
-        where.append("r.date_offset=:do")
-        params["do"] = date_offset
-    if coa_node_id:
-        where.append("r.coa_node_id=:nid")
-        params["nid"] = coa_node_id
-    if category:
-        where.append("r.category=:cat")
-        params["cat"] = category
-
-    base_cols = """r.id, r.sim_scheme_code, r.run_id, r.data_date, r.date_offset,
-                  r.coa_scheme_id, r.coa_node_id, r.node_code, r.node_name,
-                  r.node_level, r.category,
-                  r.current_balance, r.avg_balance, r.weighted_rate, r.interest_amount,
-                  r.calc_note"""
-    if with_buckets:
-        # 拼接 128 桶列
-        bucket_select = ", " + ", ".join(f"r.{c}" for c in ORIG_COLS + REM_COLS)
-        sql = f"""SELECT {base_cols}{bucket_select}
-                FROM prcp_sim_result r
-                WHERE {' AND '.join(where)}
-                ORDER BY r.date_offset, r.coa_node_id
-                LIMIT 2000"""
-    else:
-        sql = f"""SELECT {base_cols}
-                FROM prcp_sim_result r
-                WHERE {' AND '.join(where)}
-                ORDER BY r.date_offset, r.coa_node_id
-                LIMIT 2000"""
-
-    rows = db.execute(text(sql), params).fetchall()
-    bucket_idx_start = 16  # base cols 数量
-
-    items = []
-    for r in rows:
-        item = {
-            "id": r[0],
-            "sim_scheme_code": r[1], "run_id": r[2],
-            "data_date": r[3].isoformat() if r[3] else None,
-            "date_offset": r[4],
-            "coa_scheme_id": r[5], "coa_node_id": r[6],
-            "node_code": r[7], "node_name": r[8],
-            "node_level": r[9], "category": r[10],
-            "current_balance": float(r[11]) if r[11] is not None else 0.0,
-            "avg_balance": float(r[12]) if r[12] is not None else 0.0,
-            "weighted_rate": float(r[13]) if r[13] is not None else 0.0,
-            "interest_amount": float(r[14]) if r[14] is not None else 0.0,
-            "calc_note": r[15],
-        }
-        if with_buckets:
-            for i, col in enumerate(ORIG_COLS + REM_COLS):
-                v = r[bucket_idx_start + i]
-                item[col] = float(v) if v is not None else 0.0
-        items.append(item)
-
-    return {"items": items}

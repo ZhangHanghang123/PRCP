@@ -1,6 +1,8 @@
-"""新业务模拟引擎 v1 — 5 步按月滚动算法
+"""新业务模拟引擎 — 5 步按月滚动算法
 
-输入：sim_scheme_id, month_count=24
+入口：NewBusinessEngine().run(db, scheme_id, user, month_count=60)
+
+输入：sim_scheme_id, month_count=60
 输出：prcp_sim_run + prcp_sim_result
 
 算法 5 步（详见 docs/新业务模拟_引擎算法_v1.md）：
@@ -9,18 +11,229 @@
   3. 按期限拆分 term_ratios 叠加到 orig_mv + rem_mv
   4. 桶往前推一月（m1..m59 → m0..m58 + 长端自循环）
   5. 主指标重算（current/avg/weighted/interest）
+
+## 设计说明
+
+继承 EngineBase，对外暴露 run / get_run / list_runs / list_results 四个方法。
+所有算法逻辑封装为实例方法（原来是模块级函数）。
+模块底部的兼容函数（get_initial_state / compute_month_new / ...）保留为内部辅助。
 """
-from typing import Dict, List, Optional, Tuple
 from datetime import date
+from typing import Dict, List, Optional, Tuple
+
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.services.buckets import BUCKETS, KEYS, ORIG_COLS, REM_COLS
+from app.services.calculate_engine.base import EngineBase
+
 
 # 期限月份数映射（term_value → bucket key）
 TERM_TO_KEY = {n: f"m{n}" for n in range(1, 61)}
 TERM_TO_KEY[60] = "m60"  # 业务期限最大 60 月，对应 m60 桶
 
+
+class NewBusinessEngine(EngineBase):
+    """新业务模拟引擎
+
+    算法：5 步按月滚动（详见模块 docstring + docs/新业务模拟_引擎算法_v1.md）
+
+    数据表：
+        输入：prcp_sim_scheme, prcp_sim_node_config, prcp_sim_term_ratio
+             + prcp_data_basic（基础数据）
+             + prcp_coa_node（节点元数据）
+        输出：prcp_sim_run（执行记录） + prcp_sim_result（结果快照）
+    """
+
+    engine_type = "new_business"
+    engine_name = "新业务模拟引擎"
+
+    # ===== 默认参数 =====
+    DEFAULT_MONTH_COUNT = 60
+    MIN_MONTH_COUNT = 1
+    MAX_MONTH_COUNT = 60
+
+    # ============================================================
+    # EngineBase 实现
+    # ============================================================
+
+    def run(
+        self,
+        db: Session,
+        scheme_id: int,
+        user,
+        month_count: int = DEFAULT_MONTH_COUNT,
+    ) -> int:
+        """触发引擎执行
+
+        Args:
+            db: SQLAlchemy Session
+            scheme_id: 模拟方案 id（prcp_sim_scheme.id）
+            user: 当前登录用户 dict
+            month_count: 滚动月数（1..60，默认 60）
+
+        Returns:
+            run_id
+
+        Raises:
+            ValueError: 方案不存在 / 无节点配置 / 无基础数据
+        """
+        return _run_engine(db, scheme_id, user, month_count)
+
+    def get_run(self, db: Session, run_id: int) -> Optional[Dict]:
+        """查询单次执行的详细状态"""
+        row = db.execute(
+            text("""SELECT id, sim_scheme_id, sim_scheme_code, base_data_date, month_count,
+                           target_data_date, status, progress, total_nodes, processed_nodes,
+                           duration_ms, error_message, started_at, finished_at, created_at
+                    FROM prcp_sim_run WHERE id=:id"""),
+            {"id": run_id},
+        ).first()
+        if not row:
+            return None
+        return {
+            "id": row[0],
+            "sim_scheme_id": row[1],
+            "sim_scheme_code": row[2],
+            "base_data_date": row[3].isoformat() if row[3] else None,
+            "month_count": row[4],
+            "target_data_date": row[5].isoformat() if row[5] else None,
+            "status": row[6],
+            "progress": row[7],
+            "total_nodes": row[8],
+            "processed_nodes": row[9],
+            "duration_ms": row[10],
+            "error_message": row[11],
+            "started_at": row[12].isoformat() if row[12] else None,
+            "finished_at": row[13].isoformat() if row[13] else None,
+            "created_at": row[14].isoformat() if row[14] else None,
+        }
+
+    def list_runs(self, db: Session, **filters) -> List[Dict]:
+        """列出执行历史
+
+        支持过滤：sim_scheme_id / sim_scheme_code / status / limit
+        """
+        where = ["1=1"]
+        params = {"limit": filters.get("limit", 20)}
+        if filters.get("sim_scheme_id"):
+            where.append("sim_scheme_id=:sid")
+            params["sid"] = filters["sim_scheme_id"]
+        if filters.get("sim_scheme_code"):
+            where.append("sim_scheme_code=:sc")
+            params["sc"] = filters["sim_scheme_code"]
+        if filters.get("status"):
+            where.append("status=:st")
+            params["st"] = filters["status"]
+
+        rows = db.execute(
+            text(f"""SELECT id, sim_scheme_id, sim_scheme_code, base_data_date, month_count,
+                           target_data_date, status, progress, total_nodes, processed_nodes,
+                           duration_ms, started_at, finished_at, created_at
+                    FROM prcp_sim_run
+                    WHERE {' AND '.join(where)}
+                    ORDER BY id DESC LIMIT :limit"""),
+            params,
+        ).fetchall()
+        return [
+            {
+                "id": r[0], "sim_scheme_id": r[1], "sim_scheme_code": r[2],
+                "base_data_date": r[3].isoformat() if r[3] else None,
+                "month_count": r[4],
+                "target_data_date": r[5].isoformat() if r[5] else None,
+                "status": r[6], "progress": r[7],
+                "total_nodes": r[8], "processed_nodes": r[9],
+                "duration_ms": r[10],
+                "started_at": r[11].isoformat() if r[11] else None,
+                "finished_at": r[12].isoformat() if r[12] else None,
+                "created_at": r[13].isoformat() if r[13] else None,
+            } for r in rows
+        ]
+
+    def list_results(self, db: Session, **filters) -> List[Dict]:
+        """查询结果快照
+
+        支持过滤：sim_scheme_code / run_id / date_offset / coa_node_id / category
+        选项：with_buckets（是否返回 64+64 期限桶）
+
+        不传 run_id → 自动取该方案的最新 SUCCESS run
+        """
+        where = ["r.is_deleted=0"]
+        params = {}
+        if filters.get("sim_scheme_code"):
+            where.append("r.sim_scheme_code=:sc")
+            params["sc"] = filters["sim_scheme_code"]
+        if filters.get("run_id"):
+            where.append("r.run_id=:rid")
+            params["rid"] = filters["run_id"]
+        else:
+            if filters.get("sim_scheme_code"):
+                where.append(
+                    "r.run_id = (SELECT MAX(id) FROM prcp_sim_run "
+                    "WHERE sim_scheme_code=:sc AND status='SUCCESS')"
+                )
+        if filters.get("date_offset"):
+            where.append("r.date_offset=:do")
+            params["do"] = filters["date_offset"]
+        if filters.get("coa_node_id"):
+            where.append("r.coa_node_id=:nid")
+            params["nid"] = filters["coa_node_id"]
+        if filters.get("category"):
+            where.append("r.category=:cat")
+            params["cat"] = filters["category"]
+
+        with_buckets = filters.get("with_buckets", False)
+
+        base_cols = """r.id, r.sim_scheme_code, r.run_id, r.data_date, r.date_offset,
+                      r.coa_scheme_id, r.coa_node_id, r.node_code, r.node_name,
+                      r.node_level, r.category,
+                      r.current_balance, r.avg_balance, r.weighted_rate, r.interest_amount,
+                      r.calc_note"""
+        if with_buckets:
+            bucket_select = ", " + ", ".join(f"r.{c}" for c in ORIG_COLS + REM_COLS)
+            sql = f"""SELECT {base_cols}{bucket_select}
+                    FROM prcp_sim_result r
+                    WHERE {' AND '.join(where)}
+                    ORDER BY r.date_offset, r.coa_node_id
+                    LIMIT 2000"""
+        else:
+            sql = f"""SELECT {base_cols}
+                    FROM prcp_sim_result r
+                    WHERE {' AND '.join(where)}
+                    ORDER BY r.date_offset, r.coa_node_id
+                    LIMIT 2000"""
+
+        rows = db.execute(text(sql), params).fetchall()
+        bucket_idx_start = 16
+
+        items = []
+        for r in rows:
+            item = {
+                "id": r[0],
+                "sim_scheme_code": r[1], "run_id": r[2],
+                "data_date": r[3].isoformat() if r[3] else None,
+                "date_offset": r[4],
+                "coa_scheme_id": r[5], "coa_node_id": r[6],
+                "node_code": r[7], "node_name": r[8],
+                "node_level": r[9], "category": r[10],
+                "current_balance": float(r[11]) if r[11] is not None else 0.0,
+                "avg_balance": float(r[12]) if r[12] is not None else 0.0,
+                "weighted_rate": float(r[13]) if r[13] is not None else 0.0,
+                "interest_amount": float(r[14]) if r[14] is not None else 0.0,
+                "calc_note": r[15],
+            }
+            if with_buckets:
+                for i, col in enumerate(ORIG_COLS + REM_COLS):
+                    v = r[bucket_idx_start + i]
+                    item[col] = float(v) if v is not None else 0.0
+            items.append(item)
+
+        return items
+
+
+# ============================================================
+# 内部辅助函数（实现细节，不对外暴露）
+# ============================================================
 
 def _uid(user) -> int:
     return user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
@@ -46,8 +259,6 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     节点元数据（node_code/name/level/parent_code/is_leaf/category）从 prcp_coa_node JOIN 获取
     找不到则返回 None（跳过该节点）
     """
-    # 查询基础数据表 + JOIN prcp_coa_node 取节点元数据
-    # （prcp_data_basic 旧数据这些字段是 NULL，需要从 coa_node 取）
     cols = ", ".join([f"b.{c}" for c in (ORIG_COLS + REM_COLS)])
     main_cols = ", ".join([f"b.{c}" for c in ["current_balance", "avg_balance", "weighted_rate", "interest_amount"]])
     row = db.execute(
@@ -64,7 +275,6 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     if not row:
         return None
 
-    # 64+64 桶
     state = {}
     for i, col in enumerate(ORIG_COLS):
         state[col] = float(row[i]) if row[i] is not None else 0.0
@@ -72,13 +282,10 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     for i, col in enumerate(REM_COLS):
         state[col] = float(row[offset + i]) if row[offset + i] is not None else 0.0
     offset += len(REM_COLS)
-    # 4 主指标
     state["current_balance"] = float(row[offset]) if row[offset] is not None else 0.0
     state["avg_balance"] = float(row[offset + 1]) if row[offset + 1] is not None else 0.0
     state["weighted_rate"] = float(row[offset + 2]) if row[offset + 2] is not None else 0.0
     state["interest_amount"] = float(row[offset + 3]) if row[offset + 3] is not None else 0.0
-    # 元数据（从 prcp_coa_node JOIN 取）
-    # SQL 返回顺序：node_code, node_name, node_level, parent_id, coa_scheme_id, category
     meta = offset + 4
     state["node_code"] = row[meta] or ""
     state["node_name"] = row[meta + 1] or ""
@@ -86,8 +293,8 @@ def get_initial_state(db: Session, coa_node_id: int, base_date: str) -> Optional
     state["parent_id"] = int(row[meta + 3]) if row[meta + 3] is not None else None
     state["coa_scheme_id"] = int(row[meta + 4]) if row[meta + 4] is not None else 0
     state["category"] = row[meta + 5] or ""
-    state["parent_code"] = ""  # 服务器 prcp_coa_node 无此字段，留空
-    state["is_leaf"] = 1  # 引擎只对叶子节点配置，此处固定为 1
+    state["parent_code"] = ""
+    state["is_leaf"] = 1
 
     return state
 
@@ -138,8 +345,8 @@ def roll_one_month(state: Dict) -> Dict:
     """所有桶往前推一月：
 
     月桶：
-      新 m_v (1..59) = 旧 m_(v+1)   # m1 接收旧 m2，..., m59 接收旧 m60
-      新 m60 = 旧 y10 / 60         # 5-10 年区间过了一个月，1/60 滚到 m60
+      新 m_v (1..59) = 旧 m_(v+1)
+      新 m60 = 旧 y10 / 60
 
     长端桶（自循环）：
       新 y10 = 旧 y10 - 旧 y10/60 + 旧 y15/120
@@ -149,12 +356,11 @@ def roll_one_month(state: Dict) -> Dict:
 
     同样的逻辑应用到 rem_* 桶
     """
-    new_state = dict(state)  # 浅拷贝（含元数据 + 主指标）
+    new_state = dict(state)
 
     # 原始期限月桶
-    for v in range(1, 60):  # 1..59
+    for v in range(1, 60):
         new_state[f"orig_m{v}"] = state[f"orig_m{v+1}"]
-    # 原始期限长端
     new_state["orig_m60"] = state["orig_y10"] / 60.0
     new_state["orig_y10"] = state["orig_y10"] - state["orig_y10"] / 60.0 + state["orig_y15"] / 120.0
     new_state["orig_y15"] = state["orig_y15"] - state["orig_y15"] / 120.0 + state["orig_y20"] / 120.0
@@ -164,7 +370,6 @@ def roll_one_month(state: Dict) -> Dict:
     # 剩余期限月桶
     for v in range(1, 60):
         new_state[f"rem_m{v}"] = state[f"rem_m{v+1}"]
-    # 剩余期限长端
     new_state["rem_m60"] = state["rem_y10"] / 60.0
     new_state["rem_y10"] = state["rem_y10"] - state["rem_y10"] / 60.0 + state["rem_y15"] / 120.0
     new_state["rem_y15"] = state["rem_y15"] - state["rem_y15"] / 120.0 + state["rem_y20"] / 120.0
@@ -188,15 +393,11 @@ def compute_main_metrics(
     cur = state["current_balance"]
     avg = state["avg_balance"]
     wr = state["weighted_rate"]
-    monthly_rate = annual_growth_rate / 100.0 / 12.0  # 百分比 → 月小数
+    monthly_rate = annual_growth_rate / 100.0 / 12.0
 
-    # 1) 当前余额
     new_current = cur * (1.0 + monthly_rate)
-
-    # 2) 平均余额
     new_avg = avg + cur * monthly_rate / 2.0
 
-    # 3) 加权平均利率 = (avg × wr + Σ(amount × rate)) / (avg + month_new)
     weighted_amount = sum(
         (month_new * float(r["business_ratio"]) / 100.0) * float(r.get("interest_rate", 0.0))
         for r in term_ratios
@@ -205,36 +406,33 @@ def compute_main_metrics(
     if denom > 0:
         new_wr = (avg * wr + weighted_amount) / denom
     else:
-        new_wr = wr  # 退化情况
+        new_wr = wr
 
-    # 4) 当月利息
     new_interest = new_avg * new_wr / 12.0
 
     return new_current, new_avg, new_wr, new_interest
 
 
 # ============================================================
-# 主循环：run_engine
+# 主循环：run_engine（内部函数，NewBusinessEngine.run 调用此）
 # ============================================================
-def run_engine(
+def _run_engine(
     db: Session,
     scheme_id: int,
     user: dict,
-    month_count: int = 24,
+    month_count: int = NewBusinessEngine.DEFAULT_MONTH_COUNT,
 ) -> int:
     """执行引擎，返回 run_id
 
     步骤：
-    1) 创建 prcp_sim_run 记录 (status=RUNNING)
-    2) 取方案基础信息 (coa_scheme_id, data_date)
-    3) 取所有已配置的节点（按 sim_node_config）
-    4) 取每个节点的初始状态 (prcp_data_basic)
-    5) 按月滚动 (1..month_count)
-    6) 批量 INSERT prcp_sim_result
-    7) 更新 run 状态 (SUCCESS / FAILED)
+      1) 创建 prcp_sim_run 记录 (status=RUNNING)
+      2) 取方案基础信息 (coa_scheme_id, data_date)
+      3) 取所有已配置的节点（按 sim_node_config）
+      4) 取每个节点的初始状态 (prcp_data_basic)
+      5) 按月滚动 (1..month_count)
+      6) 批量 INSERT prcp_sim_result
+      7) 更新 run 状态 (SUCCESS / FAILED)
     """
-    from datetime import datetime
-
     # 1) 校验 + 创建 run
     scheme = db.execute(
         text("""SELECT id, scheme_code, scheme_name, coa_scheme_id, data_date
@@ -248,7 +446,6 @@ def run_engine(
     if not coa_scheme_id or not data_date:
         raise ValueError("方案缺少 coa_scheme_id 或 data_date")
 
-    # 2) 创建 run
     uid = _uid(user)
     target_date = _add_months(data_date, month_count)
     run_id = db.execute(
@@ -264,7 +461,7 @@ def run_engine(
     ).lastrowid
 
     try:
-        # 3) 取所有已配置的节点
+        # 2) 取所有已配置的节点
         configs = db.execute(
             text("""SELECT c.id AS cfg_id, c.coa_node_id, c.coa_node_code,
                            c.annual_growth_rate,
@@ -300,13 +497,12 @@ def run_engine(
                 "sort_order": r[5],
             })
 
-        # 4) 取每个节点的初始状态
+        # 3) 取每个节点的初始状态
         nodes_data = []
         for c in configs:
             cfg_id, coa_node_id, coa_node_code, growth_rate, node_code, node_name, node_level, parent_id, path = c
             init_state = get_initial_state(db, coa_node_id, data_date.isoformat())
             if init_state is None:
-                # 跳过无基础数据的节点
                 continue
             nodes_data.append({
                 "cfg_id": cfg_id,
@@ -319,14 +515,12 @@ def run_engine(
         if not nodes_data:
             raise ValueError(f"所有节点在 {data_date.isoformat()} 月均无基础数据，请先维护 prcp_data_basic")
 
-        # 更新 run.total_nodes
         db.execute(
             text("UPDATE prcp_sim_run SET total_nodes=:n WHERE id=:id"),
             {"n": len(nodes_data), "id": run_id},
         )
 
-        # 5) 按月滚动
-        # 预编译 INSERT 语句（动态列名 + VALUES 占位符）
+        # 4) 按月滚动
         all_cols = ORIG_COLS + REM_COLS + [
             "current_balance", "avg_balance", "weighted_rate", "interest_amount",
         ]
@@ -350,16 +544,9 @@ def run_engine(
                 growth_rate = nd["growth_rate"]
                 term_ratios = nd["term_ratios"]
 
-                # 步骤 2
                 net_new, month_new = compute_month_new(state, growth_rate)
-
-                # 步骤 3（加新业务到 orig/ rem 桶）
                 apply_term_split(state, month_new, term_ratios)
-
-                # 步骤 4（桶往前推）
                 state = roll_one_month(state)
-
-                # 步骤 5（主指标重算）
                 new_cb, new_ab, new_wr, new_ia = compute_main_metrics(
                     state, growth_rate, term_ratios, net_new, month_new,
                 )
@@ -369,7 +556,6 @@ def run_engine(
                 state["interest_amount"] = new_ia
                 nd["state"] = state
 
-                # 组装 INSERT 行
                 row = {
                     "sim_scheme_code": scheme_code,
                     "sim_scheme_id": scheme_id,
@@ -388,18 +574,16 @@ def run_engine(
                 row["calc_note"] = f"M{k}={data_date_k_str}; growth={growth_rate}%"
                 rows_k.append(row)
 
-            # 批量 INSERT（单月所有节点一次提交）
             if rows_k:
                 db.execute(text(insert_sql), rows_k)
 
-            # 更新进度
             progress = int(k / month_count * 100)
             db.execute(
                 text("UPDATE prcp_sim_run SET progress=:p, processed_nodes=:pn WHERE id=:id"),
                 {"p": progress, "pn": len(nodes_data), "id": run_id},
             )
 
-        # 6) 标记 SUCCESS
+        # 5) 标记 SUCCESS
         db.execute(
             text("""UPDATE prcp_sim_run SET
                 status='SUCCESS', progress=100, finished_at=NOW(),
@@ -410,7 +594,6 @@ def run_engine(
         return run_id
 
     except Exception as e:
-        # 标记 FAILED
         db.execute(
             text("""UPDATE prcp_sim_run SET
                 status='FAILED', finished_at=NOW(),
@@ -421,9 +604,6 @@ def run_engine(
         raise
 
 
-# ============================================================
-# 删除旧 run 的所有 result（重跑前清理）
-# ============================================================
 def cleanup_run_results(db: Session, sim_scheme_code: str, run_id: Optional[int] = None) -> int:
     """删除某 run_id（或某 scheme 所有）的 result
 
