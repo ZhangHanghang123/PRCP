@@ -36,6 +36,8 @@ interface ResultRow {
   category: string
   /** 是否有节点配置（true=已配置=新业务模拟 / false=未配置=纯滚动） */
   is_configured: boolean
+  /** 是否为汇总节点（true=从子叶子聚合 / false=叶子节点本身） */
+  is_aggregated: boolean
   current_balance: number
   avg_balance: number
   weighted_rate: number
@@ -157,9 +159,14 @@ const SimResultPage: React.FC = () => {
     () => new Set(results.filter(r => r.is_configured).map(r => r.coa_node_id)),
     [results]
   )
-  /** 未配置节点（只做时间桶滚动） */
+  /** 未配置叶子节点（只做时间桶滚动） */
   const rolledNodeIds = useMemo(
-    () => new Set(results.filter(r => !r.is_configured).map(r => r.coa_node_id)),
+    () => new Set(results.filter(r => !r.is_configured && !r.is_aggregated).map(r => r.coa_node_id)),
+    [results]
+  )
+  /** 汇总节点（从后代叶子聚合） */
+  const aggregatedNodeIds = useMemo(
+    () => new Set(results.filter(r => r.is_aggregated).map(r => r.coa_node_id)),
     [results]
   )
   const runnedNodeMap = useMemo(() => {
@@ -209,14 +216,15 @@ const SimResultPage: React.FC = () => {
 
   // =================== 表格：单月 64+64 桶（类似 BasicDataSheet） ===================
 
-  // 给 treeData 注入颜色 + 状态 Tag（响应 configuredNodeIds / rolledNodeIds 变化）
+  // 给 treeData 注入颜色 + 状态 Tag（响应 configuredNodeIds / rolledNodeIds / aggregatedNodeIds 变化）
   const treeDataColored: DataNode[] = useMemo(() => {
     const colorize = (n: DataNode): DataNode => {
       const id = Number(n.key)
       const configured = configuredNodeIds.has(id)
       const rolled = rolledNodeIds.has(id)
-      const textColor = configured ? '#52c41a' : (rolled ? '#262626' : '#888')
-      // 保留原 title（loadCoaTree 已构造的 <code>code title</code>），外面再包一层颜色 + Tag
+      const aggregated = aggregatedNodeIds.has(id)
+      // 颜色：已配置=绿色，汇总/滚动=黑色，未跑过=灰色
+      const textColor = configured ? '#52c41a' : ((rolled || aggregated) ? '#262626' : '#888')
       const originalTitle = (n as any).title as React.ReactNode
       return {
         ...n,
@@ -233,13 +241,18 @@ const SimResultPage: React.FC = () => {
                 🔄 仅滚动
               </Tag>
             )}
+            {aggregated && (
+              <Tag color="default" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '14px', borderColor: '#bfbfbf' }}>
+                📊 汇总节点
+              </Tag>
+            )}
           </span>
         ),
         children: n.children?.map(colorize),
       }
     }
     return treeData.map(colorize)
-  }, [treeData, configuredNodeIds, rolledNodeIds])
+  }, [treeData, configuredNodeIds, rolledNodeIds, aggregatedNodeIds])
 
   // 单月快照数据：1 行 = 当前选中节点 × 当前选中月份
   const currentMonthRow = useMemo(() => {
@@ -278,7 +291,12 @@ const SimResultPage: React.FC = () => {
                 ⚡ 已配置
               </Tag>
             )}
-            {!currentMonthRow.is_configured && (
+            {currentMonthRow.is_aggregated && (
+              <Tag style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px', color: '#595959', borderColor: '#bfbfbf' }}>
+                📊 汇总
+              </Tag>
+            )}
+            {!currentMonthRow.is_configured && !currentMonthRow.is_aggregated && (
               <Tag style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px', color: '#888' }}>
                 🔄 仅滚动
               </Tag>
@@ -414,31 +432,38 @@ const SimResultPage: React.FC = () => {
                 value={currentRun.total_nodes}
               />
             </Col>
-            <Col span={4}>
+            <Col span={3}>
               <Statistic
-                title={
-                  <span>
-                    <Tag color="green" style={{ marginRight: 4 }}>⚡ 已配置</Tag>
-                  </span>
-                }
+                title={<span><Tag color="green" style={{ marginRight: 4 }}>⚡ 已配置</Tag></span>}
                 value={currentRun.configured_node_count || 0}
                 valueStyle={{ color: '#52c41a', fontWeight: 600 }}
               />
             </Col>
-            <Col span={4}>
+            <Col span={3}>
               <Statistic
-                title={
-                  <span>
-                    <Tag style={{ marginRight: 4 }}>🔄 仅滚动</Tag>
-                  </span>
-                }
-                value={currentRun.rolled_node_count || 0}
+                title={<span><Tag style={{ marginRight: 4 }}>🔄 仅滚动</Tag></span>}
+                value={(currentRun.rolled_node_count || 0) - (currentRun.aggregated_node_count || 0)}
+                valueStyle={{ color: '#595959' }}
+              />
+            </Col>
+            <Col span={3}>
+              <Statistic
+                title={<span><Tag color="default" style={{ marginRight: 4, borderColor: '#bfbfbf' }}>📊 汇总节点</Tag></span>}
+                value={currentRun.aggregated_node_count || 0}
                 valueStyle={{ color: '#595959' }}
               />
             </Col>
             <Col span={3}><Statistic title="生成月份" value={currentRun.month_count} /></Col>
-            <Col span={2}><Statistic title="耗时" value={currentRun.duration_ms || '-'} suffix="ms" /></Col>
-            <Col span={2}><Statistic title="基准月 → 目标月" value={`${currentRun.base_data_date} → ${currentRun.target_data_date}`} valueStyle={{ fontSize: 13 }} /></Col>
+            <Col span={3}><Statistic title="耗时" value={currentRun.duration_ms || '-'} suffix="ms" /></Col>
+          </Row>
+          <Row gutter={16} style={{ marginTop: 8 }}>
+            <Col span={6}>
+              <Statistic
+                title="基准月 → 目标月"
+                value={`${currentRun.base_data_date} → ${currentRun.target_data_date}`}
+                valueStyle={{ fontSize: 13 }}
+              />
+            </Col>
           </Row>
           {currentRun.status === 'FAILED' && (
             <div style={{ marginTop: 12, color: '#f5222d' }}>

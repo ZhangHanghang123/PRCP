@@ -85,7 +85,7 @@ class NewBusinessEngine(EngineBase):
         row = db.execute(
             text("""SELECT id, sim_scheme_id, sim_scheme_code, base_data_date, month_count,
                            target_data_date, status, progress, total_nodes, processed_nodes,
-                           configured_node_count, rolled_node_count,
+                           configured_node_count, rolled_node_count, aggregated_node_count,
                            duration_ms, error_message, started_at, finished_at, created_at
                     FROM prcp_sim_run WHERE id=:id"""),
             {"id": run_id},
@@ -105,11 +105,12 @@ class NewBusinessEngine(EngineBase):
             "processed_nodes": row[9],
             "configured_node_count": row[10] or 0,
             "rolled_node_count": row[11] or 0,
-            "duration_ms": row[12],
-            "error_message": row[13],
-            "started_at": row[14].isoformat() if row[14] else None,
-            "finished_at": row[15].isoformat() if row[15] else None,
-            "created_at": row[16].isoformat() if row[16] else None,
+            "aggregated_node_count": row[12] or 0,
+            "duration_ms": row[13],
+            "error_message": row[14],
+            "started_at": row[15].isoformat() if row[15] else None,
+            "finished_at": row[16].isoformat() if row[16] else None,
+            "created_at": row[17].isoformat() if row[17] else None,
         }
 
     def list_runs(self, db: Session, **filters) -> List[Dict]:
@@ -132,7 +133,7 @@ class NewBusinessEngine(EngineBase):
         rows = db.execute(
             text(f"""SELECT id, sim_scheme_id, sim_scheme_code, base_data_date, month_count,
                            target_data_date, status, progress, total_nodes, processed_nodes,
-                           configured_node_count, rolled_node_count,
+                           configured_node_count, rolled_node_count, aggregated_node_count,
                            duration_ms, started_at, finished_at, created_at
                     FROM prcp_sim_run
                     WHERE {' AND '.join(where)}
@@ -149,10 +150,11 @@ class NewBusinessEngine(EngineBase):
                 "total_nodes": r[8], "processed_nodes": r[9],
                 "configured_node_count": r[10] or 0,
                 "rolled_node_count": r[11] or 0,
-                "duration_ms": r[12],
-                "started_at": r[13].isoformat() if r[13] else None,
-                "finished_at": r[14].isoformat() if r[14] else None,
-                "created_at": r[15].isoformat() if r[15] else None,
+                "aggregated_node_count": r[12] or 0,
+                "duration_ms": r[13],
+                "started_at": r[14].isoformat() if r[14] else None,
+                "finished_at": r[15].isoformat() if r[15] else None,
+                "created_at": r[16].isoformat() if r[16] else None,
             } for r in rows
         ]
 
@@ -192,7 +194,7 @@ class NewBusinessEngine(EngineBase):
 
         base_cols = """r.id, r.sim_scheme_code, r.run_id, r.data_date, r.date_offset,
                       r.coa_scheme_id, r.coa_node_id, r.node_code, r.node_name,
-                      r.node_level, r.category, r.is_configured,
+                      r.node_level, r.category, r.is_configured, r.is_aggregated,
                       r.current_balance, r.avg_balance, r.weighted_rate, r.interest_amount,
                       r.calc_note"""
         if with_buckets:
@@ -210,8 +212,8 @@ class NewBusinessEngine(EngineBase):
                     LIMIT 2000"""
 
         rows = db.execute(text(sql), params).fetchall()
-        # base_cols 含 17 个字段（id..calc_note），桶数据从 idx=17 开始
-        bucket_idx_start = 17
+        # base_cols 含 18 个字段（id..calc_note），桶数据从 idx=18 开始
+        bucket_idx_start = 18
 
         items = []
         for r in rows:
@@ -224,11 +226,12 @@ class NewBusinessEngine(EngineBase):
                 "node_code": r[7], "node_name": r[8],
                 "node_level": r[9], "category": r[10],
                 "is_configured": bool(r[11]) if r[11] is not None else False,
-                "current_balance": float(r[12]) if r[12] is not None else 0.0,
-                "avg_balance": float(r[13]) if r[13] is not None else 0.0,
-                "weighted_rate": float(r[14]) if r[14] is not None else 0.0,
-                "interest_amount": float(r[15]) if r[15] is not None else 0.0,
-                "calc_note": r[16],
+                "is_aggregated": bool(r[12]) if r[12] is not None else False,
+                "current_balance": float(r[13]) if r[13] is not None else 0.0,
+                "avg_balance": float(r[14]) if r[14] is not None else 0.0,
+                "weighted_rate": float(r[15]) if r[15] is not None else 0.0,
+                "interest_amount": float(r[16]) if r[16] is not None else 0.0,
+                "calc_note": r[17],
             }
             if with_buckets:
                 for i, col in enumerate(ORIG_COLS + REM_COLS):
@@ -435,12 +438,14 @@ def _run_engine(
     步骤：
       1) 创建 prcp_sim_run 记录 (status=RUNNING)
       2) 取方案基础信息 (coa_scheme_id, data_date)
-      3) 取账户册下所有「有基础数据」的节点（LEFT JOIN 已配置）
-         - 已配置节点 (is_configured=1)：按 growth_rate + term_ratios 计算
-         - 未配置节点 (is_configured=0)：仅做时间桶滚动，不加新业务
-      4) 按月滚动 (1..month_count)
-      5) 批量 INSERT prcp_sim_result（带 is_configured 标识）
-      6) 更新 run 状态 (SUCCESS / FAILED)
+      3) 取账户册下所有「有基础数据」+「叶子节点」(node_type='BUSINESS')
+         - 已配置叶子节点 (is_configured=1)：按 growth_rate + term_ratios 计算
+         - 未配置叶子节点 (is_configured=0)：仅做时间桶滚动
+      4) 按月滚动 (1..month_count) — 仅叶子节点
+      5) 聚合 SUMMARY 节点：递归查所有后代叶子，按 date_offset 聚合
+         加权利率按当前余额加权：wr = Σ(c.current × c.wr) / Σ(c.current)
+      6) 批量 INSERT prcp_sim_result（is_configured + is_aggregated 双标记）
+      7) 更新 run 状态 (SUCCESS / FAILED)
     """
     # 1) 校验 + 创建 run
     scheme = db.execute(
@@ -455,24 +460,24 @@ def _run_engine(
     if not coa_scheme_id or not data_date:
         raise ValueError("方案缺少 coa_scheme_id 或 data_date")
 
-    uid = _uid(user)
-    target_date = _add_months(data_date, month_count)
-    run_id = db.execute(
-        text("""INSERT INTO prcp_sim_run
+        uid = _uid(user)
+        target_date = _add_months(data_date, month_count)
+        run_id = db.execute(
+            text("""INSERT INTO prcp_sim_run
             (sim_scheme_id, sim_scheme_code, base_data_date, month_count,
              target_data_date, status, progress, total_nodes, processed_nodes,
-             configured_node_count, rolled_node_count,
+             configured_node_count, rolled_node_count, aggregated_node_count,
              started_at, created_by)
-            VALUES (:sid, :sc, :bd, :mc, :td, 'RUNNING', 0, 0, 0, 0, 0, NOW(), :u)"""),
-        {
-            "sid": scheme_id, "sc": scheme_code, "bd": data_date.isoformat(),
-            "mc": month_count, "td": target_date.isoformat(), "u": uid,
-        },
-    ).lastrowid
+            VALUES (:sid, :sc, :bd, :mc, :td, 'RUNNING', 0, 0, 0, 0, 0, 0, NOW(), :u)"""),
+            {
+                "sid": scheme_id, "sc": scheme_code, "bd": data_date.isoformat(),
+                "mc": month_count, "td": target_date.isoformat(), "u": uid,
+            },
+        ).lastrowid
 
     try:
-        # 2) 取账户册下所有「有基础数据」的节点 + LEFT JOIN 配置信息
-        all_nodes = db.execute(
+        # 2) 只取叶子节点（node_type='BUSINESS'）+ LEFT JOIN 配置信息
+        leaf_nodes = db.execute(
             text("""SELECT n.id AS coa_node_id, n.node_code, n.node_name,
                            n.node_level, n.parent_id, n.path,
                            c.id AS cfg_id, c.annual_growth_rate
@@ -486,18 +491,19 @@ def _run_engine(
                         AND c.scheme_id  = :sid
                         AND c.is_deleted = 0
                     WHERE n.scheme_id = :coa_sid
+                      AND n.node_type = 'BUSINESS'
                     ORDER BY n.path, n.id"""),
             {"sid": scheme_id, "bd": data_date.isoformat(), "coa_sid": coa_scheme_id},
         ).fetchall()
 
-        if not all_nodes:
+        if not leaf_nodes:
             raise ValueError(
-                f"账户册 id={coa_scheme_id} 下没有任何节点在 {data_date.isoformat()} 月有基础数据，"
+                f"账户册 id={coa_scheme_id} 下没有任何 BUSINESS 节点在 {data_date.isoformat()} 月有基础数据，"
                 f"请先维护 prcp_data_basic"
             )
 
         # 3) 取所有已配置节点的 term_ratios
-        cfg_ids = [row[6] for row in all_nodes if row[6] is not None]
+        cfg_ids = [row[6] for row in leaf_nodes if row[6] is not None]
         if cfg_ids:
             ratio_rows = db.execute(
                 text(f"""SELECT config_id, term_value, term_unit, business_ratio, interest_rate, sort_order
@@ -516,11 +522,11 @@ def _run_engine(
                 "sort_order": r[5],
             })
 
-        # 4) 取每个节点的初始状态 + 区分配置/未配置
+        # 4) 取每个叶子节点的初始状态 + 区分配置/未配置
         nodes_data = []
         configured_count = 0
         rolled_count = 0
-        for row in all_nodes:
+        for row in leaf_nodes:
             coa_node_id, node_code, node_name, node_level, parent_id, path, cfg_id, growth_rate = row
             init_state = get_initial_state(db, coa_node_id, data_date.isoformat())
             if init_state is None:
@@ -544,19 +550,7 @@ def _run_engine(
                 "state": init_state,
             })
 
-        db.execute(
-            text("""UPDATE prcp_sim_run SET
-                total_nodes=:tn, configured_node_count=:cn, rolled_node_count=:rn
-                WHERE id=:id"""),
-            {
-                "tn": len(nodes_data),
-                "cn": configured_count,
-                "rn": rolled_count,
-                "id": run_id,
-            },
-        )
-
-        # 5) 按月滚动（配置节点 + 未配置节点都跑）
+        # 5) 按月滚动（叶子节点）
         all_cols = ORIG_COLS + REM_COLS + [
             "current_balance", "avg_balance", "weighted_rate", "interest_amount",
         ]
@@ -564,7 +558,7 @@ def _run_engine(
             "sim_scheme_code", "sim_scheme_id", "run_id",
             "data_date", "date_offset",
             "coa_scheme_id", "coa_node_id", "node_code", "node_name",
-            "node_level", "category", "is_configured",
+            "node_level", "category", "is_configured", "is_aggregated",
         ] + all_cols + ["calc_note"]
         placeholders = ", ".join(f":{c}" for c in insert_cols)
         col_list = ", ".join(insert_cols)
@@ -583,14 +577,10 @@ def _run_engine(
 
                 net_new, month_new = compute_month_new(state, growth_rate)
 
-                # 只有已配置节点才按 term_ratios 加新业务
                 if is_configured and term_ratios:
                     apply_term_split(state, month_new, term_ratios)
-                # 未配置节点：net_new=0, month_new=rem_m1（纯到期回收），不加新业务
 
                 state = roll_one_month(state)
-
-                # 未配置节点主指标也按滚动后桶数据重算（用 growth=0 + 空 term_ratios）
                 new_cb, new_ab, new_wr, new_ia = compute_main_metrics(
                     state, growth_rate, term_ratios, net_new, month_new,
                 )
@@ -613,10 +603,10 @@ def _run_engine(
                     "node_level": state.get("node_level", 0),
                     "category": state.get("category", ""),
                     "is_configured": 1 if is_configured else 0,
+                    "is_aggregated": 0,
                 }
                 for col in all_cols:
                     row[col] = float(state.get(col, 0.0))
-                # calc_note 区分配置/未配置
                 if is_configured:
                     row["calc_note"] = f"M{k}={data_date_k_str}; growth={growth_rate}%; configured"
                 else:
@@ -632,7 +622,38 @@ def _run_engine(
                 {"p": progress, "pn": len(nodes_data), "id": run_id},
             )
 
-        # 6) 标记 SUCCESS
+        # 6) 聚合 SUMMARY 节点：从所有后代叶子按 date_offset 聚合
+        aggregated_count = _aggregate_summary_nodes(
+            db=db,
+            run_id=run_id,
+            coa_scheme_id=coa_scheme_id,
+            scheme_code=scheme_code,
+            sim_scheme_id=scheme_id,
+            base_date=data_date,
+            month_count=month_count,
+            insert_sql=insert_sql,
+            all_cols=all_cols,
+        )
+
+        # 7) 更新 run 总节点数 = 叶子 + 汇总
+        total_count = len(nodes_data) + aggregated_count
+        db.execute(
+            text("""UPDATE prcp_sim_run SET
+                total_nodes=:tn, processed_nodes=:pn,
+                configured_node_count=:cn, rolled_node_count=:rn,
+                aggregated_node_count=:an
+                WHERE id=:id"""),
+            {
+                "tn": total_count,
+                "pn": total_count,
+                "cn": configured_count,
+                "rn": rolled_count,
+                "an": aggregated_count,
+                "id": run_id,
+            },
+        )
+
+        # 8) 标记 SUCCESS
         db.execute(
             text("""UPDATE prcp_sim_run SET
                 status='SUCCESS', progress=100, finished_at=NOW(),
@@ -651,6 +672,133 @@ def _run_engine(
             {"err": str(e)[:1000], "id": run_id},
         )
         raise
+
+
+def _aggregate_summary_nodes(
+    db: Session,
+    run_id: int,
+    coa_scheme_id: int,
+    scheme_code: str,
+    sim_scheme_id: int,
+    base_date: date,
+    month_count: int,
+    insert_sql: str,
+    all_cols: list,
+) -> int:
+    """递归聚合所有 SUMMARY 节点
+
+    算法：
+      对每个 SUMMARY 节点，用递归 CTE 查所有后代叶子节点（BUSINESS）
+      按 date_offset 分组聚合：
+        - current_balance = SUM(child.current)
+        - avg_balance     = SUM(child.avg)
+        - interest_amount = SUM(child.interest)
+        - 加权利率        = SUM(child.current × child.wr) / SUM(child.current)
+        - 各桶 orig_*/rem_* = SUM(child.bucket)
+        - is_configured=0, is_aggregated=1
+        - calc_note = "Aggregated from N leaves"
+
+    返回聚合成功的 SUMMARY 节点数
+    """
+    summary_nodes = db.execute(
+        text("""SELECT id, node_code, node_name, node_level, category
+                FROM prcp_coa_node
+                WHERE scheme_id = :sid AND node_type = 'SUMMARY'
+                ORDER BY node_level DESC"""),
+        {"sid": coa_scheme_id},
+    ).fetchall()
+
+    if not summary_nodes:
+        return 0
+
+    # 聚合桶数据列
+    bucket_sum_exprs = ", ".join(f"SUM(r.{c}) AS {c}" for c in (ORIG_COLS + REM_COLS))
+
+    aggregated_count = 0
+
+    for sn in summary_nodes:
+        sn_id, sn_code, sn_name, sn_level, sn_cat = sn
+
+        # 递归查所有后代叶子节点（只 BUSINESS）
+        leaf_ids_rows = db.execute(
+            text("""
+                WITH RECURSIVE descendants AS (
+                    SELECT id, parent_id FROM prcp_coa_node WHERE parent_id = :pid
+                    UNION ALL
+                    SELECT n.id, n.parent_id FROM prcp_coa_node n
+                    JOIN descendants d ON n.parent_id = d.id
+                )
+                SELECT id FROM prcp_coa_node
+                WHERE id IN (SELECT id FROM descendants)
+                  AND scheme_id = :sid AND node_type = 'BUSINESS'
+            """),
+            {"pid": sn_id, "sid": coa_scheme_id},
+        ).fetchall()
+
+        leaf_ids = [r[0] for r in leaf_ids_rows]
+        if not leaf_ids:
+            continue
+
+        # 按 date_offset 聚合
+        leaf_placeholders = ",".join(str(i) for i in leaf_ids)
+        agg_sql = f"""
+            SELECT r.date_offset,
+                   SUM(r.current_balance) AS agg_current,
+                   SUM(r.avg_balance)     AS agg_avg,
+                   SUM(r.interest_amount) AS agg_interest,
+                   SUM(r.current_balance * r.weighted_rate) AS sum_weighted,
+                   {bucket_sum_exprs}
+            FROM prcp_sim_result r
+            WHERE r.run_id = :rid AND r.coa_node_id IN ({leaf_placeholders})
+            GROUP BY r.date_offset
+            ORDER BY r.date_offset
+        """
+        agg_rows = db.execute(text(agg_sql), {"rid": run_id}).fetchall()
+
+        if not agg_rows:
+            continue
+
+        # 构造批量 INSERT 数据
+        rows_to_insert = []
+        for r in agg_rows:
+            date_offset, agg_current, agg_avg, agg_interest, sum_weighted = r[:5]
+            # 加权利率：按当前余额加权
+            agg_wr = float(sum_weighted) / float(agg_current) if agg_current and float(agg_current) > 0 else 0.0
+
+            data_date_k = _add_months(base_date, date_offset)
+            data_date_k_str = data_date_k.isoformat()
+
+            row = {
+                "sim_scheme_code": scheme_code,
+                "sim_scheme_id": sim_scheme_id,
+                "run_id": run_id,
+                "data_date": data_date_k_str,
+                "date_offset": date_offset,
+                "coa_scheme_id": coa_scheme_id,
+                "coa_node_id": sn_id,
+                "node_code": sn_code,
+                "node_name": sn_name,
+                "node_level": sn_level,
+                "category": sn_cat or "",
+                "is_configured": 0,
+                "is_aggregated": 1,
+                "current_balance": float(agg_current) if agg_current else 0.0,
+                "avg_balance": float(agg_avg) if agg_avg else 0.0,
+                "weighted_rate": agg_wr,
+                "interest_amount": float(agg_interest) if agg_interest else 0.0,
+                "calc_note": f"Aggregated from {len(leaf_ids)} leaves; M{date_offset}={data_date_k_str}",
+            }
+            # 桶数据：r[5..5+128)
+            for i, col in enumerate(ORIG_COLS + REM_COLS):
+                v = r[5 + i]
+                row[col] = float(v) if v is not None else 0.0
+            rows_to_insert.append(row)
+
+        if rows_to_insert:
+            db.execute(text(insert_sql), rows_to_insert)
+            aggregated_count += 1
+
+    return aggregated_count
 
 
 def cleanup_run_results(db: Session, sim_scheme_code: str, run_id: Optional[int] = None) -> int:
