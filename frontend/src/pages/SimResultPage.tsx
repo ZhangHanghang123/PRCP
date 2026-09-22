@@ -5,7 +5,7 @@
  *      + 右侧选中节点的 24 月快照 Tabs（每 Tab 一个节点 × 64+64 桶二级表头表格）
  *
  * 顶部：方案下拉 + Run 选择 + 4 全局 KPI 汇总
- * 主体：左 7 列账户册树 + 右 17 列节点 24 月快照
+ * 主体：左 7 列账户册树 + 右 17 列节点 N 月快照（选中 + 下级多行）
  */
 import React, { useEffect, useMemo, useState } from 'react'
 import {
@@ -115,6 +115,13 @@ const SimResultPage: React.FC = () => {
         icon: n.isLeaf ? <FileTextOutlined /> : <FolderOutlined />,
         isLeaf: n.isLeaf,
         children: n.children?.map(toDataNode),
+        // 自定义元数据：节点类型/层级/编码（用于按层级缩进展示）
+        ...({
+          nodeType: n.type,
+          nodeLevel: n.level,
+          nodeCode: n.code,
+          nodeName: n.name,
+        } as any),
       })
       setTreeData((t.items || []).map(toDataNode))
       const expandKeys: string[] = []
@@ -214,6 +221,55 @@ const SimResultPage: React.FC = () => {
     setActiveMonthTab('1')
   }, [selectedNodeId])
 
+  // =================== 选中节点 + 后代快照 ===================
+
+  /** 在 treeData 中递归查找节点（返回带自定义字段的原始对象） */
+  const findNodeInTree = (nodes: DataNode[], id: string | number): any => {
+    const target = String(id)
+    for (const n of nodes) {
+      if (n.key === target) return n
+      if (n.children && n.children.length > 0) {
+        const found = findNodeInTree(n.children, target)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  /** 收集节点及其所有后代（按树 pre-order 排序） */
+  const collectNodeAndDescendants = (root: any): any[] => {
+    const result: any[] = []
+    const dfs = (n: any) => {
+      result.push(n)
+      if (n.children && n.children.length > 0) {
+        for (const c of n.children) dfs(c)
+      }
+    }
+    if (root) dfs(root)
+    return result
+  }
+
+  /** 选中节点 + 所有后代节点对象（按树层级排序） */
+  const selectedNodeWithDescendants = useMemo(() => {
+    if (!selectedNodeId || treeData.length === 0) return []
+    const node = findNodeInTree(treeData, selectedNodeId)
+    return collectNodeAndDescendants(node)
+  }, [selectedNodeId, treeData])
+
+  /** 选中节点 + 后代在当前月份的快照行（多行） */
+  const currentMonthRows: ResultRow[] = useMemo(() => {
+    if (!selectedNodeId || selectedNodeResults.length === 0) return []
+    if (selectedNodeWithDescendants.length === 0) return []
+    const descendantIds = new Set(selectedNodeWithDescendants.map(n => Number(n.key)))
+    // 按树 pre-order 顺序输出：选中节点自身 + 后代
+    return selectedNodeWithDescendants
+      .map(n => {
+        const nid = Number(n.key)
+        return selectedNodeResults.find(r => r.coa_node_id === nid) || null
+      })
+      .filter((r): r is ResultRow => r !== null)
+  }, [selectedNodeResults, selectedNodeWithDescendants])
+
   // =================== 表格：单月 64+64 桶（类似 BasicDataSheet） ===================
 
   // 给 treeData 注入颜色 + 状态 Tag（响应 configuredNodeIds / rolledNodeIds / aggregatedNodeIds 变化）
@@ -254,56 +310,119 @@ const SimResultPage: React.FC = () => {
     return treeData.map(colorize)
   }, [treeData, configuredNodeIds, rolledNodeIds, aggregatedNodeIds])
 
-  // 单月快照数据：1 行 = 当前选中节点 × 当前选中月份
-  const currentMonthRow = useMemo(() => {
-    return selectedNodeResults.find(r => r.date_offset === Number(activeMonthTab)) || null
+  // 单月快照数据：M_k 行的「选中节点 + 所有下级」数据（已 pre-order 排序）
+  const currentMonthRowsAtTab: ResultRow[] = useMemo(() => {
+    const offset = Number(activeMonthTab)
+    return selectedNodeResults.filter(r => r.date_offset === offset)
   }, [selectedNodeResults, activeMonthTab])
 
-  // 二级表头：原始期限（#13c2c2 青）+ 剩余期限（#722ed1 紫）+ 度量（#eb2f96 粉）
-  const monthTableColumns: ColumnsType<any> = useMemo(() => {
-    const baseCol: ColumnsType<any>[number] = {
-      title: '账户册节点',
+  // 按树 pre-order 排序（选中节点 + 后代）
+  const monthTableData: ResultRow[] = useMemo(() => {
+    if (!selectedNodeId || selectedNodeWithDescendants.length === 0) return []
+    const byNodeId = new Map<number, ResultRow>()
+    for (const r of currentMonthRowsAtTab) byNodeId.set(r.coa_node_id, r)
+    return selectedNodeWithDescendants
+      .map(n => byNodeId.get(Number(n.key)))
+      .filter((r): r is ResultRow => r !== undefined)
+  }, [currentMonthRowsAtTab, selectedNodeWithDescendants, selectedNodeId])
+
+  /** 选中节点在 M_k 的当前数据（用于节点级 KPI / 表头日期） */
+  const currentMonthRow = useMemo(() => {
+    if (!selectedNodeId) return null
+    return currentMonthRowsAtTab.find(r => r.coa_node_id === selectedNodeId) || null
+  }, [currentMonthRowsAtTab, selectedNodeId])
+
+  // 表格列：节点列按层级缩进 + 颜色 + Tag；桶列每行单独渲染
+  const monthTableColumns: ColumnsType<ResultRow> = useMemo(() => {
+    const baseCol: ColumnsType<ResultRow>[number] = {
+      title: (
+        <span>
+          账户册节点
+          <span style={{ marginLeft: 8, fontSize: 11, color: '#999', fontWeight: 'normal' }}>
+            (选中 + {selectedNodeWithDescendants.length - 1} 个下级)
+          </span>
+        </span>
+      ),
       key: 'node',
       fixed: 'left',
-      width: 200,
-      render: () => currentMonthRow ? (
-        <span>
-          <code style={{
-            fontSize: 11,
-            background: currentMonthRow.is_configured ? '#f6ffed' : '#f5f5f5',
-            color: currentMonthRow.is_configured ? '#52c41a' : '#262626',
-            fontWeight: currentMonthRow.is_configured ? 600 : 400,
-            padding: '1px 4px',
-            borderRadius: 3,
-            border: currentMonthRow.is_configured ? '1px solid #b7eb8f' : 'none',
-          }}>
-            {currentMonthRow.node_code}
-          </code>
-          <div style={{
-            fontSize: 12,
-            marginTop: 2,
-            color: currentMonthRow.is_configured ? '#52c41a' : '#262626',
-            fontWeight: currentMonthRow.is_configured ? 500 : 400,
-          }}>
-            {currentMonthRow.node_name}
-            {currentMonthRow.is_configured && (
-              <Tag color="green" style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px' }}>
-                ⚡ 已配置
-              </Tag>
-            )}
-            {currentMonthRow.is_aggregated && (
-              <Tag style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px', color: '#595959', borderColor: '#bfbfbf' }}>
-                📊 汇总
-              </Tag>
-            )}
-            {!currentMonthRow.is_configured && !currentMonthRow.is_aggregated && (
-              <Tag style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px', color: '#888' }}>
-                🔄 仅滚动
-              </Tag>
-            )}
+      width: 240,
+      onCell: (record: ResultRow) => {
+        const isSelected = record.coa_node_id === selectedNodeId
+        const isDescendant = record.coa_node_id !== selectedNodeId
+        // 找节点的层级信息（用于缩进）
+        const treeNode = selectedNodeWithDescendants.find(n => Number(n.key) === record.coa_node_id)
+        const baseLevel = (selectedNodeWithDescendants[0]?.nodeLevel as number) || 1
+        const nodeLevel = (treeNode?.nodeLevel as number) || baseLevel
+        const indent = Math.max(0, nodeLevel - baseLevel) * 16
+        return {
+          style: {
+            background: isSelected ? '#f0f5ff' : (isDescendant ? '#fafafa' : undefined),
+            fontWeight: isSelected ? 600 : 400,
+            paddingLeft: 8 + indent,
+          },
+        }
+      },
+      render: (_, record: ResultRow) => {
+        const isSelected = record.coa_node_id === selectedNodeId
+        const treeNode = selectedNodeWithDescendants.find(n => Number(n.key) === record.coa_node_id)
+        const indent = Math.max(0, ((treeNode?.nodeLevel as number) || 0) - ((selectedNodeWithDescendants[0]?.nodeLevel as number) || 0)) * 12
+        return (
+          <div style={{ paddingLeft: indent }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <code style={{
+                fontSize: 11,
+                background: record.is_configured ? '#f6ffed' : (record.is_aggregated ? '#fff7e6' : '#f5f5f5'),
+                color: record.is_configured ? '#52c41a' : '#262626',
+                fontWeight: record.is_configured ? 600 : 400,
+                padding: '1px 4px',
+                borderRadius: 3,
+                border: record.is_configured ? '1px solid #b7eb8f' : 'none',
+              }}>
+                {record.node_code}
+              </code>
+              {isSelected && <span style={{ fontSize: 10, color: '#2f54eb', fontWeight: 600 }}>▼ 选中</span>}
+            </div>
+            <div style={{
+              fontSize: 11,
+              marginTop: 2,
+              color: record.is_configured ? '#52c41a' : '#262626',
+              fontWeight: record.is_configured ? 500 : 400,
+            }}>
+              {record.node_name}
+              {record.is_configured && (
+                <Tag color="green" style={{ marginLeft: 4, fontSize: 9, padding: '0 3px', lineHeight: '12px' }}>
+                  ⚡ 已配置
+                </Tag>
+              )}
+              {record.is_aggregated && (
+                <Tag style={{ marginLeft: 4, fontSize: 9, padding: '0 3px', lineHeight: '12px', color: '#595959', borderColor: '#bfbfbf' }}>
+                  📊 汇总
+                </Tag>
+              )}
+              {!record.is_configured && !record.is_aggregated && (
+                <Tag style={{ marginLeft: 4, fontSize: 9, padding: '0 3px', lineHeight: '12px', color: '#888' }}>
+                  🔄 仅滚动
+                </Tag>
+              )}
+            </div>
           </div>
+        )
+      },
+    }
+    const renderBucketCell = (colName: string, color: string) => (_: any, record: ResultRow) => {
+      const v = record[colName]
+      if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+      if (Math.abs(v as number) < 0.005) return <span style={{ color: '#bbb' }}>·</span>
+      const isSelected = record.coa_node_id === selectedNodeId
+      return (
+        <span style={{
+          color,
+          fontFamily: 'monospace',
+          fontWeight: isSelected ? 600 : 400,
+        }}>
+          {(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}
         </span>
-      ) : '-',
+      )
     }
     const origGroup = {
       title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>原始期限金额（{currentMonthRow?.data_date || '-'}）</span>,
@@ -313,13 +432,13 @@ const SimResultPage: React.FC = () => {
         width: b.width,
         align: 'right' as const,
         onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-        render: () => {
-          if (!currentMonthRow) return <span style={{ color: '#ccc' }}>-</span>
-          const v = currentMonthRow[`orig_${b.key}`]
-          if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
-          if (Math.abs(v) < 0.005) return <span style={{ color: '#bbb' }}>·</span>
-          return <span style={{ color: '#13c2c2', fontFamily: 'monospace' }}>{(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-        },
+        onCell: (record: ResultRow) => ({
+          style: {
+            background: record.coa_node_id === selectedNodeId ? '#f0f5ff' : undefined,
+            fontWeight: record.coa_node_id === selectedNodeId ? 600 : 400,
+          },
+        }),
+        render: renderBucketCell(`orig_${b.key}`, '#13c2c2'),
       })),
     }
     const remGroup = {
@@ -330,13 +449,13 @@ const SimResultPage: React.FC = () => {
         width: b.width,
         align: 'right' as const,
         onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-        render: () => {
-          if (!currentMonthRow) return <span style={{ color: '#ccc' }}>-</span>
-          const v = currentMonthRow[`rem_${b.key}`]
-          if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
-          if (Math.abs(v) < 0.005) return <span style={{ color: '#bbb' }}>·</span>
-          return <span style={{ color: '#722ed1', fontFamily: 'monospace' }}>{(v as number).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-        },
+        onCell: (record: ResultRow) => ({
+          style: {
+            background: record.coa_node_id === selectedNodeId ? '#f0f5ff' : undefined,
+            fontWeight: record.coa_node_id === selectedNodeId ? 600 : 400,
+          },
+        }),
+        render: renderBucketCell(`rem_${b.key}`, '#722ed1'),
       })),
     }
     const measureGroup = {
@@ -344,20 +463,48 @@ const SimResultPage: React.FC = () => {
       children: [
         { title: '当前余额', key: 'current_balance', width: 110, align: 'right' as const,
           onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-          render: () => currentMonthRow ? <strong style={{ color: '#2f54eb' }}>{(currentMonthRow.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</strong> : '-' },
+          onCell: (record: ResultRow) => ({
+            style: {
+              background: record.coa_node_id === selectedNodeId ? '#f0f5ff' : undefined,
+              fontWeight: record.coa_node_id === selectedNodeId ? 600 : 400,
+            },
+          }),
+          render: (_: any, record: ResultRow) => (
+            <strong style={{ color: '#2f54eb' }}>
+              {(record.current_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+            </strong>
+          ) },
         { title: '平均余额', key: 'avg_balance', width: 110, align: 'right' as const,
           onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-          render: () => currentMonthRow ? (currentMonthRow.avg_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-' },
-        { title: '加权利率', key: 'weighted_rate', width: 85, align: 'right' as const,
+          onCell: (record: ResultRow) => ({
+            style: {
+              background: record.coa_node_id === selectedNodeId ? '#f0f5ff' : undefined,
+              fontWeight: record.coa_node_id === selectedNodeId ? 600 : 400,
+            },
+          }),
+          render: (_: any, record: ResultRow) => (record.avg_balance || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
+        { title: '加权利率(%)', key: 'weighted_rate', width: 90, align: 'right' as const,
           onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-          render: () => currentMonthRow ? <span style={{ color: '#fa8c16' }}>{(currentMonthRow.weighted_rate || 0).toFixed(4)}%</span> : '-' },
+          onCell: (record: ResultRow) => ({
+            style: {
+              background: record.coa_node_id === selectedNodeId ? '#f0f5ff' : undefined,
+              fontWeight: record.coa_node_id === selectedNodeId ? 600 : 400,
+            },
+          }),
+          render: (_: any, record: ResultRow) => <span style={{ color: '#fa8c16' }}>{(record.weighted_rate || 0).toFixed(4)}</span> },
         { title: '当月利息', key: 'interest_amount', width: 100, align: 'right' as const,
           onHeaderCell: () => ({ style: { background: '#fafafa' } }),
-          render: () => currentMonthRow ? (currentMonthRow.interest_amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '-' },
+          onCell: (record: ResultRow) => ({
+            style: {
+              background: record.coa_node_id === selectedNodeId ? '#f0f5ff' : undefined,
+              fontWeight: record.coa_node_id === selectedNodeId ? 600 : 400,
+            },
+          }),
+          render: (_: any, record: ResultRow) => (record.interest_amount || 0).toLocaleString(undefined, { maximumFractionDigits: 2 }) },
       ],
     }
     return [baseCol, origGroup, remGroup, measureGroup] as any
-  }, [currentMonthRow])
+  }, [selectedNodeId, selectedNodeWithDescendants, currentMonthRow])
 
   const selectedMeta = selectedNodeId ? runnedNodeMap.get(selectedNodeId) : null
 
@@ -531,7 +678,7 @@ const SimResultPage: React.FC = () => {
             size="small"
             title={
               <Space>
-                <span>节点 24 月快照</span>
+                <span>节点 N 月快照（选中 + 下级）</span>
                 {selectedMeta ? (
                   <Space size={6} style={{ fontWeight: 'normal' }}>
                     <Tag color={selectedMeta.is_configured ? 'green' : 'default'}>
@@ -613,12 +760,12 @@ const SimResultPage: React.FC = () => {
                       ),
                       children: (
                         <Table
-                          rowKey={() => r.id}
+                          rowKey={(record: ResultRow) => `${r.run_id}-${r.date_offset}-${record.coa_node_id}`}
                           columns={monthTableColumns}
-                          dataSource={[r]}
+                          dataSource={monthTableData}
                           size="small"
                           pagination={false}
-                          scroll={{ x: 7700, y: null }}
+                          scroll={{ x: 7700, y: 400 }}
                           bordered
                           style={{ background: '#fafafa' }}
                         />
