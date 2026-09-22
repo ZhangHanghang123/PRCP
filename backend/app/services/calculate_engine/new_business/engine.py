@@ -460,10 +460,10 @@ def _run_engine(
     if not coa_scheme_id or not data_date:
         raise ValueError("方案缺少 coa_scheme_id 或 data_date")
 
-        uid = _uid(user)
-        target_date = _add_months(data_date, month_count)
-        run_id = db.execute(
-            text("""INSERT INTO prcp_sim_run
+    uid = _uid(user)
+    target_date = _add_months(data_date, month_count)
+    run_id = db.execute(
+        text("""INSERT INTO prcp_sim_run
             (sim_scheme_id, sim_scheme_code, base_data_date, month_count,
              target_data_date, status, progress, total_nodes, processed_nodes,
              configured_node_count, rolled_node_count, aggregated_node_count,
