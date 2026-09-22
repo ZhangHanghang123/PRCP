@@ -311,10 +311,11 @@ const SimResultPage: React.FC = () => {
   }, [treeData, configuredNodeIds, rolledNodeIds, aggregatedNodeIds])
 
   // 单月快照数据：M_k 行的「选中节点 + 所有下级」数据（已 pre-order 排序）
+  // 注意：从全量 results 过滤（不是 selectedNodeResults），因为下级节点也有自己的行
   const currentMonthRowsAtTab: ResultRow[] = useMemo(() => {
     const offset = Number(activeMonthTab)
-    return selectedNodeResults.filter(r => r.date_offset === offset)
-  }, [selectedNodeResults, activeMonthTab])
+    return results.filter(r => r.date_offset === offset)
+  }, [results, activeMonthTab])
 
   // 按树 pre-order 排序（选中节点 + 后代）
   const monthTableData: ResultRow[] = useMemo(() => {
