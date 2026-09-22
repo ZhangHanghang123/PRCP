@@ -26,12 +26,17 @@ const EsgCurve: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [curvePoint, setCurvePoint] = useState<YieldCurvePoint | null>(null)
 
-  // 加载 4 源统计
+  // 加载 4 源统计：保留默认 ECB，仅在当前 source 不存在时回退到第一项
   useEffect(() => {
     yieldCurveApi.sources().then((r) => {
-      setSources(r.items || [])
-      if (r.items?.length > 0) setSource(r.items[0].source)
+      const items = r.items || []
+      setSources(items)
+      if (items.length > 0 && !items.some((x) => x.source === source)) {
+        // 当前 source 在新数据里不存在 → 选第一条可用的（让用户能看到至少一个数据）
+        setSource(items[0].source)
+      }
     }).catch(() => {})
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 计算曲线
