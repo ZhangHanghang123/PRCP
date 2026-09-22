@@ -701,11 +701,14 @@ def _aggregate_summary_nodes(
     返回聚合成功的 SUMMARY 节点数
     """
     summary_nodes = db.execute(
-        text("""SELECT id, node_code, node_name, node_level, category
-                FROM prcp_coa_node
-                WHERE scheme_id = :sid AND node_type = 'SUMMARY'
-                ORDER BY node_level DESC"""),
-        {"sid": coa_scheme_id},
+        text("""SELECT n.id, n.node_code, n.node_name, n.node_level,
+                       (SELECT b.category FROM prcp_data_basic b
+                        WHERE b.coa_node_id = n.id AND b.data_date = :bd AND b.is_deleted = 0
+                        LIMIT 1) AS category
+                FROM prcp_coa_node n
+                WHERE n.scheme_id = :sid AND n.node_type = 'SUMMARY'
+                ORDER BY n.node_level DESC"""),
+        {"sid": coa_scheme_id, "bd": base_date.isoformat()},
     ).fetchall()
 
     if not summary_nodes:
