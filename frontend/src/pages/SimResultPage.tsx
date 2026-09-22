@@ -34,6 +34,8 @@ interface ResultRow {
   node_name: string
   node_level: number
   category: string
+  /** 是否有节点配置（true=已配置=新业务模拟 / false=未配置=纯滚动） */
+  is_configured: boolean
   current_balance: number
   avg_balance: number
   weighted_rate: number
@@ -101,10 +103,11 @@ const SimResultPage: React.FC = () => {
       const t = await simApi.coaTree(sid)
       const toDataNode = (n: any): DataNode => ({
         key: String(n.id),
+        // title 暂存为一个 React 元素，颜色由 treeDataColored 在 results 加载后注入
         title: (
           <span>
-            <code style={{ fontSize: 11, color: '#888' }}>{n.code}</code>
-            {' '}{n.title}
+            <code style={{ fontSize: 11, marginRight: 4 }}>{n.code}</code>
+            {n.title}
           </span>
         ),
         icon: n.isLeaf ? <FileTextOutlined /> : <FolderOutlined />,
@@ -149,6 +152,16 @@ const SimResultPage: React.FC = () => {
   // =================== 派生数据 ===================
 
   const runnedNodeIds = useMemo(() => new Set(results.map(r => r.coa_node_id)), [results])
+  /** 已配置节点（参与新业务模拟） */
+  const configuredNodeIds = useMemo(
+    () => new Set(results.filter(r => r.is_configured).map(r => r.coa_node_id)),
+    [results]
+  )
+  /** 未配置节点（只做时间桶滚动） */
+  const rolledNodeIds = useMemo(
+    () => new Set(results.filter(r => !r.is_configured).map(r => r.coa_node_id)),
+    [results]
+  )
   const runnedNodeMap = useMemo(() => {
     const m = new Map<number, ResultRow>()
     for (const r of results) if (!m.has(r.coa_node_id)) m.set(r.coa_node_id, r)
@@ -175,13 +188,19 @@ const SimResultPage: React.FC = () => {
       .sort((a, b) => a.date_offset - b.date_offset)
   }, [results, selectedNodeId])
 
-  // 默认选第一个跑过的节点
+  // 默认选第一个已配置的节点（没有再选第一个跑过的）
   useEffect(() => {
-    if (selectedNodeId === null && runnedNodeIds.size > 0) {
+    if (selectedNodeId !== null) return
+    if (configuredNodeIds.size > 0) {
+      const first = results.find(r => r.coa_node_id && configuredNodeIds.has(r.coa_node_id))
+      if (first) setSelectedNodeId(first.coa_node_id)
+      return
+    }
+    if (runnedNodeIds.size > 0) {
       const first = results.find(r => r.coa_node_id && runnedNodeIds.has(r.coa_node_id))
       if (first) setSelectedNodeId(first.coa_node_id)
     }
-  }, [results, runnedNodeIds])
+  }, [results, configuredNodeIds, runnedNodeIds])
 
   // 当切换节点时，重置月份 Tab 到 M1
   useEffect(() => {
@@ -190,20 +209,37 @@ const SimResultPage: React.FC = () => {
 
   // =================== 表格：单月 64+64 桶（类似 BasicDataSheet） ===================
 
-  const renderTreeTitle = (node: any) => {
-    const id = Number(node.key)
-    const runned = runnedNodeIds.has(id)
-    return (
-      <span style={{ fontSize: 13 }}>
-        {node.title}
-        {runned && (
-          <Tag color="purple" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '14px' }}>
-            ⚡ 已模拟
-          </Tag>
-        )}
-      </span>
-    )
-  }
+  // 给 treeData 注入颜色 + 状态 Tag（响应 configuredNodeIds / rolledNodeIds 变化）
+  const treeDataColored: DataNode[] = useMemo(() => {
+    const colorize = (n: DataNode): DataNode => {
+      const id = Number(n.key)
+      const configured = configuredNodeIds.has(id)
+      const rolled = rolledNodeIds.has(id)
+      const textColor = configured ? '#52c41a' : (rolled ? '#262626' : '#888')
+      // 保留原 title（loadCoaTree 已构造的 <code>code title</code>），外面再包一层颜色 + Tag
+      const originalTitle = (n as any).title as React.ReactNode
+      return {
+        ...n,
+        title: (
+          <span style={{ fontSize: 13, color: textColor }}>
+            {originalTitle}
+            {configured && (
+              <Tag color="green" style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '14px' }}>
+                ⚡ 已配置
+              </Tag>
+            )}
+            {rolled && !configured && (
+              <Tag style={{ marginLeft: 6, fontSize: 10, padding: '0 4px', lineHeight: '14px', color: '#888' }}>
+                🔄 仅滚动
+              </Tag>
+            )}
+          </span>
+        ),
+        children: n.children?.map(colorize),
+      }
+    }
+    return treeData.map(colorize)
+  }, [treeData, configuredNodeIds, rolledNodeIds])
 
   // 单月快照数据：1 行 = 当前选中节点 × 当前选中月份
   const currentMonthRow = useMemo(() => {
@@ -219,10 +255,35 @@ const SimResultPage: React.FC = () => {
       width: 200,
       render: () => currentMonthRow ? (
         <span>
-          <code style={{ fontSize: 11, background: '#f5f5f5', padding: '1px 4px', borderRadius: 3 }}>
+          <code style={{
+            fontSize: 11,
+            background: currentMonthRow.is_configured ? '#f6ffed' : '#f5f5f5',
+            color: currentMonthRow.is_configured ? '#52c41a' : '#262626',
+            fontWeight: currentMonthRow.is_configured ? 600 : 400,
+            padding: '1px 4px',
+            borderRadius: 3,
+            border: currentMonthRow.is_configured ? '1px solid #b7eb8f' : 'none',
+          }}>
             {currentMonthRow.node_code}
           </code>
-          <div style={{ fontSize: 12, marginTop: 2 }}>{currentMonthRow.node_name}</div>
+          <div style={{
+            fontSize: 12,
+            marginTop: 2,
+            color: currentMonthRow.is_configured ? '#52c41a' : '#262626',
+            fontWeight: currentMonthRow.is_configured ? 500 : 400,
+          }}>
+            {currentMonthRow.node_name}
+            {currentMonthRow.is_configured && (
+              <Tag color="green" style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px' }}>
+                ⚡ 已配置
+              </Tag>
+            )}
+            {!currentMonthRow.is_configured && (
+              <Tag style={{ marginLeft: 4, fontSize: 10, padding: '0 3px', lineHeight: '14px', color: '#888' }}>
+                🔄 仅滚动
+              </Tag>
+            )}
+          </div>
         </span>
       ) : '-',
     }
@@ -345,12 +406,39 @@ const SimResultPage: React.FC = () => {
       {currentRun && (
         <Card size="small" style={{ marginTop: 12 }}>
           <Row gutter={16}>
-            <Col span={4}><Statistic title="Run ID" value={currentRun.id} prefix={<LineChartOutlined style={{ color: '#722ed1' }} />} /></Col>
-            <Col span={4}><Statistic title="状态" value={currentRun.status} valueStyle={{ color: currentRun.status === 'SUCCESS' ? '#52c41a' : '#f5222d' }} /></Col>
-            <Col span={4}><Statistic title="节点数" value={currentRun.total_nodes} /></Col>
-            <Col span={4}><Statistic title="生成月份" value={currentRun.month_count} /></Col>
-            <Col span={4}><Statistic title="耗时" value={currentRun.duration_ms || '-'} suffix="ms" /></Col>
-            <Col span={4}><Statistic title="基准月 → 目标月" value={`${currentRun.base_data_date} → ${currentRun.target_data_date}`} valueStyle={{ fontSize: 13 }} /></Col>
+            <Col span={3}><Statistic title="Run ID" value={currentRun.id} prefix={<LineChartOutlined style={{ color: '#722ed1' }} />} /></Col>
+            <Col span={3}><Statistic title="状态" value={currentRun.status} valueStyle={{ color: currentRun.status === 'SUCCESS' ? '#52c41a' : '#f5222d' }} /></Col>
+            <Col span={3}>
+              <Statistic
+                title="总节点数"
+                value={currentRun.total_nodes}
+              />
+            </Col>
+            <Col span={4}>
+              <Statistic
+                title={
+                  <span>
+                    <Tag color="green" style={{ marginRight: 4 }}>⚡ 已配置</Tag>
+                  </span>
+                }
+                value={currentRun.configured_node_count || 0}
+                valueStyle={{ color: '#52c41a', fontWeight: 600 }}
+              />
+            </Col>
+            <Col span={4}>
+              <Statistic
+                title={
+                  <span>
+                    <Tag style={{ marginRight: 4 }}>🔄 仅滚动</Tag>
+                  </span>
+                }
+                value={currentRun.rolled_node_count || 0}
+                valueStyle={{ color: '#595959' }}
+              />
+            </Col>
+            <Col span={3}><Statistic title="生成月份" value={currentRun.month_count} /></Col>
+            <Col span={2}><Statistic title="耗时" value={currentRun.duration_ms || '-'} suffix="ms" /></Col>
+            <Col span={2}><Statistic title="基准月 → 目标月" value={`${currentRun.base_data_date} → ${currentRun.target_data_date}`} valueStyle={{ fontSize: 13 }} /></Col>
           </Row>
           {currentRun.status === 'FAILED' && (
             <div style={{ marginTop: 12, color: '#f5222d' }}>
@@ -381,8 +469,11 @@ const SimResultPage: React.FC = () => {
               <Space>
                 <ApartmentOutlined style={{ color: '#722ed1' }} />
                 <span>账户册节点</span>
-                {runnedNodeIds.size > 0 && (
-                  <Tag color="purple">已模拟 {runnedNodeIds.size}</Tag>
+                {configuredNodeIds.size > 0 && (
+                  <Tag color="green">⚡ 已配置 {configuredNodeIds.size}</Tag>
+                )}
+                {rolledNodeIds.size > 0 && (
+                  <Tag style={{ color: '#595959' }}>🔄 仅滚动 {rolledNodeIds.size}</Tag>
                 )}
               </Space>
             }
@@ -392,7 +483,7 @@ const SimResultPage: React.FC = () => {
               <Empty description="加载账户册..." imageStyle={{ height: 60 }} />
             ) : (
               <Tree
-                treeData={treeData}
+                treeData={treeDataColored}
                 expandedKeys={expandedKeys}
                 onExpand={(keys) => setExpandedKeys(keys)}
                 selectedKeys={selectedNodeId ? [String(selectedNodeId)] : []}
@@ -403,7 +494,6 @@ const SimResultPage: React.FC = () => {
                     else message.info('该节点未被引擎模拟（无配置）')
                   }
                 }}
-                titleRender={renderTreeTitle as any}
                 showLine={{ showLeafIcon: false }}
                 blockNode
               />
@@ -419,12 +509,21 @@ const SimResultPage: React.FC = () => {
                 <span>节点 24 月快照</span>
                 {selectedMeta ? (
                   <Space size={6} style={{ fontWeight: 'normal' }}>
-                    <Tag color="purple">{selectedMeta.node_code}</Tag>
-                    <span style={{ fontSize: 13 }}>{selectedMeta.node_name}</span>
+                    <Tag color={selectedMeta.is_configured ? 'green' : 'default'}>
+                      {selectedMeta.node_code}
+                    </Tag>
+                    <span style={{ fontSize: 13, color: selectedMeta.is_configured ? '#52c41a' : '#262626' }}>
+                      {selectedMeta.node_name}
+                    </span>
                     <Tag color={selectedMeta.category === 'ASSET' ? 'blue' : selectedMeta.category === 'LIABILITY' ? 'orange' : 'default'}>
                       {selectedMeta.category}
                     </Tag>
                     <Tag color="cyan">L{selectedMeta.node_level}</Tag>
+                    {selectedMeta.is_configured ? (
+                      <Tag color="green">⚡ 已配置</Tag>
+                    ) : (
+                      <Tag style={{ color: '#595959' }}>🔄 仅滚动</Tag>
+                    )}
                   </Space>
                 ) : (
                   <Tag color="default">请选择左侧节点</Tag>
@@ -453,7 +552,7 @@ const SimResultPage: React.FC = () => {
           >
             <Spin spinning={loading}>
               {!selectedMeta ? (
-                <Empty description="请选择左侧已模拟的账户册节点" />
+                <Empty description="请选择左侧账户册节点（绿色=已配置/黑色=仅滚动）" />
               ) : selectedNodeResults.length === 0 ? (
                 <Empty description="该节点无结果数据" />
               ) : (
