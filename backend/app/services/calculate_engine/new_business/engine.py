@@ -722,7 +722,7 @@ def _aggregate_summary_nodes(
     for sn in summary_nodes:
         sn_id, sn_code, sn_name, sn_level, sn_cat = sn
 
-        # 递归查所有后代叶子节点（只 BUSINESS）
+        # 递归查所有后代叶子节点（只「最深的 BUSINESS」节点 — 即无子节点的）
         leaf_ids_rows = db.execute(
             text("""
                 WITH RECURSIVE descendants AS (
@@ -731,9 +731,11 @@ def _aggregate_summary_nodes(
                     SELECT n.id, n.parent_id FROM prcp_coa_node n
                     JOIN descendants d ON n.parent_id = d.id
                 )
-                SELECT id FROM prcp_coa_node
-                WHERE id IN (SELECT id FROM descendants)
-                  AND scheme_id = :sid AND node_type = 'BUSINESS'
+                SELECT d.id FROM descendants d
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM prcp_coa_node c WHERE c.parent_id = d.id
+                )
+                  AND d.id IN (SELECT id FROM prcp_coa_node WHERE scheme_id = :sid)
             """),
             {"pid": sn_id, "sid": coa_scheme_id},
         ).fetchall()
