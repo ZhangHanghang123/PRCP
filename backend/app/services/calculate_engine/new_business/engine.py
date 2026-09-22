@@ -210,7 +210,8 @@ class NewBusinessEngine(EngineBase):
                     LIMIT 2000"""
 
         rows = db.execute(text(sql), params).fetchall()
-        bucket_idx_start = 16
+        # base_cols 含 17 个字段（id..calc_note），桶数据从 idx=17 开始
+        bucket_idx_start = 17
 
         items = []
         for r in rows:
