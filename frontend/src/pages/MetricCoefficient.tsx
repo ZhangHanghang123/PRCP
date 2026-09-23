@@ -64,10 +64,10 @@ const MetricCoefficient: React.FC = () => {
   const [metricTypes, setMetricTypes] = useState<OptionItem[]>([])
   const [units, setUnits] = useState<OptionItem[]>([])
 
-  // 筛选条件
+  // 筛选条件（默认：ZXCOA_V1 方案 + ROE 指标 + 2026-01-01 数据日期）
   const [filterSchemeId, setFilterSchemeId] = useState<number | undefined>(undefined)
-  const [filterMetricType, setFilterMetricType] = useState<string | undefined>(undefined)
-  const [filterDate, setFilterDate] = useState<Dayjs | null>(dayjs('2026-08-31'))
+  const [filterMetricType, setFilterMetricType] = useState<string | undefined>('ROE')
+  const [filterDate, setFilterDate] = useState<Dayjs | null>(dayjs('2026-01-01'))
   const [keyword, setKeyword] = useState<string>('')
 
   // 新增/编辑
@@ -79,10 +79,15 @@ const MetricCoefficient: React.FC = () => {
   const loadOptions = async () => {
     try {
       const r = await metricCoefficientApi.options()
-      setSchemes(r.schemes || [])
+      const schemeList = r.schemes || []
+      setSchemes(schemeList)
       setNodes(r.nodes || [])
       setMetricTypes(r.metric_types || [])
       setUnits(r.units || [])
+      // 默认选 ZXCOA_V1（演示数据所在方案），找不到再选第一个
+      const zxcoa = schemeList.find((s: SchemeItem) => s.scheme_code === 'ZXCOA_V1')
+      if (zxcoa) setFilterSchemeId(zxcoa.id)
+      else if (schemeList.length && !filterSchemeId) setFilterSchemeId(schemeList[0].id)
     } catch (e) {
       message.error('选项加载失败')
     }
@@ -383,11 +388,11 @@ const MetricCoefficient: React.FC = () => {
               onChange={setFilterMetricType}
             />
             <DatePicker
-              picker="month"
-              placeholder="数据日期"
+              placeholder="数据日期（精确到日）"
               value={filterDate}
               onChange={setFilterDate}
-              format="YYYY-MM"
+              format="YYYY-MM-DD"
+              allowClear
             />
             <Input.Search
               placeholder="搜索方案/节点/备注"
@@ -398,8 +403,12 @@ const MetricCoefficient: React.FC = () => {
               allowClear
             />
             <Button icon={<ReloadOutlined />} onClick={() => {
+              // 重置 = 恢复到默认查询条件（ZXCOA_V1 + ROE + 2026-01-01）
+              const zxcoa = schemes.find((s) => s.scheme_code === 'ZXCOA_V1')
+              setFilterSchemeId(zxcoa ? zxcoa.id : (schemes[0]?.id))
+              setFilterMetricType('ROE')
+              setFilterDate(dayjs('2026-01-01'))
               setKeyword('')
-              loadList()
             }}>重置</Button>
           </Space>
         </Card>
