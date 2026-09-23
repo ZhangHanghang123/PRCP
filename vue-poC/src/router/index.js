@@ -13,15 +13,32 @@ const routes = [
   {
     path: '/',
     component: () => import('@/layouts/MainLayout.vue'),
-    redirect: '/coa',
+    redirect: '/dashboard',
     children: [
       {
         path: 'coa',
         name: 'Coa',
         component: () => import('@/views/coa/Index.vue'),
         meta: { title: '账户册维护', icon: 'el-icon-share' }
+      },
+      {
+        path: 'reports',
+        name: 'Reports',
+        component: () => import('@/views/reports/Index.vue'),
+        meta: { title: '报表表项管理', icon: 'el-icon-document' }
+      },
+      {
+        path: 'kpi',
+        name: 'Kpi',
+        component: () => import('@/views/kpi/Index.vue'),
+        meta: { title: '指标管理', icon: 'el-icon-data-line' }
+      },
+      {
+        path: 'dashboard',
+        name: 'Dashboard',
+        component: () => import('@/views/dashboard/Index.vue'),
+        meta: { title: '驾驶舱', icon: 'el-icon-data-board' }
       }
-      // 后续模块在此添加
     ]
   }
 ]

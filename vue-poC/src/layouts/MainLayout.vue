@@ -24,17 +24,21 @@
       <!-- 侧边栏 -->
       <el-aside width="220px" class="aside">
         <el-menu :default-active="$route.path" router>
+          <el-menu-item index="/dashboard">
+            <i class="el-icon-data-board"></i>
+            <span slot="title">驾驶舱</span>
+          </el-menu-item>
           <el-menu-item index="/coa">
             <i class="el-icon-share"></i>
             <span slot="title">账户册维护</span>
           </el-menu-item>
-          <el-menu-item index="/dashboard" disabled>
-            <i class="el-icon-data-line"></i>
-            <span slot="title">驾驶舱（待迁移）</span>
+          <el-menu-item index="/reports">
+            <i class="el-icon-document"></i>
+            <span slot="title">报表表项管理</span>
           </el-menu-item>
-          <el-menu-item index="/kpi" disabled>
-            <i class="el-icon-data-board"></i>
-            <span slot="title">指标管理（待迁移）</span>
+          <el-menu-item index="/kpi">
+            <i class="el-icon-data-line"></i>
+            <span slot="title">指标管理</span>
           </el-menu-item>
         </el-menu>
       </el-aside>
