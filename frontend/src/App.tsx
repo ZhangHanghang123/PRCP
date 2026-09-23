@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { getToken } from './api'
 import MainLayout from './layouts/MainLayout'
 import LoginPage from './pages/Login'
-import Dashboard from './pages/Dashboard'
+import Dashboard from './pages/ReverseDashboard'
 import COA from './pages/COA'
 import Reports from './pages/Reports'
 import BalanceSheet from './pages/BalanceSheet'
@@ -22,7 +22,6 @@ import EsgCurve from './pages/EsgCurve'
 import EsgResults from './pages/EsgResults'
 import MetricCoefficient from './pages/MetricCoefficient'
 import ReverseMetricTable from './pages/ReverseMetricTable'
-import ReverseDashboard from './pages/ReverseDashboard'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -40,7 +39,7 @@ const App: React.FC = () => (
         }
       >
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
+        <Route path="dashboard" element={<Dashboard />} /> {/* 当前指向 ReverseDashboard（原 Dashboard.tsx 已废弃） */}
         <Route path="coa" element={<COA />} />
         <Route path="reports" element={<Reports />} />
         <Route path="kpi" element={<KPI />} />
@@ -60,8 +59,7 @@ const App: React.FC = () => (
         <Route path="esg/results" element={<EsgResults />} />
         <Route path="metric-coefficient" element={<MetricCoefficient />} />
         <Route path="reverse-metric-table" element={<ReverseMetricTable />} />
-<Route path="reverse-dashboard" element={<ReverseDashboard />} />
-      </Route>
+</Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   </BrowserRouter>

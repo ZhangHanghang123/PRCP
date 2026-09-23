@@ -46,7 +46,6 @@ const MainLayout: React.FC = () => {
         { key: '/data-maint/REVERSE',   label: '9. 反算结果查询' },
         { key: '/metric-coefficient', label: '10. 指标计量系数维护' },
         { key: '/reverse-metric-table', label: '11. 反算指标结果表' },
-      { key: '/reverse-dashboard',  label: '12. 组合反算 · 结果驾驶舱' },
       ],
     },
     { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },
