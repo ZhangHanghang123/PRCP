@@ -7,6 +7,7 @@ ID 规则：{scheme_code}_{node_code}_{metric_code}_{YYYYMMDD}
 端点：
 - GET    /metric-coefficient/                列表（带筛选）
 - GET    /metric-coefficient/options         下拉选项（账户册方案 / 节点 / 指标类型）
+- GET    /metric-coefficient/reverse-table   反算指标结果表（按反算方案 × Run × 预测月份 × 5 指标）
 - POST   /metric-coefficient/                新增
 - PUT    /metric-coefficient/{mid}           更新
 - DELETE /metric-coefficient/{mid}           软删
@@ -16,7 +17,7 @@ import io
 from datetime import date, datetime
 from typing import Optional, List, Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import text
@@ -328,6 +329,172 @@ async def delete_coefficient(
         raise HTTPException(404, "记录不存在")
     db.commit()
     return {"ok": True, "id": mid}
+
+
+# ---------- 反算指标结果表（数据维护 → 反算指标结果表） ----------
+# 默认展示 5 个指标：ROE / CET1 / LCR / NSFR / DELTA_EVE
+DEFAULT_METRIC_TYPES = ["ROE", "CET1", "LCR", "NSFR", "DELTA_EVE"]
+
+
+@router.get("/reverse-table")
+async def reverse_metric_table(
+    scheme_code: str = Query(..., description="反算方案编码（prcp_reverse_scheme.scheme_code）"),
+    run_id: Optional[int] = Query(None, description="Run id；缺省取最新 SUCCESS"),
+    date_offset: int = Query(1, description="预测月份 M1..M24"),
+    metric_types: Optional[str] = Query(
+        None,
+        description="逗号分隔的指标类型 key；缺省 = ROE/CET1/LCR/NSFR/DELTA_EVE",
+    ),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """反算指标结果表
+
+    行：反算方案绑定的账户册节点
+    列：账户册编码 / 账户册名称 / 大类 / 5 个指标 / 数据日期 / ID
+
+    数据来源：
+    1. 节点列表：prcp_reverse_scheme.coa_scheme_id → prcp_coa_node
+    2. 数据日期：prcp_data_reverse 在 (scheme_code, run_id, date_offset) 下的 data_date
+    3. 指标值：prcp_metric_coefficient 在 (coa_scheme_code, node_code, metric_type, data_date) 下
+    """
+    # 1. 解析指标列表
+    types = [t.strip() for t in (metric_types.split(",") if metric_types else DEFAULT_METRIC_TYPES) if t.strip()]
+    if not types:
+        types = list(DEFAULT_METRIC_TYPES)
+
+    # 2. 取反算方案 + coa_scheme_id
+    rev = db.execute(text("""
+        SELECT s.id, s.coa_scheme_id, s.scheme_name, c.scheme_code AS coa_scheme_code, c.scheme_name AS coa_scheme_name
+        FROM prcp_reverse_scheme s
+        LEFT JOIN prcp_coa_scheme c ON c.id=s.coa_scheme_id
+        WHERE s.scheme_code=:sc AND s.is_deleted=0
+    """), {"sc": scheme_code}).first()
+    if not rev:
+        raise HTTPException(404, f"反算方案 {scheme_code} 不存在")
+    rev_id, coa_scheme_id, rev_name, coa_scheme_code, coa_scheme_name = rev
+
+    # 3. 取 run_id（缺省取最新 SUCCESS）
+    if run_id is None:
+        latest = db.execute(text("""
+            SELECT id FROM prcp_reverse_run
+            WHERE scheme_id=:sid AND status='SUCCESS' AND is_deleted=0
+            ORDER BY id DESC LIMIT 1
+        """), {"sid": rev_id}).first()
+        if not latest:
+            raise HTTPException(404, "该反算方案无 SUCCESS 运行记录")
+        run_id = latest[0]
+    else:
+        chk = db.execute(text("""
+            SELECT id, status FROM prcp_reverse_run
+            WHERE id=:rid AND scheme_id=:sid AND is_deleted=0
+        """), {"rid": run_id, "sid": rev_id}).first()
+        if not chk:
+            raise HTTPException(404, "Run 不属于该反算方案")
+        if chk[1] != "SUCCESS":
+            raise HTTPException(400, f"Run#{run_id} 状态为 {chk[1]}，非 SUCCESS")
+
+    # 4. 取 (scheme_code, run_id, date_offset) 下的 data_date
+    dd_row = db.execute(text("""
+        SELECT data_date FROM prcp_data_reverse
+        WHERE scheme_code=:sc AND run_id=:rid AND date_offset=:do
+          AND offset_unit='M' AND is_deleted=0
+        ORDER BY data_date DESC LIMIT 1
+    """), {"sc": scheme_code, "rid": run_id, "do": date_offset}).first()
+    if not dd_row:
+        raise HTTPException(404, f"反算结果中未找到 M{date_offset}（run={run_id}）")
+    data_date = str(dd_row[0])
+
+    # 5. 拉账户册节点
+    nodes = []
+    if coa_scheme_id:
+        node_rows = db.execute(text("""
+            SELECT id, node_code, node_name, parent_id, node_level, path, sort_order
+            FROM prcp_coa_node
+            WHERE scheme_id=:s AND is_deleted=0
+            ORDER BY path, sort_order
+        """), {"s": coa_scheme_id}).fetchall()
+        nodes = [{
+            "coa_node_id": r[0],
+            "node_code": r[1],
+            "node_name": r[2],
+            "parent_id": r[3],
+            "node_level": r[4] or 1,
+            "path": r[5] or "",
+            "sort_order": r[6] or 0,
+        } for r in node_rows]
+
+    # 6. 拉指标值（按 coa_scheme_code + node_code + metric_type + data_date）
+    metric_values = {}
+    metric_ids = {}
+    metric_units = {}
+    if coa_scheme_code and nodes:
+        ph = ",".join([f":n{i}" for i in range(len(nodes))])
+        params = {"sc": coa_scheme_code, "dd": data_date}
+        for i, n in enumerate(nodes):
+            params[f"n{i}"] = n["node_code"]
+        ph2 = ",".join([f":m{i}" for i in range(len(types))])
+        for i, t in enumerate(types):
+            params[f"m{i}"] = t
+        # SQLAlchemy text() 用 :name 绑定参数，% 是字面量。f-string 不会处理 %，所以这里用单 %
+        rows = db.execute(text(f"""
+            SELECT node_code, metric_type, current_value, unit
+            FROM prcp_metric_coefficient
+            WHERE is_deleted=0
+              AND scheme_code=:sc
+              AND data_date = STR_TO_DATE(:dd, '%Y-%m-%d')
+              AND node_code IN ({ph})
+              AND metric_type IN ({ph2})
+        """), params).fetchall()
+        date_key = data_date.replace("-", "")
+        for r in rows:
+            nc, mt, v, u = r
+            metric_values.setdefault(nc, {})[mt] = float(v or 0)
+            metric_ids.setdefault(nc, {})[mt] = f"{coa_scheme_code}_{nc}_{mt}_{date_key}"
+            metric_units[mt] = u or "PERCENT"
+
+    # 7. 拼装返回 rows（含 L1/L2/L3 大类着色提示）
+    rows_out = []
+    for n in nodes:
+        nc = n["node_code"]
+        mv = metric_values.get(nc, {})
+        mi = metric_ids.get(nc, {})
+        code = nc or ""
+        path = n["path"] or ""
+        if code.startswith("ZX_A") or path.startswith("/L1_资产") or path == "/L1_ASSET/":
+            category = "ASSET"
+        elif code.startswith("ZX_L") or path.startswith("/L1_负债") or path == "/L1_LIABILITY/":
+            category = "LIABILITY"
+        elif code.startswith("ZX_E") or path.startswith("/L1_权益") or path == "/L1_EQUITY/":
+            category = "EQUITY"
+        elif path.startswith("/L1_表外") or path == "/L1_OFF_BALANCE/":
+            category = "OFF_BALANCE"
+        else:
+            category = "OTHER"
+        rows_out.append({
+            "coa_node_id": n["coa_node_id"],
+            "node_code": nc,
+            "node_name": n["node_name"],
+            "node_level": n["node_level"],
+            "category": category,
+            "metric_values": mv,
+            "metric_ids": mi,
+        })
+
+    return {
+        "scheme_code": scheme_code,
+        "scheme_name": rev_name,
+        "coa_scheme_code": coa_scheme_code,
+        "coa_scheme_name": coa_scheme_name,
+        "run_id": run_id,
+        "data_date": data_date,
+        "date_offset": date_offset,
+        "metric_types": types,
+        "metric_units": metric_units,
+        "rows": rows_out,
+        "total_nodes": len(nodes),
+        "total_with_metrics": sum(1 for r in rows_out if r["metric_values"]),
+    }
 
 
 # ---------- Excel 批量导入 ----------

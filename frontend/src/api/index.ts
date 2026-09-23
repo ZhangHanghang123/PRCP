@@ -335,4 +335,7 @@ export const metricCoefficientApi = {
     return http.post('/metric-coefficient/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data)
   },
   exportTemplateUrl: () => '/prcp/api/metric-coefficient/export-template',
+  // 反算指标结果表（数据维护 → 反算指标结果表）
+  reverseTable: (params: any = {}) =>
+    http.get('/metric-coefficient/reverse-table', { params }).then((r) => r.data),
 }
