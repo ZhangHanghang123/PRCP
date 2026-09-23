@@ -359,7 +359,10 @@ export default {
     }
   },
   async mounted() {
-    await this.loadSchemes()
+    await Promise.all([
+      this.loadSchemes(),
+      this.loadAllSchemes()
+    ])
     if (this.schemes.length) {
       this.currentSchemeId = this.schemes[0].id
     }
