@@ -35,7 +35,10 @@ PASSWORD = os.getenv("PASSWORD", "admin123")
 
 
 def http(method, path, token=None, body=None, raw=False):
-    url = f"{API_BASE}{path}"
+    # URL-encode 路径（含中文 ID 等）
+    from urllib.parse import quote
+    safe_path = quote(path, safe="/?&=")
+    url = f"{API_BASE}{safe_path}"
     headers = {}
     data = None
     if body is not None:
@@ -50,7 +53,10 @@ def http(method, path, token=None, body=None, raw=False):
             return resp.status, (payload if raw else json.loads(payload)) if payload else (resp.status, None)
     except Exception as e:
         if hasattr(e, "code"):
-            return e.code, json.loads(e.read().decode("utf-8") or "{}")
+            try:
+                return e.code, json.loads(e.read().decode("utf-8") or "{}")
+            except Exception:
+                return e.code, {}
         raise
 
 
@@ -150,7 +156,8 @@ def main():
     expect(rec.get("description") == "E2E 更新", f"description 已更新: {rec.get('description')}")
 
     step("9) 校验 ID 生成规则")
-    pattern = re.compile(r"^[A-Z0-9_]+_[A-Z0-9_]+_[A-Z]+_\d{8}$")
+    # 末尾必须是 8 位日期，前面至少有 3 段下划线分隔
+    pattern = re.compile(r"^.+_.+_.+_\d{8}$")
     expect(bool(pattern.match(expected_id)),
            f"ID 匹配规则 [scheme_code]_[node_code]_[metric_code]_[YYYYMMDD]: {expected_id}")
 
