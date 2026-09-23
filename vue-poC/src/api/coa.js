@@ -3,6 +3,7 @@ import request from './request'
 export const coaApi = {
   // 方案
   listSchemes: () => request.get('/coa/schemes'),
+  listSchemesAll: () => request.get('/coa/schemes/all'),
   getScheme: (id) => request.get(`/coa/scheme/${id}`),
   createScheme: (data) => request.post('/coa/scheme', data),
   updateScheme: (id, data) => request.put(`/coa/scheme/${id}`, data),

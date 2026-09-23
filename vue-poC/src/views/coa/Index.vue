@@ -22,6 +22,7 @@
           <el-button type="primary" icon="el-icon-search" @click="loadTree">查询</el-button>
           <el-button icon="el-icon-refresh-left" @click="onReset">重置</el-button>
           <el-button type="danger" icon="el-icon-plus" @click="onAdd">新增节点</el-button>
+          <el-button type="warning" icon="el-icon-folder" @click="onManageScheme">维护方案</el-button>
         </el-col>
       </el-row>
     </el-card>
@@ -48,7 +49,7 @@
       </el-table>
     </el-card>
 
-    <!-- 编辑 Modal -->
+    <!-- 节点 编辑 Modal -->
     <el-dialog :title="editing ? '编辑节点' : '新增节点'" :visible.sync="modalVisible" width="540px">
       <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
         <el-form-item label="父节点">
@@ -73,6 +74,60 @@
         <el-button type="primary" :loading="submitting" @click="onSubmit">提交</el-button>
       </template>
     </el-dialog>
+
+    <!-- 方案 维护 Modal -->
+    <el-dialog title="账户册方案维护" :visible.sync="schemeModalVisible" width="720px"
+               @open="loadAllSchemes">
+      <div class="scheme-toolbar">
+        <el-button type="primary" size="small" icon="el-icon-plus" @click="onAddScheme">新增方案</el-button>
+        <el-button size="small" icon="el-icon-refresh" @click="loadAllSchemes">刷新</el-button>
+      </div>
+      <el-table :data="allSchemes" v-loading="schemeLoading" border size="small">
+        <el-table-column type="index" label="#" width="50" align="center" />
+        <el-table-column prop="schemeCode" label="方案编码" width="160" />
+        <el-table-column prop="schemeName" label="方案名称" />
+        <el-table-column prop="description" label="描述" show-overflow-tooltip />
+        <el-table-column prop="status" label="状态" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'" size="mini">
+              {{ row.status || 'ACTIVE' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="160" align="center">
+          <template #default="{ row }">
+            <el-button type="text" @click="onEditScheme(row)">编辑</el-button>
+            <el-button type="text" style="color: #f56c6c;" @click="onDeleteScheme(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
+    <!-- 方案 编辑子 Modal -->
+    <el-dialog :title="editingScheme ? '编辑方案' : '新增方案'"
+               :visible.sync="schemeFormVisible" width="540px" append-to-body>
+      <el-form :model="schemeForm" :rules="schemeRules" ref="schemeFormRef" label-width="100px">
+        <el-form-item label="方案编码" prop="schemeCode">
+          <el-input v-model="schemeForm.schemeCode" placeholder="例如 ZXCOA_V1" />
+        </el-form-item>
+        <el-form-item label="方案名称" prop="schemeName">
+          <el-input v-model="schemeForm.schemeName" placeholder="例如 账户册总览_v7" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="schemeForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+        <el-form-item v-if="editingScheme" label="状态">
+          <el-radio-group v-model="schemeForm.status">
+            <el-radio-button label="ACTIVE">启用</el-radio-button>
+            <el-radio-button label="INACTIVE">停用</el-radio-button>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="schemeFormVisible = false">取消</el-button>
+        <el-button type="primary" :loading="schemeSubmitting" @click="onSchemeSubmit">提交</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -95,6 +150,19 @@ export default {
       rules: {
         nodeCode: [{ required: true, message: '请输入节点编码' }],
         nodeName: [{ required: true, message: '请输入节点名称' }]
+      },
+
+      // 方案维护
+      schemeModalVisible: false,
+      allSchemes: [],
+      schemeLoading: false,
+      schemeFormVisible: false,
+      editingScheme: null,
+      schemeSubmitting: false,
+      schemeForm: { schemeCode: '', schemeName: '', description: '', status: 'ACTIVE' },
+      schemeRules: {
+        schemeCode: [{ required: true, message: '请输入方案编码' }],
+        schemeName: [{ required: true, message: '请输入方案名称' }]
       }
     }
   },
@@ -188,6 +256,57 @@ export default {
         this.modalVisible = false
         this.loadTree()
       } finally { this.submitting = false }
+    },
+
+    // ===== 方案维护 =====
+    onManageScheme() { this.schemeModalVisible = true },
+    async loadAllSchemes() {
+      this.schemeLoading = true
+      try {
+        this.allSchemes = await coaApi.listSchemesAll()
+      } finally { this.schemeLoading = false }
+    },
+    onAddScheme() {
+      this.editingScheme = null
+      this.schemeForm = { schemeCode: '', schemeName: '', description: '', status: 'ACTIVE' }
+      this.schemeFormVisible = true
+    },
+    onEditScheme(row) {
+      this.editingScheme = row
+      this.schemeForm = {
+        schemeCode: row.schemeCode,
+        schemeName: row.schemeName,
+        description: row.description || '',
+        status: row.status || 'ACTIVE'
+      }
+      this.schemeFormVisible = true
+    },
+    onDeleteScheme(row) {
+      this.$confirm(`确认删除方案 [${row.schemeCode}] ${row.schemeName}？\n该方案下的所有节点也会一并失效。`, '提示', { type: 'warning' })
+        .then(async () => {
+          await coaApi.deleteScheme(row.id)
+          this.$message.success('方案删除成功')
+          await this.loadAllSchemes()
+          // 同步顶部方案下拉
+          await this.loadSchemes()
+        })
+        .catch(() => {})
+    },
+    async onSchemeSubmit() {
+      await this.$refs.schemeFormRef.validate()
+      this.schemeSubmitting = true
+      try {
+        if (this.editingScheme) {
+          await coaApi.updateScheme(this.editingScheme.id, this.schemeForm)
+          this.$message.success('方案已更新')
+        } else {
+          await coaApi.createScheme(this.schemeForm)
+          this.$message.success('方案已创建')
+        }
+        this.schemeFormVisible = false
+        await this.loadAllSchemes()
+        await this.loadSchemes()
+      } finally { this.schemeSubmitting = false }
     }
   }
 }
@@ -205,4 +324,5 @@ export default {
 .page-header .desc { color: #999; font-size: 13px; margin: 4px 0 0; }
 .filter-card { margin: 0 16px 16px; }
 .table-card { margin: 0 16px; }
+.scheme-toolbar { margin-bottom: 12px; }
 </style>
