@@ -1,6 +1,7 @@
 package com.prcp.business.kpi.controller;
 
 import com.prcp.business.kpi.entity.KpiDefinition;
+import com.prcp.business.kpi.entity.KpiScheme;
 import com.prcp.business.kpi.entity.KpiScoreRule;
 import com.prcp.business.kpi.entity.KpiValue;
 import com.prcp.business.kpi.service.KpiService;
@@ -25,6 +26,22 @@ public class KpiController {
         return kpiService.listKpiSchemes();
     }
 
+    @GetMapping("/schemes/all")
+    public R<List<Map<String, Object>>> allSchemes() {
+        return kpiService.listAllKpiSchemes();
+    }
+
+    @PostMapping("/schemes")
+    public R<?> createScheme(@Valid @RequestBody KpiScheme s) { return kpiService.createScheme(s); }
+
+    @PutMapping("/schemes/{id}")
+    public R<?> updateScheme(@PathVariable Long id, @Valid @RequestBody KpiScheme s) {
+        return kpiService.updateScheme(id, s);
+    }
+
+    @DeleteMapping("/schemes/{id}")
+    public R<?> deleteScheme(@PathVariable Long id) { return kpiService.deleteScheme(id); }
+
     // ============ KPI 定义 ============
     @GetMapping("/definitions")
     public R<List<Map<String, Object>>> listDefs(@RequestParam(required = false) Long scheme_id,
@@ -46,9 +63,10 @@ public class KpiController {
 
     // ============ KPI 值 ============
     @GetMapping("/values")
-    public R<List<Map<String, Object>>> listValues(@RequestParam(required = false) Long kpi_id,
+    public R<List<Map<String, Object>>> listValues(@RequestParam(required = false) Long scheme_id,
+                                                     @RequestParam(required = false) Long kpi_id,
                                                      @RequestParam(required = false) String data_date) {
-        return kpiService.listValues(kpi_id, data_date);
+        return kpiService.listValues(scheme_id, kpi_id, data_date);
     }
 
     @PostMapping("/values")

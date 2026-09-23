@@ -2,6 +2,10 @@ import request from './request'
 
 export const kpiApi = {
   listSchemes: () => request.get('/kpi/schemes'),
+  listSchemesAll: () => request.get('/kpi/schemes/all'),
+  createScheme: (data) => request.post('/kpi/schemes', data),
+  updateScheme: (id, data) => request.put(`/kpi/schemes/${id}`, data),
+  deleteScheme: (id) => request.delete(`/kpi/schemes/${id}`),
   listDefs: (params = {}) => request.get('/kpi/definitions', { params }),
   createDef: (data) => request.post('/kpi/definitions', data),
   updateDef: (id, data) => request.put(`/kpi/definitions/${id}`, data),
