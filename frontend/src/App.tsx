@@ -20,6 +20,7 @@ import EsgSchemes from './pages/EsgSchemes'
 import EsgSchemeDetail from './pages/EsgSchemeDetail'
 import EsgCurve from './pages/EsgCurve'
 import EsgResults from './pages/EsgResults'
+import MetricCoefficient from './pages/MetricCoefficient'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -55,6 +56,7 @@ const App: React.FC = () => (
         <Route path="esg/detail/:scheme_id" element={<EsgSchemeDetail />} />
         <Route path="esg/curve" element={<EsgCurve />} />
         <Route path="esg/results" element={<EsgResults />} />
+        <Route path="metric-coefficient" element={<MetricCoefficient />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

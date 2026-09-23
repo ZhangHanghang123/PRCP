@@ -44,6 +44,7 @@ const MainLayout: React.FC = () => {
         { key: '/data-maint/BALANCE',   label: '7. 资产负债表' },
         { key: '/data-maint/BASIC',     label: '8. 基础数据表' },
         { key: '/data-maint/REVERSE',   label: '9. 反算结果查询' },
+        { key: '/metric-coefficient', label: '10. 指标计量系数维护' },
       ],
     },
     { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },

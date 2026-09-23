@@ -321,3 +321,18 @@ export const simApi = {
   listRuns: (params: any = {}) => http.get('/sim/runs', { params }).then((r) => r.data),
   listResults: (params: any = {}) => http.get('/sim/results', { params }).then((r) => r.data),
 }
+// 指标计量系数维护（数据维护 → 指标计量系数维护）
+export const metricCoefficientApi = {
+  list: (params: any = {}) => http.get('/metric-coefficient', { params }).then((r) => r.data),
+  options: () => http.get('/metric-coefficient/options').then((r) => r.data),
+  nodesByScheme: (schemeId: number) =>
+    http.get('/metric-coefficient/nodes-by-scheme', { params: { scheme_id: schemeId } }).then((r) => r.data),
+  create: (data: any) => http.post('/metric-coefficient', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/metric-coefficient/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/metric-coefficient/${id}`).then((r) => r.data),
+  importXlsx: (file: File) => {
+    const fd = new FormData(); fd.append('file', file)
+    return http.post('/metric-coefficient/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data)
+  },
+  exportTemplateUrl: () => '/prcp/api/metric-coefficient/export-template',
+}
