@@ -328,7 +328,7 @@ export default {
     },
     async onRecalc(row) {
       try {
-        const r: any = await kpiApi.recalc(row.kpiId, row.dataDate)
+        const r = await kpiApi.recalc(row.kpiId, row.dataDate)
         this.$message.success(`试算得分：${r.score}`)
         this.loadValues()
       } catch (e) { /* error handled */ }

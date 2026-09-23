@@ -128,7 +128,7 @@ export default {
               color: i === 0 ? '#C7000B' : (i === 1 ? '#A31A1F' : (i === 2 ? '#E84E4E' : '#D71B1B'))
             }
           })),
-          label: { show: true, position: 'right', formatter: (p: any) => Number(p.value).toFixed(2) }
+          label: { show: true, position: 'right', formatter: (p) => Number(p.value).toFixed(2) }
         }]
       }
     },
@@ -139,7 +139,7 @@ export default {
   async mounted() {
     this.loading = true
     try {
-      const [ov, trend, dist, top]: any[] = await Promise.all([
+      const [ov, trend, dist, top] = await Promise.all([
         dashboardApi.overview(),
         dashboardApi.kpiTrend(14),
         dashboardApi.schemeDistribution(),
@@ -153,7 +153,7 @@ export default {
     } finally { this.loading = false }
   },
   methods: {
-    formatNum(v: any) {
+    formatNum(v) {
       if (v == null) return 0
       const n = Number(v)
       if (Number.isNaN(n)) return v
