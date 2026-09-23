@@ -22,6 +22,7 @@ import EsgCurve from './pages/EsgCurve'
 import EsgResults from './pages/EsgResults'
 import MetricCoefficient from './pages/MetricCoefficient'
 import ReverseMetricTable from './pages/ReverseMetricTable'
+import ReverseDashboard from './pages/ReverseDashboard'
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) =>
   getToken() ? <>{children}</> : <Navigate to="/login" replace />
@@ -59,6 +60,7 @@ const App: React.FC = () => (
         <Route path="esg/results" element={<EsgResults />} />
         <Route path="metric-coefficient" element={<MetricCoefficient />} />
         <Route path="reverse-metric-table" element={<ReverseMetricTable />} />
+<Route path="reverse-dashboard" element={<ReverseDashboard />} />
       </Route>
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

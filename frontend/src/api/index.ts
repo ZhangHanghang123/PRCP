@@ -339,3 +339,14 @@ export const metricCoefficientApi = {
   reverseTable: (params: any = {}) =>
     http.get('/metric-coefficient/reverse-table', { params }).then((r) => r.data),
 }
+
+// 组合反算 · 结果驾驶舱
+export const reverseDashboardApi = {
+  options: () => http.get('/reverse-dashboard/options').then((r) => r.data),
+  runs: (schemeCode: string) =>
+    http.get('/reverse-dashboard/runs', { params: { scheme_code: schemeCode } }).then((r) => r.data),
+  dates: (schemeCode: string, runId: number) =>
+    http.get('/reverse-dashboard/dates', { params: { scheme_code: schemeCode, run_id: runId } }).then((r) => r.data),
+  snapshot: (params: { scheme_code: string; run_id?: number; date_offset: number }) =>
+    http.get('/reverse-dashboard/snapshot', { params }).then((r) => r.data),
+}
