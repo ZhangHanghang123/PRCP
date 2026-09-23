@@ -21,7 +21,7 @@
         <el-col :span="8">
           <el-button type="primary" icon="el-icon-search" @click="loadTree">查询</el-button>
           <el-button icon="el-icon-refresh-left" @click="onReset">重置</el-button>
-          <el-button type="success" icon="el-icon-plus" @click="onAdd">新增节点</el-button>
+          <el-button type="danger" icon="el-icon-plus" @click="onAdd">新增节点</el-button>
         </el-col>
       </el-row>
     </el-card>

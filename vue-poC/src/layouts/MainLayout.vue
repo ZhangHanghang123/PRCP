@@ -3,7 +3,7 @@
     <!-- 顶部 -->
     <el-header class="header">
       <div class="header-left">
-        <i class="el-icon-bank" style="font-size: 24px; color: #667eea;"></i>
+        <i class="el-icon-bank" style="font-size: 24px; color: #C7000B;"></i>
         <span class="gradient-text" style="font-size: 18px; font-weight: bold; margin-left: 8px;">PRCP · Java 版</span>
       </div>
       <div class="header-right">
@@ -72,7 +72,7 @@ export default {
 .main-layout { height: 100vh; }
 .header {
   background: #fff;
-  border-bottom: 1px solid #e8e8e8;
+  border-bottom: 2px solid #C7000B;
   display: flex;
   justify-content: space-between;
   align-items: center;

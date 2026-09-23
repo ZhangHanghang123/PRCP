@@ -42,7 +42,7 @@ public class CoaNodeService extends ServiceImpl<CoaNodeMapper, CoaNode> {
         }
         List<Map<String, Object>> roots = new ArrayList<>();
         for (Map<String, Object> n : flat) {
-            Object pid = n.get("parent_id");
+            Object pid = n.get("parentId");
             if (pid != null && map.containsKey(((Number) pid).longValue())) {
                 ((List<Map<String, Object>>) map.get(((Number) pid).longValue()).get("children")).add(n);
             } else {

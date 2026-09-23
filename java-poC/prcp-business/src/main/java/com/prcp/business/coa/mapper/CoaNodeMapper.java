@@ -16,8 +16,15 @@ public interface CoaNodeMapper extends BaseMapper<CoaNode> {
      * 方案下所有节点（按路径排序）
      */
     @Select("""
-        SELECT id, scheme_id, node_code, node_name, parent_id, node_level,
-               path, sort_order, node_type, status
+        SELECT id, scheme_id   AS schemeId,
+               node_code      AS nodeCode,
+               node_name      AS nodeName,
+               parent_id      AS parentId,
+               node_level     AS nodeLevel,
+               path           AS path,
+               sort_order     AS sortOrder,
+               node_type      AS nodeType,
+               status         AS status
         FROM prcp_coa_node
         WHERE scheme_id = #{schemeId} AND is_deleted = 0
         ORDER BY path, sort_order

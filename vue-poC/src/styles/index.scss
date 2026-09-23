@@ -1,4 +1,24 @@
-/* 全局样式 */
+/* ============================================
+ * PRCP · Java 版 中信红主题
+ * 主色：#C7000B（CITIC 经典红）
+ * ============================================ */
+:root {
+  --citic-red:        #C7000B;
+  --citic-red-dark:   #A31A1F;
+  --citic-red-light:  #E84E4E;
+  --citic-red-pale:   #FBE5E5;
+  --citic-red-bg:     #FFF5F5;
+
+  /* ElementUI 主题变量覆盖 */
+  --el-color-primary:           #C7000B;
+  --el-color-primary-light-3:   #D53940;
+  --el-color-primary-light-5:   #DC5E63;
+  --el-color-primary-light-7:   #E38287;
+  --el-color-primary-light-8:   #E89498;
+  --el-color-primary-light-9:   #EFA6A9;
+  --el-color-primary-dark-2:    #A31A1F;
+}
+
 html, body, #app {
   height: 100%;
   margin: 0;
@@ -11,24 +31,14 @@ body {
   color: #262626;
 }
 
-* {
-  box-sizing: border-box;
-}
+* { box-sizing: border-box; }
 
-/* 滚动条美化 */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-::-webkit-scrollbar-thumb {
-  background: #c0c4cc;
-  border-radius: 4px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
+/* 滚动条 */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: #c0c4cc; border-radius: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
 
-/* 页面通用容器 */
+/* 通用容器 */
 .page-container {
   padding: 16px;
   background: #fff;
@@ -36,10 +46,130 @@ body {
   margin: 16px;
 }
 
-/* 渐变标题 */
+/* 中信红渐变标题 */
 .gradient-text {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--citic-red) 0%, var(--citic-red-dark) 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* ===========================================================
+ * 全局 ElementUI 组件强制覆盖中信红
+ * =========================================================== */
+/* 主按钮 */
+.el-button--primary {
+  background-color: var(--citic-red) !important;
+  border-color: var(--citic-red) !important;
+}
+.el-button--primary:hover,
+.el-button--primary:focus {
+  background-color: var(--citic-red-dark) !important;
+  border-color: var(--citic-red-dark) !important;
+}
+.el-button--primary.is-disabled,
+.el-button--primary.is-disabled:hover {
+  background-color: #F5A5AB !important;
+  border-color: #F5A5AB !important;
+}
+
+/* Danger 按钮（"新增"等行动按钮）— 用中信红替换 ElementUI 浅红 */
+.el-button--danger {
+  background-color: var(--citic-red) !important;
+  border-color: var(--citic-red) !important;
+}
+.el-button--danger:hover,
+.el-button--danger:focus {
+  background-color: var(--citic-red-dark) !important;
+  border-color: var(--citic-red-dark) !important;
+}
+.el-button--danger.is-plain {
+  color: var(--citic-red) !important;
+  background: var(--citic-red-bg) !important;
+  border-color: var(--citic-red-light) !important;
+}
+
+/* 主按钮的 text / link 形态 */
+.el-button--text.el-button--primary { color: var(--citic-red) !important; }
+
+/* 单选 / 多选 */
+.el-radio__input.is-checked + .el-radio__label,
+.el-radio__input.is-checked .el-radio__inner {
+  border-color: var(--citic-red) !important;
+  background: var(--citic-red) !important;
+}
+.el-checkbox__input.is-checked .el-checkbox__inner {
+  border-color: var(--citic-red) !important;
+  background: var(--citic-red) !important;
+}
+.el-checkbox__input.is-checked + .el-checkbox__label { color: var(--citic-red) !important; }
+
+/* 输入聚焦 */
+.el-input__inner:focus,
+.el-textarea__inner:focus,
+.el-select .el-input__inner:focus {
+  border-color: var(--citic-red) !important;
+}
+
+/* Cascader 选中 */
+.el-cascader-node.is-active,
+.el-cascader-node:hover {
+  color: var(--citic-red) !important;
+}
+
+/* Menu 选中 */
+.el-menu-item.is-active {
+  color: var(--citic-red) !important;
+  border-right: 3px solid var(--citic-red) !important;
+  background: var(--citic-red-bg) !important;
+}
+.el-menu-item:hover { color: var(--citic-red-light) !important; }
+
+/* Pagination */
+.el-pagination.is-background .el-pager li:not(.is-disabled).is-active {
+  background-color: var(--citic-red) !important;
+  color: #fff !important;
+}
+
+/* Tabs */
+.el-tabs__item.is-active { color: var(--citic-red) !important; }
+.el-tabs__active-bar { background-color: var(--citic-red) !important; }
+
+/* Switch */
+.el-switch.is-checked .el-switch__core {
+  background-color: var(--citic-red) !important;
+  border-color: var(--citic-red) !important;
+}
+
+/* Tag danger 用中信红（替换 ElementUI 默认的红 #F56C6C） */
+.el-tag--danger {
+  background-color: var(--citic-red-pale) !important;
+  border-color: var(--citic-red-light) !important;
+  color: var(--citic-red-dark) !important;
+}
+
+/* Dialog 标题色 */
+.el-dialog__title { color: var(--citic-red-dark) !important; font-weight: 600; }
+
+/* Table 表头 */
+.el-table th.el-table__cell {
+  background: var(--citic-red-bg) !important;
+  color: var(--citic-red-dark) !important;
+  font-weight: 600;
+}
+/* Table 行 hover */
+.el-table__row:hover > td.el-table__cell {
+  background: var(--citic-red-bg) !important;
+}
+
+/* Loading / Spinner */
+.el-loading-mask .el-loading-spinner .path {
+  stroke: var(--citic-red) !important;
+}
+.el-loading-mask .el-loading-spinner .el-loading-text {
+  color: var(--citic-red) !important;
+}
+
+/* 链接色 */
+a { color: var(--citic-red); }
+a:hover { color: var(--citic-red-dark); }

@@ -61,7 +61,7 @@ export default {
 <style scoped>
 .login-page {
   height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #C7000B 0%, #A31A1F 100%);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -71,7 +71,8 @@ export default {
   padding: 40px 32px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  border-top: 4px solid #C7000B;
 }
 .login-header {
   text-align: center;
@@ -80,6 +81,10 @@ export default {
 .login-header h1 {
   font-size: 28px;
   margin: 0 0 8px;
+  background: linear-gradient(135deg, #C7000B 0%, #A31A1F 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 .login-header p {
   color: #999;
