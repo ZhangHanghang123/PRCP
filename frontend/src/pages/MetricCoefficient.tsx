@@ -250,18 +250,24 @@ const MetricCoefficient: React.FC = () => {
     },
     { title: '数据日期', dataIndex: 'data_date', width: 110 },
     {
-      title: '账户册方案', dataIndex: 'scheme_code', width: 130,
+      title: '账户册方案', dataIndex: 'scheme_code', width: 220,
       render: (v: string, r: MCRecord) => (
-        <Tooltip title={r.scheme_name}>
-          <Tag color="blue">{v}</Tag>
+        <Tooltip title={`${v} · ${r.scheme_name || ''}`}>
+          <span style={{ whiteSpace: 'nowrap' }}>
+            <Tag color="blue">{v}</Tag>
+            <span style={{ color: '#666' }}>{r.scheme_name || ''}</span>
+          </span>
         </Tooltip>
       ),
     },
     {
-      title: '账户册编码', dataIndex: 'node_code', width: 140,
+      title: '账户册编码', dataIndex: 'node_code', width: 200,
       render: (v: string, r: MCRecord) => (
-        <Tooltip title={r.node_name}>
-          <Tag color="geekblue">{v}</Tag>
+        <Tooltip title={`${v} · ${r.node_name || ''}`}>
+          <span style={{ whiteSpace: 'nowrap' }}>
+            <Tag color="geekblue">{v}</Tag>
+            <span style={{ color: '#666' }}>{r.node_name || ''}</span>
+          </span>
         </Tooltip>
       ),
     },

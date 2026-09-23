@@ -297,7 +297,7 @@ const ReverseDashboard: React.FC = () => {
           </Col>
           <Col>
             <Tag color="blue">数据日期：{data.data_date}</Tag>
-            <Tag color="cyan">账户册方案：{data.coa_scheme_code}</Tag>
+            <Tag color="cyan">账户册方案：{data.coa_scheme_code} {data.coa_scheme_name || ''}</Tag>
             <Tag color="geekblue">基期：{data.base_data_date}</Tag>
             <Tag color="purple">预测期：{data.horizon_months} 月</Tag>
           </Col>
