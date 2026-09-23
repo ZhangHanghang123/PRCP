@@ -40,6 +40,18 @@
             <i class="el-icon-data-line"></i>
             <span slot="title">指标管理</span>
           </el-menu-item>
+          <el-menu-item index="/metric-coefficient">
+            <i class="el-icon-data-analysis"></i>
+            <span slot="title">指标计量系数</span>
+          </el-menu-item>
+          <el-menu-item index="/reverse-metric-table">
+            <i class="el-icon-tickets"></i>
+            <span slot="title">反算指标结果表</span>
+          </el-menu-item>
+          <el-menu-item index="/sys">
+            <i class="el-icon-setting"></i>
+            <span slot="title">系统管理</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 

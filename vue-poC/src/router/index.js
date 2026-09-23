@@ -38,6 +38,24 @@ const routes = [
         name: 'Dashboard',
         component: () => import('@/views/dashboard/Index.vue'),
         meta: { title: '驾驶舱', icon: 'el-icon-data-board' }
+      },
+      {
+        path: 'metric-coefficient',
+        name: 'MetricCoefficient',
+        component: () => import('@/views/metric-coefficient/index.vue'),
+        meta: { title: '指标计量系数', icon: 'el-icon-data-line' }
+      },
+      {
+        path: 'reverse-metric-table',
+        name: 'ReverseMetricTable',
+        component: () => import('@/views/reverse-metric-table/index.vue'),
+        meta: { title: '反算指标结果表', icon: 'el-icon-tickets' }
+      },
+      {
+        path: 'sys',
+        name: 'Sys',
+        component: () => import('@/views/sys/Index.vue'),
+        meta: { title: '系统管理', icon: 'el-icon-setting' }
       }
     ]
   }
