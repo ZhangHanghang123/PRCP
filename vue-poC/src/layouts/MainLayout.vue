@@ -52,6 +52,14 @@
             <i class="el-icon-setting"></i>
             <span slot="title">系统管理</span>
           </el-menu-item>
+          <el-menu-item index="/basic-data">
+            <i class="el-icon-data-analysis"></i>
+            <span slot="title">基础数据维护</span>
+          </el-menu-item>
+          <el-menu-item index="/reverse-data">
+            <i class="el-icon-refresh"></i>
+            <span slot="title">反算基础数据</span>
+          </el-menu-item>
         </el-menu>
       </el-aside>
 

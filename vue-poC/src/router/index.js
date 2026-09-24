@@ -56,6 +56,18 @@ const routes = [
         name: 'Sys',
         component: () => import('@/views/sys/Index.vue'),
         meta: { title: '系统管理', icon: 'el-icon-setting' }
+      },
+      {
+        path: 'basic-data',
+        name: 'BasicData',
+        component: () => import('@/views/basic-data/Index.vue'),
+        meta: { title: '基础数据维护', icon: 'el-icon-data-analysis' }
+      },
+      {
+        path: 'reverse-data',
+        name: 'ReverseData',
+        component: () => import('@/views/reverse-data/Index.vue'),
+        meta: { title: '反算基础数据', icon: 'el-icon-refresh' }
       }
     ]
   }
