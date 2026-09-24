@@ -66,38 +66,92 @@
         </el-table>
       </el-tab-pane>
 
-      <!-- 字典 Tab -->
+      <!-- 字典 Tab（左右栏：左类别 + 右码值） -->
       <el-tab-pane label="字典管理" name="dict">
-        <div class="toolbar">
-          <el-input v-model="dictKw" placeholder="搜索类别/键/标签" clearable style="width:240px" />
-          <el-button type="primary" icon="el-icon-search" @click="loadDicts">查询</el-button>
-          <el-button icon="el-icon-refresh-left" @click="dictKw='';loadDicts()">重置</el-button>
-          <el-button type="danger" icon="el-icon-plus" @click="openDictDlg()">新增字典</el-button>
+        <el-alert type="info" :closable="false" show-icon style="margin-bottom:12px">
+          <template slot="title">
+            PRCP 通用字典 <strong>sys_dict</strong>：所有字典共用一张表，按 dict_type 分类。前端下拉 / Tag 颜色都从此表动态加载。新增字典项后刷新业务页面即生效。
+          </template>
+        </el-alert>
+
+        <div class="dict-layout">
+          <!-- 左：字典类别 -->
+          <div class="dict-left">
+            <div class="dict-left-head">
+              <i class="el-icon-collection"></i>
+              <span>字典类别</span>
+              <el-button size="mini" type="danger" icon="el-icon-plus" style="margin-left:auto" @click="openDictDlg()">新增字典</el-button>
+            </div>
+            <el-table
+              :data="dictTypes"
+              highlight-current-row
+              :show-header="false"
+              @row-click="onDictTypeClick"
+              :row-class-name="dictRowClass"
+              v-loading="loading.types"
+              class="dict-type-table"
+              height="540">
+              <el-table-column prop="dictType" label="字典类别" min-width="160">
+                <template slot-scope="s">
+                  <i class="el-icon-folder" style="color:#C7000B;margin-right:6px"></i>
+                  <span style="font-family:Consolas,monospace">{{ s.row.dictType }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="项数" width="70" align="right">
+                <template slot-scope="s">
+                  <el-tag size="mini" effect="plain">{{ s.row.count }}</el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
+
+          <!-- 右：字典码值 -->
+          <div class="dict-right">
+            <div class="dict-right-head">
+              <i class="el-icon-notebook-2"></i>
+              <span>字典码值：</span>
+              <strong v-if="selectedType" style="color:#C7000B">{{ selectedType }}</strong>
+              <span v-else style="color:#999">（请选择左侧类别）</span>
+              <span style="margin-left:auto">
+                <el-input v-if="selectedType" v-model="dictKw" placeholder="搜索 dict_key / dict_label" clearable size="small" style="width:220px" @keyup.enter.native="loadDicts" />
+                <el-button v-if="selectedType" size="mini" type="primary" icon="el-icon-search" @click="loadDicts">查询</el-button>
+                <el-button v-if="selectedType" size="mini" icon="el-icon-refresh-left" @click="dictKw='';loadDicts()">重置</el-button>
+                <el-button v-if="selectedType" size="mini" type="danger" icon="el-icon-plus" @click="openDictDlg()">新增字典项</el-button>
+              </span>
+            </div>
+            <el-table :data="dicts" border stripe v-loading="loading.dict" height="540">
+              <el-table-column prop="dictKey" label="字典值" width="160">
+                <template slot-scope="s">
+                  <code style="background:#f5f5f5;padding:2px 6px;border-radius:3px">{{ s.row.dictKey }}</code>
+                </template>
+              </el-table-column>
+              <el-table-column prop="dictLabel" label="显示标签" min-width="180">
+                <template slot-scope="s">
+                  <el-tag v-if="s.row.color" :color="s.row.color" effect="dark" size="small">{{ s.row.dictLabel }}</el-tag>
+                  <span v-else>{{ s.row.dictLabel }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="颜色" width="100" align="center">
+                <template slot-scope="s">
+                  <span v-if="s.row.color" class="color-chip" :style="{ background: s.row.color }"></span>
+                  <span v-else style="color:#ccc">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="sortOrder" label="排序" width="80" align="center" />
+              <el-table-column label="状态" width="100" align="center">
+                <template slot-scope="s">
+                  <el-tag :type="s.row.status === 'ACTIVE' ? 'success' : 'info'" size="small">{{ s.row.status }}</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="140" align="center" fixed="right">
+                <template slot-scope="s">
+                  <el-button type="text" @click="openDictDlg(s.row)">编辑</el-button>
+                  <el-button type="text" style="color:#F56C6C" @click="onDeleteDict(s.row)">删除</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </div>
         </div>
-        <el-table :data="dicts" border stripe v-loading="loading.dict">
-          <el-table-column prop="id" label="ID" width="80" />
-          <el-table-column prop="dictType" label="字典类别" width="180" />
-          <el-table-column prop="dictKey" label="键" width="160" />
-          <el-table-column prop="dictLabel" label="显示标签" />
-          <el-table-column label="颜色" width="100">
-            <template slot-scope="s">
-              <el-tag v-if="s.row.color" :color="s.row.color" effect="dark" size="small">{{ s.row.dictLabel }}</el-tag>
-              <span v-else>{{ s.row.dictLabel }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column prop="sortOrder" label="顺序" width="80" />
-          <el-table-column label="状态" width="100">
-            <template slot-scope="s">
-              <el-tag :type="s.row.status === 'ACTIVE' ? 'success' : 'info'" size="small">{{ s.row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="160" fixed="right">
-            <template slot-scope="s">
-              <el-button type="text" @click="openDictDlg(s.row)">编辑</el-button>
-              <el-button type="text" style="color:#F56C6C" @click="onDeleteDict(s.row)">删除</el-button>
-            </template>
-          </el-table-column>
-        </el-table>
       </el-tab-pane>
     </el-tabs>
 
@@ -191,9 +245,11 @@ export default {
       users: [],
       roles: [],
       dicts: [],
+      dictTypes: [],     // 左栏：字典类别汇总
+      selectedType: '',  // 当前选中的字典类别
       userKw: '',
       dictKw: '',
-      loading: { user: false, role: false, dict: false },
+      loading: { user: false, role: false, dict: false, types: false },
       userDlg: { show: false, id: null, username: '', password: '', displayName: '', role: 'user', status: 1 },
       pwdDlg: { show: false, uid: null, username: '', password: '' },
       roleDlg: { show: false, id: null, roleCode: '', roleName: '', description: '', status: 1 },
@@ -203,7 +259,12 @@ export default {
   mounted() {
     this.loadUsers()
     this.loadRoles()
-    this.loadDicts()
+    this.loadDictTypes()
+  },
+  watch: {
+    activeTab(t) {
+      if (t === 'dict' && !this.dictTypes.length) this.loadDictTypes()
+    }
   },
   methods: {
     async loadUsers() {
@@ -214,9 +275,34 @@ export default {
       this.loading.role = true
       try { this.roles = await roleApi.list() } finally { this.loading.role = false }
     },
+    async loadDictTypes() {
+      this.loading.types = true
+      try {
+        this.dictTypes = await dictApi.listTypesSummary()
+        if (this.dictTypes.length && !this.selectedType) {
+          this.selectedType = this.dictTypes[0].dictType
+          await this.loadDicts()
+        }
+      } finally { this.loading.types = false }
+    },
     async loadDicts() {
       this.loading.dict = true
-      try { this.dicts = await dictApi.list(this.dictKw) } finally { this.loading.dict = false }
+      try {
+        const kw = (this.dictKw || '').trim()
+        if (this.selectedType) {
+          this.dicts = await dictApi.listByType(this.selectedType, kw)
+        } else {
+          this.dicts = await dictApi.list(kw)
+        }
+      } finally { this.loading.dict = false }
+    },
+    onDictTypeClick(row) {
+      this.selectedType = row.dictType
+      this.dictKw = ''
+      this.loadDicts()
+    },
+    dictRowClass({ row }) {
+      return row.dictType === this.selectedType ? 'current-row' : ''
     },
 
     openUserDlg(row) {
@@ -276,7 +362,8 @@ export default {
       if (row) {
         this.dictDlg = { show: true, id: row.id, dictType: row.dictType, dictKey: row.dictKey, dictLabel: row.dictLabel, color: row.color, sortOrder: row.sortOrder, status: row.status }
       } else {
-        this.dictDlg = { show: true, id: null, dictType: '', dictKey: '', dictLabel: '', color: '', sortOrder: 0, status: 'ACTIVE' }
+        // 新增时默认带当前选中的 dict_type，便于连续新增同一类别
+        this.dictDlg = { show: true, id: null, dictType: this.selectedType || '', dictKey: '', dictLabel: '', color: '', sortOrder: 0, status: 'ACTIVE' }
       }
     },
     async onSaveDict() {
@@ -286,11 +373,11 @@ export default {
         } else {
           await dictApi.create({ dict_type: this.dictDlg.dictType, dict_key: this.dictDlg.dictKey, dict_label: this.dictDlg.dictLabel, color: this.dictDlg.color, sort_order: this.dictDlg.sortOrder })
         }
-        this.$message.success('保存成功'); this.dictDlg.show = false; this.loadDicts()
+        this.$message.success('保存成功'); this.dictDlg.show = false; this.loadDicts(); this.loadDictTypes()
       } catch (e) { this.$message.error(e.message || '保存失败') }
     },
     async onDeleteDict(row) {
-      try { await this.$confirm(`确定删除字典 ${row.dictType}:${row.dictKey}？`, '确认'); await dictApi.remove(row.id); this.$message.success('已删除'); await this.loadDicts() }
+      try { await this.$confirm(`确定删除字典 ${row.dictType}:${row.dictKey}？`, '确认'); await dictApi.remove(row.id); this.$message.success('已删除'); await this.loadDicts(); await this.loadDictTypes() }
       catch (e) { if (e !== 'cancel') this.$message.error(e.message || '删除失败') }
     }
   }
@@ -304,4 +391,17 @@ export default {
 .page-title .sub { font-size: 12px; color: #999; font-weight: normal; margin-left: 8px; }
 .mt-16 { margin-top: 16px; }
 .toolbar { margin-bottom: 12px; display: flex; gap: 8px; }
+
+/* 字典左右栏布局 */
+.dict-layout { display: flex; gap: 12px; align-items: stretch; }
+.dict-left { width: 320px; background: #fff; border: 1px solid #ebeef5; border-radius: 4px; }
+.dict-right { flex: 1; background: #fff; border: 1px solid #ebeef5; border-radius: 4px; padding-bottom: 6px; }
+.dict-left-head, .dict-right-head {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; background: #fafbfc;
+  border-bottom: 1px solid #ebeef5; font-size: 14px;
+}
+.dict-left-head i, .dict-right-head i { color: #C7000B; }
+.dict-type-table >>> .current-row td { background-color: #fef0f0 !important; color: #C7000B; font-weight: 600; }
+.color-chip { display:inline-block; width:24px; height:24px; border-radius:4px; vertical-align: middle; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
 </style>

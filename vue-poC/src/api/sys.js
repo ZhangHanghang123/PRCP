@@ -22,6 +22,7 @@ export const dictApi = {
   list: (keyword) => request.get('/dict/all', { params: { keyword } }),
   listByType: (type, keyword) => request.get('/dict/' + type, { params: { keyword } }),
   listTypes: () => request.get('/dict/types'),
+  listTypesSummary: () => request.get('/dict/types/summary'),
   create: (data) => request.post('/dict', data),
   update: (id, data) => request.put('/dict/' + id, data),
   remove: (id) => request.delete('/dict/' + id),
