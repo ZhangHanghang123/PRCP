@@ -21,12 +21,14 @@
     <el-row :gutter="14" class="chart-row">
       <el-col :span="12">
         <el-card shadow="never" header="📈 指标值录入趋势（近 14 天）">
-          <v-chart :options="trendOption" :autoresize="true" style="height:280px" />
+          <v-chart v-if="!loading && trend.length" :options="trendOption" :autoresize="true" style="height:280px" />
+          <div v-else class="chart-placeholder">{{ loading ? '加载中...' : '暂无趋势数据' }}</div>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card shadow="never" header="🥧 指标方案定义分布（TOP 8）">
-          <v-chart :options="schemeOption" :autoresize="true" style="height:280px" />
+          <v-chart v-if="!loading && schemes.length" :options="schemeOption" :autoresize="true" style="height:280px" />
+          <div v-else class="chart-placeholder">{{ loading ? '加载中...' : '暂无方案分布' }}</div>
         </el-card>
       </el-col>
     </el-row>
@@ -34,7 +36,8 @@
     <el-row :gutter="14" class="chart-row">
       <el-col :span="14">
         <el-card shadow="never" header="🏆 Top10 指标（按当前绝对值）">
-          <v-chart :options="topOption" :autoresize="true" style="height:300px" />
+          <v-chart v-if="!loading && topKpis.length" :options="topOption" :autoresize="true" style="height:300px" />
+          <div v-else class="chart-placeholder">{{ loading ? '加载中...' : '暂无 Top10 数据' }}</div>
         </el-card>
       </el-col>
       <el-col :span="10">
@@ -66,6 +69,7 @@ import 'echarts/lib/chart/bar'
 import 'echarts/lib/component/tooltip'
 import 'echarts/lib/component/legend'
 import 'echarts/lib/component/title'
+import 'echarts/lib/component/grid'
 
 export default {
   name: 'DashboardIndex',
@@ -176,4 +180,5 @@ export default {
 .kpi-unit { color:#aaa; font-size:12px; }
 .chart-row { margin:0 16px 14px; }
 .echarts { width:100%; }
+.chart-placeholder { padding: 120px 0; text-align: center; color: #999; font-size: 13px; }
 </style>
