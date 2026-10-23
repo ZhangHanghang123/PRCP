@@ -1,17 +1,24 @@
-"""基础数据表 API — 按账户册 + 数据日期 + 日期偏移量的二维矩阵
-字段定义参考 docs/基础数据表.xlsx
+"""basic.py v4 改造 — 3 表拆分
+- prcp_data_basic 主表（无 128 期限字段）
+- prcp_data_basic_orig 原始期限 64 桶
+- prcp_data_basic_rem 剩余期限 64 桶
+所有 API 通过 (coa_node_id, data_date, date_offset, offset_unit) 四元组 JOIN
+"""
+"""基础数据表 API — v4 拆分（3 表）
+prcp_data_basic（主表）+ prcp_data_basic_orig（原始期限 64 桶）+ prcp_data_basic_rem（剩余期限 64 桶）
+通过 (coa_node_id, data_date, date_offset, offset_unit) 四元组 JOIN
 """
 import io
 from typing import Optional, List
 from datetime import datetime
-from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.styles import PatternFill, Font, Alignment
+from openpyxl.utils import get_column_letter
 
 from app.database import get_db
 from app.auth import get_current_user
@@ -19,35 +26,32 @@ from app.services.buckets import BUCKETS, KEYS, NAMES, ORIG_COLS, REM_COLS, all_
 
 router = APIRouter(prefix="/basic", tags=["基础数据表"])
 
-# 数值字段（原值/剩余值 + 余额/利率）
-ORIG_FIELDS = ORIG_COLS
-REM_FIELDS = REM_COLS
-ALL_NUM_FIELDS = ORIG_FIELDS + REM_FIELDS + [
-    "current_balance", "avg_balance", "weighted_rate",
-    "interest_amount", "risk_weight",
-]
-N_BUCKETS = len(BUCKETS)  # 58
+# v4: 期限桶字段在 *_orig / *_rem 子表中
+ORIG_TABLE = "prcp_data_basic_orig"
+REM_TABLE = "prcp_data_basic_rem"
+MAIN_TABLE = "prcp_data_basic"
+N_BUCKETS = len(BUCKETS)  # 64
 
 
 class BasicIn(BaseModel):
     coa_node_id: int
-    data_date: str  # YYYY-MM-DD
+    data_date: str
     date_offset: int = 0
     offset_unit: str = "D"
-    # 维度（冗余，便于查询）
+    # 维度
     node_code: Optional[str] = None
     node_name: Optional[str] = None
     node_level: Optional[int] = None
     parent_code: Optional[str] = None
     is_leaf: Optional[int] = 0
     category: Optional[str] = None
-    # 58+58 期限桶（短端5 + 中端按月48 + 长端5，含 y1）
+    # 64+64 期限桶
     orig: Optional[List[float]] = None
     rem: Optional[List[float]] = None
-    # 流动性指标
+    # 流动性
     asf_rsf: Optional[str] = None
     hqla_factor: Optional[float] = None
-    # 余额/利率
+    # 度量
     current_balance: float = 0
     avg_balance: float = 0
     weighted_rate: float = 0
@@ -56,15 +60,19 @@ class BasicIn(BaseModel):
     calc_note: Optional[str] = None
 
 
-def _row_to_dict(r) -> dict:
-    """将 SQL 行转 dict（含 orig[17]/rem[17] 数组）"""
-    # 公共字段共 11 列：id, data_date, coa_node_id, node_code, node_name, node_level,
-    # parent_code, is_leaf, category, date_offset, offset_unit
-    # col 11 起为 orig_*, col 28 起为 rem_*, col 45 起为度量
-    n_b = len(ORIG_FIELDS)  # 17（v2 后）
-    base = 11
-    orig = [float(r[base + i] or 0) for i in range(n_b)]
-    rem = [float(r[base + n_b + i] or 0) for i in range(n_b)]
+def _main_cols() -> str:
+    """主表 SELECT 字段（11 维度 + 8 度量/流动性 + calc_note + created_at）"""
+    return ("b.id, b.data_date, b.coa_node_id, b.node_code, b.node_name, b.node_level, "
+            "b.parent_code, b.is_leaf, b.category, b.date_offset, b.offset_unit, "
+            "b.asf_rsf, b.hqla_factor, b.current_balance, b.avg_balance, "
+            "b.weighted_rate, b.interest_amount, b.risk_weight, b.calc_note, b.created_at")
+
+
+def _row_to_dict(r, orig_dict: dict, rem_dict: dict) -> dict:
+    """主表行 + orig/rem 子表 dict → 合并成 dict"""
+    n_b = N_BUCKETS
+    orig = [float(orig_dict.get(c, 0) or 0) for c in ORIG_COLS]
+    rem = [float(rem_dict.get(c, 0) or 0) for c in REM_COLS]
     return {
         "id": r[0],
         "data_date": r[1].isoformat() if r[1] else None,
@@ -77,18 +85,75 @@ def _row_to_dict(r) -> dict:
         "category": r[8],
         "date_offset": r[9],
         "offset_unit": r[10],
+        "asf_rsf": r[11],
+        "hqla_factor": float(r[12] or 0) if r[12] is not None else None,
+        "current_balance": float(r[13] or 0),
+        "avg_balance": float(r[14] or 0),
+        "weighted_rate": float(r[15] or 0),
+        "interest_amount": float(r[16] or 0),
+        "risk_weight": float(r[17] or 0),
+        "calc_note": r[18],
+        "created_at": r[19].isoformat() if r[19] else None,
         "orig": orig,
         "rem": rem,
-        "asf_rsf": r[base + 2 * n_b],
-        "hqla_factor": float(r[base + 2 * n_b + 1] or 0) if r[base + 2 * n_b + 1] is not None else None,
-        "current_balance": float(r[base + 2 * n_b + 2] or 0),
-        "avg_balance": float(r[base + 2 * n_b + 3] or 0),
-        "weighted_rate": float(r[base + 2 * n_b + 4] or 0),
-        "interest_amount": float(r[base + 2 * n_b + 5] or 0),
-        "risk_weight": float(r[base + 2 * n_b + 6] or 0),
-        "calc_note": r[base + 2 * n_b + 7],
-        "created_at": r[base + 2 * n_b + 8].isoformat() if r[base + 2 * n_b + 8] else None,
     }
+
+
+def _join_sql(extra_where: str = "", prefix: str = "b.") -> str:
+    """返回 3 表 JOIN 的 SELECT SQL（主表字段 + orig/rem 全部字段）
+
+    Args:
+        extra_where: 额外的 WHERE 子句
+        prefix: 主表别名
+    """
+    orig_select = ", ".join(f"o.{c} AS {c}" for c in ORIG_COLS)
+    rem_select = ", ".join(f"r.{c} AS {c}" for c in REM_COLS)
+    sql = (f"SELECT {_main_cols()}, {orig_select}, {rem_select} "
+           f"FROM {MAIN_TABLE} {prefix} "
+           f"LEFT JOIN {ORIG_TABLE} o ON o.coa_node_id={prefix}coa_node_id "
+           f"  AND o.data_date={prefix}data_date "
+           f"  AND o.date_offset={prefix}date_offset "
+           f"  AND o.offset_unit={prefix}offset_unit "
+           f"  AND o.is_deleted=0 "
+           f"LEFT JOIN {REM_TABLE} r ON r.coa_node_id={prefix}coa_node_id "
+           f"  AND r.data_date={prefix}data_date "
+           f"  AND r.date_offset={prefix}date_offset "
+           f"  AND r.offset_unit={prefix}offset_unit "
+           f"  AND r.is_deleted=0 "
+           f"WHERE {prefix}is_deleted=0 {extra_where}")
+    return sql
+
+
+def _fetch_all(db, where_extra: str, params: dict, order_by: str = "b.data_date DESC, b.coa_node_id, b.date_offset", limit: int = 5000):
+    """统一查询（v3 单表，145 列：前 15 字段 + 128 桶）"""
+    # 拼接 WHERE：固定 b.is_deleted=0 + 动态条件（已含 AND/无前缀）
+    where_clause = f"WHERE b.is_deleted=0 {('AND ' + where_extra) if where_extra else ''}"
+    sql = (
+        f"SELECT b.id, b.data_date, b.coa_node_id, b.node_code, b.node_name, b.node_level, "
+        f"b.parent_code, b.is_leaf, b.category, b.date_offset, b.offset_unit, "
+        f"b.asf_rsf, b.hqla_factor, b.current_balance, b.avg_balance, "
+        f"b.weighted_rate, b.interest_amount, b.risk_weight, b.calc_note, b.created_at, "
+        f"{all_select_sql(prefix='')} "
+        f"FROM {MAIN_TABLE} b "
+        f"{where_clause} "
+        f"ORDER BY {order_by} LIMIT {limit}"
+    )
+    rows = db.execute(text(sql), params).fetchall()
+    return rows
+
+
+def _rows_to_dicts(rows) -> list:
+    """把 SQL 行转 dict（v3 单表：前 20 列=主表字段，中间 64=orig，最后 64=rem）"""
+    n_b = N_BUCKETS
+    items = []
+    for r in rows:
+        main = r[:20]
+        orig_vals = r[20:20 + n_b]
+        rem_vals = r[20 + n_b:20 + 2 * n_b]
+        orig_dict = {ORIG_COLS[i]: orig_vals[i] for i in range(n_b)}
+        rem_dict = {REM_COLS[i]: rem_vals[i] for i in range(n_b)}
+        items.append(_row_to_dict(main, orig_dict, rem_dict))
+    return items
 
 
 @router.get("/")
@@ -101,46 +166,36 @@ async def list_basic(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """列表查询（按筛选条件）"""
-    where = ["b.is_deleted=0"]
+    """列表查询（按筛选条件）— v4 三表 JOIN"""
+    where_parts = []
     params = {}
     if coa_node_id:
-        where.append("b.coa_node_id=:n")
+        where_parts.append("b.coa_node_id=:n")
         params["n"] = coa_node_id
     if data_date:
-        where.append("b.data_date=:d")
+        where_parts.append("b.data_date=:d")
         params["d"] = data_date
     if start_date:
-        where.append("b.data_date>=:sd")
+        where_parts.append("b.data_date>=:sd")
         params["sd"] = start_date
     if end_date:
-        where.append("b.data_date<=:ed")
+        where_parts.append("b.data_date<=:ed")
         params["ed"] = end_date
     if category:
-        where.append("b.category=:c")
+        where_parts.append("b.category=:c")
         params["c"] = category
-
-    select_cols = "b.id, b.data_date, b.coa_node_id, b.node_code, b.node_name, b.node_level, " \
-                  "b.parent_code, b.is_leaf, b.category, b.date_offset, b.offset_unit, " \
-                  + all_select_sql(prefix="b.") + ", " \
-                  "b.asf_rsf, b.hqla_factor, b.current_balance, b.avg_balance, " \
-                  "b.weighted_rate, b.interest_amount, b.risk_weight, b.calc_note, b.created_at"
-
-    rows = db.execute(
-        text(f"SELECT {select_cols} FROM prcp_data_basic b WHERE {' AND '.join(where)} "
-             "ORDER BY b.data_date DESC, b.coa_node_id, b.date_offset LIMIT 5000"),
-        params,
-    ).fetchall()
-    items = [_row_to_dict(r) for r in rows]
+    extra_where = " AND ".join(where_parts)
+    rows = _fetch_all(db, extra_where, params)
+    items = _rows_to_dicts(rows)
     return {"items": items, "total": len(items)}
 
 
 @router.post("/")
 async def upsert_basic(p: BasicIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
-    """按 (coa_node_id, data_date, date_offset, offset_unit) 唯一"""
+    """按 (coa_node_id, data_date, date_offset, offset_unit) 唯一 — v3 单表 145 列"""
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
 
-    # 自动补全维度字段（从 coa_node JOIN）
+    # 自动补全维度
     if not p.node_code or not p.node_name:
         nr = db.execute(
             text("""SELECT n.node_code, n.node_name, n.node_level, n.parent_id,
@@ -156,79 +211,82 @@ async def upsert_basic(p: BasicIn, db: Session = Depends(get_db), user=Depends(g
         else:
             raise HTTPException(404, f"账户册节点不存在：{p.coa_node_id}")
 
-    orig = (p.orig or [0] * 13)
-    rem = (p.rem or [0] * 13)
-    while len(orig) < 13:
-        orig.append(0)
-    while len(rem) < 13:
-        rem.append(0)
+    orig = list(p.orig or []) + [0] * (N_BUCKETS - len(p.orig or []))
+    rem = list(p.rem or []) + [0] * (N_BUCKETS - len(p.rem or []))
+    orig = orig[:N_BUCKETS]
+    rem = rem[:N_BUCKETS]
 
     params = {
-        "n": p.coa_node_id,
-        "d": p.data_date,
-        "off": p.date_offset,
-        "unit": p.offset_unit,
-        "node_code": p.node_code,
-        "node_name": p.node_name,
-        "node_level": p.node_level,
-        "parent_code": p.parent_code,
-        "is_leaf": p.is_leaf,
-        "category": p.category,
-        "asf_rsf": p.asf_rsf,
-        "hqla_factor": p.hqla_factor,
-        "current_balance": p.current_balance,
-        "avg_balance": p.avg_balance,
-        "weighted_rate": p.weighted_rate,
-        "interest_amount": p.interest_amount,
-        "risk_weight": p.risk_weight,
-        "calc_note": p.calc_note,
-        "u": uid,
+        "n": p.coa_node_id, "d": p.data_date, "off": p.date_offset, "unit": p.offset_unit,
+        "node_code": p.node_code, "node_name": p.node_name, "node_level": p.node_level,
+        "parent_code": p.parent_code, "is_leaf": p.is_leaf, "category": p.category,
+        "asf_rsf": p.asf_rsf, "hqla_factor": p.hqla_factor,
+        "current_balance": p.current_balance, "avg_balance": p.avg_balance,
+        "weighted_rate": p.weighted_rate, "interest_amount": p.interest_amount,
+        "risk_weight": p.risk_weight, "calc_note": p.calc_note, "u": uid,
     }
-    for i, k in enumerate(ORIG_FIELDS):
+    # 桶字段（orig_m1...orig_y30 + rem_m1...rem_y30）
+    for i, k in enumerate(ORIG_COLS):
         params[k] = orig[i]
-    for i, k in enumerate(REM_FIELDS):
+    for i, k in enumerate(REM_COLS):
         params[k] = rem[i]
 
+    # 查询是否存在
     existing = db.execute(
-        text("SELECT id FROM prcp_data_basic WHERE coa_node_id=:n AND data_date=:d "
-             "AND date_offset=:off AND offset_unit=:unit AND is_deleted=0"),
+        text(f"SELECT id FROM {MAIN_TABLE} WHERE coa_node_id=:n AND data_date=:d "
+             f"AND date_offset=:off AND offset_unit=:unit AND is_deleted=0"),
         {"n": p.coa_node_id, "d": p.data_date, "off": p.date_offset, "unit": p.offset_unit},
     ).first()
 
     if existing:
-        set_clause = ", ".join(f"{k}=:{k}" for k in ORIG_FIELDS + REM_FIELDS + [
-            "asf_rsf", "hqla_factor", "current_balance", "avg_balance",
-            "weighted_rate", "interest_amount", "risk_weight", "calc_note",
-        ])
         params["id"] = existing[0]
+        # 动态 SET 子句
+        set_parts = [
+            "node_code=:node_code", "node_name=:node_name", "node_level=:node_level",
+            "parent_code=:parent_code", "is_leaf=:is_leaf", "category=:category",
+            "asf_rsf=:asf_rsf", "hqla_factor=:hqla_factor",
+            "current_balance=:current_balance", "avg_balance=:avg_balance",
+            "weighted_rate=:weighted_rate", "interest_amount=:interest_amount",
+            "risk_weight=:risk_weight", "calc_note=:calc_note", "updated_by=:u",
+        ] + [f"{c}=:{c}" for c in ORIG_COLS + REM_COLS]
         db.execute(
-            text(f"""UPDATE prcp_data_basic SET {set_clause},
-                node_code=:node_code, node_name=:node_name, node_level=:node_level,
-                parent_code=:parent_code, is_leaf=:is_leaf, category=:category,
-                updated_by=:u WHERE id=:id"""),
+            text(f"UPDATE {MAIN_TABLE} SET {', '.join(set_parts)} WHERE id=:id"),
             params,
         )
         return {"id": existing[0], "action": "updated"}
     else:
+        # 单表 INSERT（含全部 128 桶字段）
         cols = ["coa_node_id", "data_date", "date_offset", "offset_unit",
                 "node_code", "node_name", "node_level", "parent_code", "is_leaf", "category",
                 "asf_rsf", "hqla_factor", "current_balance", "avg_balance",
-                "weighted_rate", "interest_amount", "risk_weight", "calc_note",
-                "created_by", "updated_by"] + ORIG_FIELDS + REM_FIELDS
+                "weighted_rate", "interest_amount", "risk_weight", "calc_note"] \
+               + ORIG_COLS + REM_COLS + ["created_by", "updated_by"]
+        # params 键名映射（n/d/off/u → coa_node_id/data_date/date_offset/...）
+        iparams = dict(params)
+        iparams["coa_node_id"] = iparams.pop("n")
+        iparams["data_date"] = iparams.pop("d")
+        iparams["date_offset"] = iparams.pop("off")
+        iparams["offset_unit"] = iparams.pop("unit")
+        iparams["updated_by"] = iparams.pop("u")
+        iparams["created_by"] = uid
         col_list = ", ".join(cols)
         val_list = ", ".join(f":{c}" for c in cols)
         rid = db.execute(
-            text(f"INSERT INTO prcp_data_basic ({col_list}) VALUES ({val_list})"),
-            params,
+            text(f"INSERT INTO {MAIN_TABLE} ({col_list}) VALUES ({val_list})"),
+            iparams,
         ).lastrowid
         return {"id": rid, "action": "created"}
 
 
+# _upsert_sub_table 已废弃：v3 单表结构不需要子表 upsert
+
+
 @router.delete("/{bid}")
 async def delete_basic(bid: int, db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """逻辑删除主表（v3 单表结构）"""
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
     r = db.execute(
-        text("UPDATE prcp_data_basic SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
+        text(f"UPDATE {MAIN_TABLE} SET is_deleted=1, updated_by=:u WHERE id=:id AND is_deleted=0"),
         {"u": uid, "id": bid},
     )
     if r.rowcount == 0:
@@ -249,7 +307,7 @@ async def list_dates(
         where.append("n.scheme_id=:s")
         params["s"] = scheme_id
     rows = db.execute(
-        text(f"SELECT DISTINCT b.data_date FROM prcp_data_basic b "
+        text(f"SELECT DISTINCT b.data_date FROM {MAIN_TABLE} b "
              f"JOIN prcp_coa_node n ON n.id=b.coa_node_id "
              f"WHERE {' AND '.join(where)} ORDER BY b.data_date DESC LIMIT 100"),
         params,
@@ -260,19 +318,16 @@ async def list_dates(
 @router.get("/by-scheme-matrix")
 async def by_scheme_matrix(
     scheme_id: int = Query(...),
-    data_date: str = Query(..., description="YYYY-MM-DD 目标数据日期"),
-    date_offset: int = Query(0, description="日期偏移量，0=当期"),
-    offset_unit: str = Query("D", description="D=日,W=周,Y=年"),
+    data_date: str = Query(...),
+    date_offset: int = Query(0),
+    offset_unit: str = Query("D"),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """二维矩阵：行 = 账户册 × 列 = (原始期限 + 剩余期限) 共 26 列
-
-    返回结构：
-    - nodes: 账户册树节点
-    - matrix: {coa_node_id: {col_key: value}}
-    - categories: 按大类汇总
+    """二维矩阵（v3 单表，145 列直接 JOIN prcp_coa_node）
+    注意：服务器数据库是 prcp_data_basic 单表结构（v3 兼容），不走 v4 三表 JOIN。
     """
+    # 1) 取账户册节点（注意 prcp_coa_node 没有 category 字段，从 node_type 推断）
     node_rows = db.execute(
         text("""SELECT id, node_code, node_name, parent_id, node_level, node_type, path, sort_order, description
                 FROM prcp_coa_node
@@ -283,8 +338,12 @@ async def by_scheme_matrix(
     nodes = []
     for r in node_rows:
         path = r[6] or ""
+        node_type = r[5] or ""
+        # category 从 node_type 推断（如 ASSET_LEAF -> ASSET）或从 path 推断
         cat = ""
-        if "/" in path:
+        if node_type:
+            cat = node_type.split("_")[0]
+        elif "/" in path and path.split("/")[1].startswith("L1_"):
             cat = path.split("/")[1].replace("L1_", "")
         nodes.append({
             "coa_node_id": r[0], "node_code": r[1], "node_name": r[2],
@@ -292,69 +351,66 @@ async def by_scheme_matrix(
             "sort_order": r[7] or 0, "category": cat, "description": r[8] or "",
         })
 
-    # 拉基础数据（**JOIN 过滤 scheme_id**，避免取到其他方案的 coa_node_id）
+    # 2) 单表 JOIN 取矩阵数据（v3：15 主表字段 + 128 桶）
     rows = db.execute(
-        text("""SELECT b.coa_node_id,
-                      """ + all_select_sql("b.") + """,
-                      b.asf_rsf, b.hqla_factor,
-                      b.current_balance, b.avg_balance, b.weighted_rate, b.interest_amount, b.risk_weight
-               FROM prcp_data_basic b
-               JOIN prcp_coa_node n ON n.id = b.coa_node_id
-               WHERE n.scheme_id=:s AND b.data_date=:d AND b.date_offset=:off AND b.offset_unit=:u AND b.is_deleted=0"""),
+        text(f"""SELECT b.coa_node_id, b.data_date, b.node_code, b.node_name, b.node_level,
+                       b.parent_code, b.is_leaf, b.category, b.date_offset, b.offset_unit,
+                       b.asf_rsf, b.hqla_factor, b.current_balance, b.avg_balance,
+                       b.weighted_rate, b.interest_amount, b.risk_weight,
+                       {all_select_sql(prefix='')}
+                FROM {MAIN_TABLE} b
+                JOIN prcp_coa_node n ON n.id = b.coa_node_id
+                WHERE b.data_date=:d AND b.date_offset=:off AND b.offset_unit=:u
+                  AND b.is_deleted=0 AND n.scheme_id=:s
+                ORDER BY b.coa_node_id"""),
         {"s": scheme_id, "d": data_date, "off": date_offset, "u": offset_unit},
     ).fetchall()
 
-    # SELECT 顺序：1=coa_node_id, 2-18=orig(17), 19-35=rem(17), 36+=asf_rsf, hqla, 度量
+    # 行结构（共 15+128 = 143 列）：
+    #   0..14: 主表字段（coa_node_id ... risk_weight）
+    #   15..78: orig_m1..m60 + orig_y10/y15/y20/y30
+    #   79..142: rem_m1..m60 + rem_y10/y15/y20/y30
     matrix: dict = {}
-    n_buckets = len(ORIG_FIELDS)  # 17（v2 后）
     for r in rows:
         cid = r[0]
-        m = matrix.setdefault(cid, {})
-        for i, k in enumerate(ORIG_FIELDS):
-            m[k] = float(r[i + 1] or 0)
-        for i, k in enumerate(REM_FIELDS):
-            m[k] = float(r[i + 1 + n_buckets] or 0)
-        m["asf_rsf"] = r[1 + 2 * n_buckets] or ""
-        m["hqla_factor"] = float(r[2 + 2 * n_buckets]) if r[2 + 2 * n_buckets] is not None else None
-        m["current_balance"] = float(r[3 + 2 * n_buckets] or 0)
-        m["avg_balance"] = float(r[4 + 2 * n_buckets] or 0)
-        m["weighted_rate"] = float(r[5 + 2 * n_buckets] or 0)
-        m["interest_amount"] = float(r[6 + 2 * n_buckets] or 0)
-        m["risk_weight"] = float(r[7 + 2 * n_buckets] or 0)
+        m = matrix.setdefault(cid, {
+            "asf_rsf": r[10] or "",
+            "hqla_factor": float(r[11] or 0) if r[11] is not None else None,
+            "current_balance": float(r[12] or 0),
+            "avg_balance": float(r[13] or 0),
+            "weighted_rate": float(r[14] or 0),
+            "interest_amount": float(r[15] or 0),
+            "risk_weight": float(r[16] or 0),
+        })
+        for i, k in enumerate(ORIG_COLS):
+            m[k] = float(r[15 + i] or 0) if r[15 + i] is not None else 0
+        for i, k in enumerate(REM_COLS):
+            m[k] = float(r[15 + N_BUCKETS + i] or 0) if r[15 + N_BUCKETS + i] is not None else 0
 
-    # 按大类汇总（只汇总数值字段，跳过 asf_rsf 等非数值字段）
-    NUMERIC_KEYS = ORIG_FIELDS + REM_FIELDS + [
+    # 3) 大类汇总
+    NUMERIC_KEYS = ORIG_COLS + REM_COLS + [
         "current_balance", "avg_balance", "weighted_rate", "interest_amount", "risk_weight",
     ]
 
     def classify_category(node: dict) -> str:
-        """根据节点编码推断业务大类。
-        - COA_V6 风格 path = /L1_资产/... → '资产'
-        - ZXCOA_V1 风格 node_code = ZX_A001 → '资产' / ZX_L003 → '负债' / ZX_E005 → '权益'
-        """
         code = node.get("node_code") or ""
         path = node.get("path") or ""
-        # ZXCOA_V1 编码风格
         if code.startswith("ZX_A"):
             return "资产"
         if code.startswith("ZX_L"):
             return "负债"
         if code.startswith("ZX_E"):
             return "权益"
-        # COA_V6 风格（从 path 第二段提取 L1_<name>）
         parts = path.split("/")
         if len(parts) >= 2 and parts[1].startswith("L1_"):
-            return parts[1][3:]  # 去掉 "L1_"
+            return parts[1][3:]
         return "其他"
 
     categories: dict = {}
     node_by_id = {n["coa_node_id"]: n for n in nodes}
-    # 大类汇总策略：COA_V6 L1 节点无数据 → 累加所有节点（实际只有 L3 有数据）
-    # ZXCOA_V1 L1 节点有数据 → 只累加 L1 节点（避免子节点重复累加）
     l1_cids = {n["coa_node_id"] for n in nodes if n.get("node_level") == 1}
     l1_has_data = any(
-        matrix.get(cid, {}).get("current_balance", 0)
-        for cid in l1_cids
+        matrix.get(cid, {}).get("current_balance", 0) for cid in l1_cids
     )
     target_cids = l1_cids if l1_has_data else set(matrix.keys())
     for cid, m in matrix.items():
@@ -389,95 +445,153 @@ async def export_xlsx(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """导出 Excel：每账户册 × 13+13 期限桶的二维表"""
-    nodes = db.execute(
-        text("""SELECT id, node_code, node_name, node_level, path, sort_order
+    """导出 Excel（基础数据表 → 与前端 BasicDataSheet 二级表头保持一致）
+
+    表头（145 列 = 10 基础 + 64 原始 + 64 剩余 + 7 度量）：
+      Row 1: 标题
+      Row 2: 二级表头分组（原始期限 / 剩余期限 / 度量）
+      Row 3: 详细列名（账户册编码、原始期限 m1~m60+y10/y15/y20/y30、剩余期限 ...、度量列）
+      Row 4+: 数据行（按方案节点顺序，每个节点一行）
+
+    注意：当前数据库是单表 prcp_data_basic（145 列），不走 v4 三表 JOIN。
+    """
+    # 1) 节点列表（按 path 排序，与前端账户册矩阵对齐）
+    # 注意：服务器 prcp_coa_node 没有 category 字段，从 node_type 推断
+    node_rows = db.execute(
+        text("""SELECT id, node_code, node_name, node_level, parent_id, path, sort_order, node_type
                 FROM prcp_coa_node
                 WHERE scheme_id=:s AND is_deleted=0
                 ORDER BY path, sort_order"""),
         {"s": scheme_id},
     ).fetchall()
+    if not node_rows:
+        raise HTTPException(404, "方案下无节点")
 
+    # 2) 基础数据（v3 单表结构：145 列）
     rows = db.execute(
-        text("""SELECT coa_node_id, node_code, node_name, node_level, parent_code, category, is_leaf,
-                      """ + all_select_sql() + """,
-                      asf_rsf, hqla_factor, current_balance, avg_balance,
-                      weighted_rate, interest_amount, risk_weight, calc_note
-               FROM prcp_data_basic
-               WHERE data_date=:d AND date_offset=:off AND offset_unit=:u AND is_deleted=0"""),
+        text(f"""SELECT coa_node_id, data_date, node_code, node_name, node_level,
+                       parent_code, is_leaf, category, asf_rsf, hqla_factor,
+                       current_balance, avg_balance, weighted_rate, interest_amount, risk_weight,
+                       {all_select_sql(prefix='')}
+                FROM {MAIN_TABLE}
+                WHERE data_date=:d AND date_offset=:off AND offset_unit=:u AND is_deleted=0"""),
         {"d": data_date, "off": date_offset, "u": offset_unit},
     ).fetchall()
+    # key = coa_node_id
     row_map = {r[0]: r for r in rows}
 
+    # 3) 构建 Workbook
     wb = Workbook()
     ws = wb.active
     ws.title = "基础数据"
 
-    # === 按 docs/基础数据导出模版.xlsx 格式输出 ===
-    # row 1: 标题（col 3 = "账户册总表..."）
-    # row 2: 二级表头分组（col 11 = "原始期限(金额)", col 24 = "剩余期限（金额）"）
-    # row 3: 详细列名（col 1 = "ID（数据日期-账户册编码）", col 3 = "账户册编码"）
-    # row 4+: 数据行
+    # === 列布局 ===
+    # col 1: ID（数据日期-节点编码）
+    # col 2: 数据日期
+    # col 3: 账户册编码
+    # col 4: 账户册名称
+    # col 5: 层级
+    # col 6: 父级编码
+    # col 7: 是否末级
+    # col 8: 大类
+    # col 9: ASF/RSF
+    # col 10: HQLA 折算系数
+    # col 11 ~ 11+63: 原始期限（m1~m60 + y10/y15/y20/y30，64 列）
+    # col 75 ~ 138: 剩余期限（64 列）
+    # col 139 ~ 145: 度量（当前余额 / 平均余额 / 加权利率 / 利息 / 风险权重）
 
-    # row 1: 标题
-    ws.cell(1, 3, "账户册总表（资产 / 负债 / 表外 · 按业务层级）——余额：亿元；利率、资本占用比例、风险权重：%；平均利息收支：亿元/月")
+    # === Row 1: 标题 ===
+    ws.cell(1, 1, f"账户册基础数据表 — 方案 {scheme_id} / {data_date}（{date_offset}{offset_unit}）")
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=10 + 2 * N_BUCKETS + 5)
+    ws.cell(1, 1).font = Font(bold=True, size=14, color="1F4E78")
+    ws.cell(1, 1).alignment = Alignment(horizontal="center", vertical="center")
 
-    # row 2: 二级表头分组（保留与模板一致）
-    ws.cell(2, 11, "原始期限(金额)")
-    ws.cell(2, 24, "剩余期限（金额）")
+    # === Row 2: 二级表头分组（与前端一致：原始期限(金额) / 剩余期限(金额) / 度量）===
+    ws.cell(2, 11, "原始期限（金额）")
+    ws.merge_cells(start_row=2, start_column=11, end_row=2, end_column=10 + N_BUCKETS)
+    ws.cell(2, 11).font = Font(bold=True, color="1d39c4")
+    ws.cell(2, 11).alignment = Alignment(horizontal="center", vertical="center")
+    ws.cell(2, 11).fill = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
 
-    # row 3: 详细列名（动态生成 58 + 58 + 7 = 123 列）
-    n_buckets = len(BUCKETS)
-    detail_headers = [
-        "ID（数据日期-账户册编码）",                                    # col 1
-        "数据日期",                                                     # col 2
-        "账户册编码",                                                   # col 3
-        "账户册名称",                                                   # col 4
-        "账户册层级",                                                   # col 5
-        "父级账户册编码",                                               # col 6
-        "是否末级节点（0：否，1：是）",                                 # col 7
-        "大类（A：资产，L：负债）",                                     # col 8
-        "日期偏移量（正整数）",                                         # col 9
-        "日期偏移量单位（D：日，W：周，M：月,Y:年）",                   # col 10
+    ws.cell(2, 11 + N_BUCKETS, "剩余期限（金额）")
+    ws.merge_cells(start_row=2, start_column=11 + N_BUCKETS, end_row=2, end_column=10 + 2 * N_BUCKETS)
+    ws.cell(2, 11 + N_BUCKETS).font = Font(bold=True, color="1d39c4")
+    ws.cell(2, 11 + N_BUCKETS).alignment = Alignment(horizontal="center", vertical="center")
+    ws.cell(2, 11 + N_BUCKETS).fill = PatternFill(start_color="EAF1F8", end_color="EAF1F8", fill_type="solid")
+
+    ws.cell(2, 11 + 2 * N_BUCKETS, "度量")
+    ws.merge_cells(start_row=2, start_column=11 + 2 * N_BUCKETS, end_row=2, end_column=10 + 2 * N_BUCKETS + 5)
+    ws.cell(2, 11 + 2 * N_BUCKETS).font = Font(bold=True, color="1d39c4")
+    ws.cell(2, 11 + 2 * N_BUCKETS).alignment = Alignment(horizontal="center", vertical="center")
+    ws.cell(2, 11 + 2 * N_BUCKETS).fill = PatternFill(start_color="FBEAF0", end_color="FBEAF0", fill_type="solid")
+
+    # === Row 3: 详细列名 ===
+    base_headers = [
+        "ID（数据日期-账户册编码）",   # col 1
+        "数据日期",                     # col 2
+        "账户册编码",                   # col 3
+        "账户册名称",                   # col 4
+        "账户册层级",                   # col 5
+        "父级账户册编码",               # col 6
+        "是否末级",                     # col 7
+        "大类",                         # col 8
+        "ASF/RSF",                      # col 9
+        "HQLA折算系数",                 # col 10
     ]
-    # col 11-68: 原始期限（58 列）
-    for b in BUCKETS:
-        detail_headers.append(f"orig_{b['name']}")
-    # col 69-126: 剩余期限（58 列）
-    for b in BUCKETS:
-        detail_headers.append(f"rem_{b['name']}")
-    # col 127-133: 度量
-    detail_headers += [
-        "ASF/RSF（可以放空）",                                         # col 127
-        "HQLA折算系数（可以放空）",                                     # col 128
-        "当前余额",                                                     # col 129
-        "平均余额（月）",                                               # col 130
-        "加权平均利率",                                                 # col 131
-        "平均利息收支",                                                 # col 132
-        "风险权重",                                                     # col 133
-    ]
-    n_cols = len(detail_headers)  # 133
-    for col, h in enumerate(detail_headers, start=1):
-        ws.cell(3, col, h)
+    for col, h in enumerate(base_headers, start=1):
+        cell = ws.cell(3, col, h)
+        cell.font = Font(bold=True, size=10)
+        cell.fill = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
-    # row 4+: 数据行（每个账户册节点一行）
-    # === 层级样式 ===
-    FILL_L1 = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")  # 浅蓝
-    FILL_L2 = PatternFill(start_color="EAF1F8", end_color="EAF1F8", fill_type="solid")  # 更浅蓝
-    FILL_SEP = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")  # 浅灰（大类分隔）
-    FONT_L1 = Font(bold=True, size=11, color="1F4E78")  # 深蓝加粗
+    # col 11 ~ : 原始期限（按 buckets 顺序，列名 = "原始期限·1M" 等）
+    for i, b in enumerate(BUCKETS):
+        col = 11 + i
+        cell = ws.cell(3, col, f"原始·{b['name']}")
+        cell.font = Font(size=10, color="13c2c2")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # 剩余期限
+    for i, b in enumerate(BUCKETS):
+        col = 11 + N_BUCKETS + i
+        cell = ws.cell(3, col, f"剩余·{b['name']}")
+        cell.font = Font(size=10, color="722ed1")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # 度量列
+    measure_headers = ["当前余额", "平均余额（月）", "加权平均利率(%)", "平均利息收支", "风险权重(%)"]
+    for i, h in enumerate(measure_headers):
+        col = 11 + 2 * N_BUCKETS + i
+        cell = ws.cell(3, col, h)
+        cell.font = Font(bold=True, size=10, color="eb2f96")
+        cell.fill = PatternFill(start_color="FBEAF0", end_color="FBEAF0", fill_type="solid")
+        cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    n_cols = 10 + 2 * N_BUCKETS + 5  # 145
+
+    # === Row 4+: 数据行 ===
+    # 样式
+    FILL_L1 = PatternFill(start_color="DCE6F1", end_color="DCE6F1", fill_type="solid")
+    FILL_L2 = PatternFill(start_color="EAF1F8", end_color="EAF1F8", fill_type="solid")
+    FILL_SEP = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+    FONT_L1 = Font(bold=True, size=11, color="1F4E78")
     FONT_L2 = Font(bold=True, size=10)
     FONT_NORMAL = Font(size=10)
-    ALIGN_LEFT = Alignment(horizontal="left", vertical="center", indent=0)
+    ALIGN_LEFT = Alignment(horizontal="left", vertical="center")
+    ALIGN_CENTER = Alignment(horizontal="center", vertical="center")
+    ALIGN_RIGHT = Alignment(horizontal="right", vertical="center")
 
-    prev_l1_code = None  # 跟踪上一个 L1 编码，用于插入大类分隔空行
+    prev_l1_code = None
     ri = 4
 
-    for n in nodes:
-        node_id = n[0]
-        node_code = n[1]
-        node_name = n[2]
-        node_level = n[3] or 1
+    for n in node_rows:
+        node_id, node_code, node_name, node_level, parent_id, path, sort_order, node_type = n
+        node_level = node_level or 1
+        # 从 node_type 推断 category（ASSET/LIAB/EQUITY/OTHER）
+        if node_type:
+            category = node_type.split("_")[0]
+        else:
+            category = ""
 
         # === 大类切换时插入空行作为分隔 ===
         if node_level == 1 and prev_l1_code is not None and node_code != prev_l1_code:
@@ -490,15 +604,14 @@ async def export_xlsx(
 
         r = row_map.get(node_id)
 
-        # ID = data_date-node_code
+        # 元数据
         ws.cell(ri, 1, f"{data_date}-{node_code}")
         ws.cell(ri, 2, data_date)
         ws.cell(ri, 3, node_code)
-
-        # === 节点名称：按 level 加全角空格缩进，1 级不加，2 级 2 个，3 级 4 个 ... ===
+        # 节点名称（按层级缩进）
         indent = "　" * max(node_level - 1, 0)
         name_cell = ws.cell(ri, 4, f"{indent}{node_name}")
-        # L1 加粗 + 浅蓝底色，L2 加粗，L3+ 普通
+        name_cell.alignment = ALIGN_LEFT
         if node_level == 1:
             name_cell.font = FONT_L1
             name_cell.fill = FILL_L1
@@ -507,63 +620,60 @@ async def export_xlsx(
             name_cell.fill = FILL_L2
         else:
             name_cell.font = FONT_NORMAL
-        name_cell.alignment = ALIGN_LEFT
-
+        # 层级
         lv_cell = ws.cell(ri, 5, node_level)
+        lv_cell.alignment = ALIGN_CENTER
         if node_level == 1:
             lv_cell.font = FONT_L1
             lv_cell.fill = FILL_L1
         elif node_level == 2:
             lv_cell.font = FONT_L2
             lv_cell.fill = FILL_L2
-        lv_cell.alignment = Alignment(horizontal="center", vertical="center")
 
         if r:
-            ws.cell(ri, 6, r[4] or "")           # parent_code
-            ws.cell(ri, 7, r[6] if r[6] is not None else 0)   # is_leaf (0/1)
-            ws.cell(ri, 8, r[5] or "")           # category (A/L)
+            # 主表行：r = (coa_node_id, data_date, node_code, node_name, node_level,
+            #              parent_code, is_leaf, category, asf_rsf, hqla_factor,
+            #              current_balance, avg_balance, weighted_rate, interest_amount, risk_weight,
+            #              orig_m1...orig_m60, orig_y10/y15/y20/y30,
+            #              rem_m1...rem_m60, rem_y10/y15/y20/y30)
+            ws.cell(ri, 6, r[5] or "")        # parent_code
+            ws.cell(ri, 7, r[6] if r[6] is not None else 0)  # is_leaf
+            ws.cell(ri, 8, r[7] or "")        # category
+            ws.cell(ri, 9, r[8] or "")        # asf_rsf
+            hqla = r[9]
+            ws.cell(ri, 10, float(hqla) if hqla is not None else "")
+            # 原始期限（64 桶，r[15] ~ r[15+63]）
+            for i in range(N_BUCKETS):
+                v = r[15 + i]
+                ws.cell(ri, 11 + i, float(v) if v is not None else 0).alignment = ALIGN_RIGHT
+            # 剩余期限（64 桶，r[15+64] ~ r[15+127]）
+            for i in range(N_BUCKETS):
+                v = r[15 + N_BUCKETS + i]
+                ws.cell(ri, 11 + N_BUCKETS + i, float(v) if v is not None else 0).alignment = ALIGN_RIGHT
+            # 度量（5 列）：当前余额/平均余额/加权利率/利息/风险权重
+            ws.cell(ri, 11 + 2 * N_BUCKETS + 0, float(r[10] or 0)).alignment = ALIGN_RIGHT  # current_balance
+            ws.cell(ri, 11 + 2 * N_BUCKETS + 1, float(r[11] or 0)).alignment = ALIGN_RIGHT  # avg_balance
+            # 加权利率：存为小数（0.041 = 4.1%），导出时 * 100 显示百分比
+            wr = float(r[12] or 0) * 100
+            ws.cell(ri, 11 + 2 * N_BUCKETS + 2, round(wr, 4)).alignment = ALIGN_RIGHT
+            ws.cell(ri, 11 + 2 * N_BUCKETS + 3, float(r[13] or 0)).alignment = ALIGN_RIGHT  # interest_amount
+            rw = float(r[14] or 0) * 100
+            ws.cell(ri, 11 + 2 * N_BUCKETS + 4, round(rw, 4)).alignment = ALIGN_RIGHT
         else:
+            # 没有基础数据时只填元数据
             ws.cell(ri, 6, "")
             ws.cell(ri, 7, 0)
             ws.cell(ri, 8, "")
+            ws.cell(ri, 9, "")
+            ws.cell(ri, 10, "")
+            for i in range(N_BUCKETS):
+                ws.cell(ri, 11 + i, 0).alignment = ALIGN_RIGHT
+            for i in range(N_BUCKETS):
+                ws.cell(ri, 11 + N_BUCKETS + i, 0).alignment = ALIGN_RIGHT
+            for i in range(5):
+                ws.cell(ri, 11 + 2 * N_BUCKETS + i, 0).alignment = ALIGN_RIGHT
 
-        ws.cell(ri, 9, date_offset)              # 日期偏移量
-        ws.cell(ri, 10, offset_unit)             # 偏移单位
-
-        # col 11-(10+17): 原始期限（17 列，r[7]..r[23]）
-    if r:
-        for i in range(n_buckets):
-            ws.cell(ri, 11 + i, float(r[7 + i] or 0))
-        # col 69-126: 剩余期限（58 列，r[65]..r[122]）
-        if r:
-            for i in range(n_buckets):
-                ws.cell(ri, 11 + n_buckets + i, float(r[7 + n_buckets + i] or 0))
-
-        # col (10+17+1): ASF/RSF
-        ws.cell(ri, 11 + 2 * n_buckets, r[7 + 2 * n_buckets] if r and r[7 + 2 * n_buckets] is not None else "")
-        # col (10+17+2): HQLA折算系数
-        offset_hqla = 7 + 2 * n_buckets + 1
-        if r and r[offset_hqla] is not None:
-            ws.cell(ri, 11 + 2 * n_buckets + 1, float(r[offset_hqla]))
-        else:
-            ws.cell(ri, 11 + 2 * n_buckets + 1, "")
-        # col (10+17+3): 当前余额
-        offset_cb = 7 + 2 * n_buckets + 2
-        ws.cell(ri, 11 + 2 * n_buckets + 2, float(r[offset_cb]) if r and r[offset_cb] is not None else 0)
-        # col 130: 平均余额（月） (r[126])
-        offset_ab = 7 + 2 * n_buckets + 3
-        ws.cell(ri, 11 + 2 * n_buckets + 3, float(r[offset_ab]) if r and r[offset_ab] is not None else 0)
-        # col 131: 加权平均利率 (r[127])
-        offset_wr = 7 + 2 * n_buckets + 4
-        ws.cell(ri, 11 + 2 * n_buckets + 4, float(r[offset_wr]) if r and r[offset_wr] is not None else 0)
-        # col 132: 平均利息收支 (r[128])
-        offset_ia = 7 + 2 * n_buckets + 5
-        ws.cell(ri, 11 + 2 * n_buckets + 5, float(r[offset_ia]) if r and r[offset_ia] is not None else 0)
-        # col 133: 风险权重 (r[129])
-        offset_rw = 7 + 2 * n_buckets + 6
-        ws.cell(ri, 11 + 2 * n_buckets + 6, float(r[offset_rw]) if r and r[offset_rw] is not None else 0)
-
-        # === 给 L1/L2 行的其他数据单元格也加底色，保持视觉一致 ===
+        # L1/L2 整行底色
         if node_level == 1:
             for col in range(1, n_cols + 1):
                 if not ws.cell(ri, col).fill or ws.cell(ri, col).fill.start_color.rgb in (None, "00000000"):
@@ -572,31 +682,30 @@ async def export_xlsx(
             for col in range(1, n_cols + 1):
                 if not ws.cell(ri, col).fill or ws.cell(ri, col).fill.start_color.rgb in (None, "00000000"):
                     ws.cell(ri, col).fill = FILL_L2
-
         ri += 1
 
-    # === 列宽自适应（让节点名称列更宽） ===
-    from openpyxl.utils import get_column_letter
-    ws.column_dimensions["A"].width = 24  # ID
+    # === 列宽 ===
+    ws.column_dimensions["A"].width = 26  # ID
     ws.column_dimensions["B"].width = 12  # 数据日期
     ws.column_dimensions["C"].width = 12  # 账户册编码
     ws.column_dimensions["D"].width = 38  # 账户册名称（缩进后）
     ws.column_dimensions["E"].width = 8   # 层级
-    ws.column_dimensions["F"].width = 12  # 父级编码
-    ws.column_dimensions["G"].width = 12  # 是否末级
+    ws.column_dimensions["F"].width = 14  # 父级编码
+    ws.column_dimensions["G"].width = 8   # 是否末级
     ws.column_dimensions["H"].width = 8   # 大类
-    ws.column_dimensions["I"].width = 10  # 日期偏移量
-    ws.column_dimensions["J"].width = 10  # 偏移单位
-    # 58 列原始期限 + 58 列剩余期限 = 116 列
-    for i in range(n_buckets):
-        ws.column_dimensions[get_column_letter(11 + i)].width = 7
-    for i in range(n_buckets):
-        ws.column_dimensions[get_column_letter(11 + n_buckets + i)].width = 7
+    ws.column_dimensions["I"].width = 8   # ASF/RSF
+    ws.column_dimensions["J"].width = 10  # HQLA
+    # 桶列宽
+    for i in range(2 * N_BUCKETS):
+        ws.column_dimensions[get_column_letter(11 + i)].width = 9
     # 度量列
-    for i in range(7):
-        ws.column_dimensions[get_column_letter(11 + 2 * n_buckets + i)].width = 10
+    for i in range(5):
+        ws.column_dimensions[get_column_letter(11 + 2 * N_BUCKETS + i)].width = 14
 
-    # === 冻结首行 + 节点名称列 ===
+    # === 行高 + 冻结 ===
+    ws.row_dimensions[1].height = 24
+    ws.row_dimensions[2].height = 22
+    ws.row_dimensions[3].height = 32
     ws.freeze_panes = "E4"
 
     buf = io.BytesIO()
@@ -610,243 +719,5 @@ async def export_xlsx(
     )
 
 
-@router.post("/import-xlsx")
-async def import_xlsx(
-    file: UploadFile = File(...),
-    scheme_id: int = Query(...),
-    data_date: Optional[str] = Query(None, description="可选，Excel 无日期列时使用"),
-    date_offset: int = Query(0),
-    offset_unit: str = Query("D"),
-    db: Session = Depends(get_db),
-    user=Depends(get_current_user),
-):
-    """导入 Excel：按 docs/基础数据导出模版.xlsx 格式解析
-
-    模板结构（43 列）：
-    - col 1: ID（数据日期-账户册编码）  → 冗余字段，可不读
-    - col 2: 数据日期  → 缺省时用 query 参数 data_date
-    - col 3: 账户册编码  → 必填
-    - col 4: 账户册名称  → 冗余字段，按 coa_node 补
-    - col 5: 账户册层级  → 冗余字段
-    - col 6: 父级账户册编码  → 冗余字段
-    - col 7: 是否末级节点  → 0/1
-    - col 8: 大类  → A/L
-    - col 9: 日期偏移量  → 缺省时用 query 参数 date_offset
-    - col 10: 日期偏移量单位  → 缺省时用 query 参数 offset_unit
-    - col 11-23: 原始期限金额（1日/7日/1M/3M/6M/1Y/2Y/3Y/5Y/10Y/15Y/20Y/30Y）
-    - col 24-36: 剩余期限金额（13 列，同上）
-    - col 37: ASF/RSF
-    - col 38: HQLA折算系数
-    - col 39-43: 当前余额/平均余额/月/加权平均利率/平均利息收支/风险权重
-
-    表头行定位：找包含 "账户册编码" 的行（默认 row 3）
-    """
-    uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
-
-    content = await file.read()
-    try:
-        wb = load_workbook(io.BytesIO(content), data_only=True)
-        ws = wb.active
-    except Exception as e:
-        raise HTTPException(400, f"无法解析 Excel：{e}")
-
-    # 加载方案下所有账户册 node_code → id 映射
-    code_rows = db.execute(
-        text("SELECT id, node_code FROM prcp_coa_node WHERE scheme_id=:s AND is_deleted=0"),
-        {"s": scheme_id},
-    ).fetchall()
-    code_map = {r[1]: r[0] for r in code_rows}
-
-    # 找表头行：找包含 "账户册编码" 的行
-    header_row = None
-    for ridx, row in enumerate(ws.iter_rows(min_row=1, max_row=10, values_only=True), start=1):
-        if row and any(v and "账户册编码" in str(v) for v in row):
-            header_row = ridx
-            break
-    if not header_row:
-        raise HTTPException(400, "Excel 中找不到 '账户册编码' 表头行")
-
-    # 找原始期限列起点（第一个 "1M"）和剩余期限列起点（第二个 "1M"）
-    orig_col_start = None
-    rem_col_start = None
-    for cidx in range(1, 50):
-        v = ws.cell(header_row, cidx).value
-        if v and "1M" in str(v):
-            if orig_col_start is None:
-                orig_col_start = cidx
-            elif rem_col_start is None:
-                rem_col_start = cidx
-                break
-
-    if not orig_col_start or not rem_col_start:
-        raise HTTPException(400, "Excel 中找不到原始/剩余期限桶（缺少 '1M' 列）")
-
-    # 列转 0-indexed 用于 list 索引
-    # col 3 = 账户册编码 → row[2]
-    # col 11-27 = 原始期限 → row[10..26]（17 列）
-    # col 28-44 = 剩余期限 → row[27..43]（17 列）
-    # col 45 = ASF/RSF → row[44]
-    # col 46 = HQLA → row[45]
-    # col 47-51 = 度量 → row[46..50]
-    COL_NODE_CODE = 2           # row[2] = 账户册编码
-    COL_DATA_DATE = 1           # row[1] = 数据日期
-    COL_OFFSET = 8              # row[8] = 日期偏移量
-    COL_OFFSET_UNIT = 9         # row[9] = 日期偏移量单位
-    COL_ORIG_START = 10         # row[10] = 原始期限第一个（1M）
-    N_BUCKETS_IMPORT = len(ORIG_FIELDS)  # 64 = m1~m60 + y10/y15/y20/y30
-    COL_REM_START = COL_ORIG_START + N_BUCKETS_IMPORT  # 74 = 剩余期限第一个（1M）
-    COL_ASF_RSF = COL_REM_START + N_BUCKETS_IMPORT  # 138
-    COL_HQLA = COL_ASF_RSF + 1   # 139
-    COL_CURRENT_BAL = COL_HQLA + 1  # 140
-    COL_AVG_BAL = COL_CURRENT_BAL + 1  # 141
-    COL_WEIGHTED_RATE = COL_AVG_BAL + 1  # 142
-    COL_INTEREST_AMOUNT = COL_WEIGHTED_RATE + 1  # 143
-    COL_RISK_WEIGHT = COL_INTEREST_AMOUNT + 1  # 144
-
-    inserted = updated = skipped = 0
-    errors = []
-    for ridx, row in enumerate(ws.iter_rows(min_row=header_row + 1, values_only=True), start=1):
-        if not row or len(row) < 3:
-            continue
-        # 跳过空行（全 None 或 全空）
-        if not any(row[:3]):
-            continue
-
-        # node_code 在 col 3 (row[2])
-        node_code_raw = row[COL_NODE_CODE] if len(row) > COL_NODE_CODE else None
-        if not node_code_raw:
-            continue
-        node_code = str(node_code_raw).strip()
-        if not node_code:
-            continue
-
-        coa_node_id = code_map.get(node_code)
-        if not coa_node_id:
-            skipped += 1
-            errors.append(f"行 {header_row + ridx}: 账户册编码 {node_code} 不存在")
-            continue
-
-        # 数据日期：Excel col 2 > query 参数
-        row_date = row[COL_DATA_DATE] if len(row) > COL_DATA_DATE else None
-        if row_date:
-            if hasattr(row_date, 'strftime'):
-                eff_data_date = row_date.strftime("%Y-%m-%d")
-            else:
-                eff_data_date = str(row_date).strip()
-        elif data_date:
-            eff_data_date = data_date
-        else:
-            skipped += 1
-            errors.append(f"行 {header_row + ridx}: 缺少数据日期")
-            continue
-
-        # 日期偏移量：Excel col 9 > query 参数
-        row_offset = row[COL_OFFSET] if len(row) > COL_OFFSET else None
-        eff_offset = int(row_offset) if row_offset is not None and str(row_offset).strip() != "" else date_offset
-
-        # 偏移单位
-        row_unit = row[COL_OFFSET_UNIT] if len(row) > COL_OFFSET_UNIT else None
-        eff_unit = str(row_unit).strip() if row_unit else offset_unit
-
-        # 原始期限 58 列（row[10..67]）
-        orig = []
-        for i in range(N_BUCKETS_IMPORT):
-            v = row[COL_ORIG_START + i] if len(row) > COL_ORIG_START + i else None
-            orig.append(float(v) if v not in (None, "") else 0)
-
-        # 剩余期限 58 列（row[68..125]）
-        rem = []
-        for i in range(N_BUCKETS_IMPORT):
-            v = row[COL_REM_START + i] if len(row) > COL_REM_START + i else None
-            rem.append(float(v) if v not in (None, "") else 0)
-
-        # ASF/RSF
-        asf_rsf_raw = row[COL_ASF_RSF] if len(row) > COL_ASF_RSF else None
-        asf_rsf = str(asf_rsf_raw).strip() if asf_rsf_raw not in (None, "") else None
-        # HQLA
-        hqla_raw = row[COL_HQLA] if len(row) > COL_HQLA else None
-        hqla_factor = float(hqla_raw) if hqla_raw not in (None, "") else None
-        # 度量
-        def _f(idx):
-            v = row[idx] if len(row) > idx else None
-            return float(v) if v not in (None, "") else 0
-        current_balance = _f(COL_CURRENT_BAL)
-        avg_balance = _f(COL_AVG_BAL)
-        weighted_rate = _f(COL_WEIGHTED_RATE)
-        interest_amount = _f(COL_INTEREST_AMOUNT)
-        risk_weight = _f(COL_RISK_WEIGHT)
-
-        # 自动补维度
-        nr = db.execute(
-            text("""SELECT n.node_code, n.node_name, n.node_level,
-                          (SELECT node_code FROM prcp_coa_node WHERE id=n.parent_id) AS parent_code
-                   FROM prcp_coa_node n WHERE n.id=:id"""),
-            {"id": coa_node_id},
-        ).first()
-
-        params = {
-            "coa_node_id": coa_node_id,
-            "data_date": eff_data_date,
-            "date_offset": eff_offset,
-            "offset_unit": eff_unit,
-            "node_code": nr[0] if nr else node_code,
-            "node_name": nr[1] if nr else "",
-            "node_level": nr[2] if nr else 0,
-            "parent_code": nr[3] if nr else "",
-            "is_leaf": 0,
-            "category": "",
-            "asf_rsf": asf_rsf,
-            "hqla_factor": hqla_factor,
-            "current_balance": current_balance,
-            "avg_balance": avg_balance,
-            "weighted_rate": weighted_rate,
-            "interest_amount": interest_amount,
-            "risk_weight": risk_weight,
-            "created_by": uid,
-            "updated_by": uid,
-        }
-        for i, k in enumerate(ORIG_FIELDS):
-            params[k] = orig[i]
-        for i, k in enumerate(REM_FIELDS):
-            params[k] = rem[i]
-
-        existing = db.execute(
-            text("SELECT id FROM prcp_data_basic WHERE coa_node_id=:coa_node_id AND data_date=:data_date "
-                 "AND date_offset=:date_offset AND offset_unit=:offset_unit AND is_deleted=0"),
-            {"coa_node_id": coa_node_id, "data_date": eff_data_date,
-             "date_offset": eff_offset, "offset_unit": eff_unit},
-        ).first()
-
-        if existing:
-            set_clause = ", ".join(f"{k}=:{k}" for k in ORIG_FIELDS + REM_FIELDS + [
-                "asf_rsf", "hqla_factor", "current_balance", "avg_balance",
-                "weighted_rate", "interest_amount", "risk_weight",
-            ])
-            params["id"] = existing[0]
-            db.execute(
-                text(f"UPDATE prcp_data_basic SET {set_clause}, updated_by=:updated_by WHERE id=:id"),
-                params,
-            )
-            updated += 1
-        else:
-            cols = ["coa_node_id", "data_date", "date_offset", "offset_unit",
-                    "node_code", "node_name", "node_level", "parent_code", "category",
-                    "asf_rsf", "hqla_factor", "current_balance", "avg_balance",
-                    "weighted_rate", "interest_amount", "risk_weight",
-                    "created_by", "updated_by"] + ORIG_FIELDS + REM_FIELDS
-            col_list = ", ".join(cols)
-            val_list = ", ".join(f":{c}" for c in cols)
-            db.execute(
-                text(f"INSERT INTO prcp_data_basic ({col_list}) VALUES ({val_list})"),
-                params,
-            )
-            inserted += 1
-
-    db.commit()
-    return {
-        "inserted": inserted,
-        "updated": updated,
-        "skipped": skipped,
-        "total_errors": len(errors),
-        "errors": errors[:20],
-    }
+# ================== v4 兼容：原 BasicIn / 接口签名 ==================
+# 旧的 _row_to_dict 调用方代码（前端的 BasicDataSheet.tsx）未变，依然能解析 orig/rem 数组

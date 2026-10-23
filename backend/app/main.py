@@ -12,6 +12,10 @@ from app.routers import auth, dashboard
 from app.routers import coa, reports, balance, basic, kpi, admin, data_maint, model, reverse, data_reverse, rate, dict, sim, engines
 from app.routers import esg
 from app.routers import metric_coefficient, reverse_dashboard
+from app.routers import lcr_param
+from app.routers import nsfr_param
+from app.routers import cet1_param, eve_param, nim_param, roe_param
+from app.routers import nsfr_param
 
 # 导入引擎子包，触发自动注册（必须在 include_router 之前）
 import app.services.calculate_engine.new_business  # noqa: F401
@@ -77,6 +81,12 @@ app.include_router(engines.router, prefix="/prcp/api")
 app.include_router(esg.router, prefix="/prcp/api")
 app.include_router(metric_coefficient.router, prefix="/prcp/api")
 app.include_router(reverse_dashboard.router, prefix="/prcp/api")
+app.include_router(lcr_param.router, prefix="/prcp/api")
+app.include_router(nsfr_param.router, prefix="/prcp/api")
+app.include_router(cet1_param.router, prefix="/prcp/api")
+app.include_router(eve_param.router, prefix="/prcp/api")
+app.include_router(nim_param.router, prefix="/prcp/api")
+app.include_router(roe_param.router, prefix="/prcp/api")
 
 
 if __name__ == "__main__":

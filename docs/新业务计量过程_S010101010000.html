@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新业务计量过程拆解 · S010101010000 对公一般贷款 · v2.3</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg); color:var(--txt); line-height:1.6; font-size:14px; padding:24px 16px 60px;
+}
+.wrap{max-width:1280px;margin:0 auto}
+
+.hd{background:var(--card);border-radius:12px;padding:26px 30px;margin-bottom:16px;border:1px solid var(--line)}
+.hd h1{font-size:21px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.hd .sub{color:var(--txt2);font-size:13px;margin-top:8px}
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;font-family:var(--mono)}
+.tag-b{background:var(--blue-bg);color:var(--blue)}
+.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}
+.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+
+.kpi{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin-bottom:16px}
+.kpi div{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.kpi .k{font-size:11px;color:var(--txt3);margin-bottom:6px}
+.kpi .v{font-size:18px;font-weight:600;font-family:var(--mono);letter-spacing:-.3px}
+
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:16px;overflow:hidden}
+.sec-h{padding:15px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.sec-n{width:23px;height:23px;border-radius:6px;background:var(--blue);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex:none}
+.sec-h h2{font-size:15px;font-weight:600}
+.sec-b{padding:20px 22px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{background:#f7f8fa;text-align:left;padding:9px 11px;font-weight:500;
+  color:var(--txt2);border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 11px;border-bottom:1px solid #f0f1f3}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tbl{overflow-x:auto}
+tr.hi{background:var(--blue-bg)}
+tr.hi:hover{background:#dbe9ff}
+
+.src{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.src-item{background:#f7f8fa;border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.src-item .t{font-size:12px;font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+.src-item .d{font-size:11.5px;color:var(--txt2);font-family:var(--mono);line-height:1.9}
+.src-item .d b{color:var(--txt);font-weight:600}
+
+.step{border-left:2px solid var(--line);padding:0 0 18px 20px;position:relative;margin-left:8px}
+.step:last-child{border-left-color:transparent;padding-bottom:0}
+.step::before{content:'';position:absolute;left:-7px;top:5px;width:12px;height:12px;
+  border-radius:50%;background:var(--blue);border:2.5px solid #fff;box-shadow:0 0 0 1.5px var(--blue)}
+.step.p::before{background:var(--purple);box-shadow:0 0 0 1.5px var(--purple)}
+.step.g::before{background:var(--green);box-shadow:0 0 0 1.5px var(--green)}
+.step-t{font-size:14px;font-weight:600;margin-bottom:4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.step-d{font-size:12.5px;color:var(--txt2);margin-bottom:10px}
+.formula{background:#fbfcfd;border:1px solid var(--line);border-radius:8px;
+  padding:12px 15px;margin:10px 0;font-family:var(--mono);font-size:12.5px;line-height:2}
+.hl{background:var(--orange-bg);padding:1px 5px;border-radius:3px;color:var(--orange);font-weight:600}
+.hl-b{background:var(--blue-bg);padding:1px 5px;border-radius:3px;color:var(--blue);font-weight:600}
+.hl-g{background:var(--green-bg);padding:1px 5px;border-radius:3px;color:var(--green);font-weight:600}
+.hl-p{background:var(--purple-bg);padding:1px 5px;border-radius:3px;color:var(--purple);font-weight:600}
+.calc-line{display:flex;justify-content:space-between;gap:12px;padding:5px 0;
+  border-bottom:1px dashed #eef0f3;font-family:var(--mono);font-size:12px}
+.calc-line:last-child{border-bottom:none}
+.calc-line .l{color:var(--txt2)}
+.calc-line .r{font-weight:600;white-space:nowrap}
+
+.flow{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin:6px 0 2px}
+.fl{flex:1;min-width:112px;background:#f7f8fa;border:1px solid var(--line);border-radius:8px;
+  padding:11px 12px;text-align:center}
+.fl .ft{font-size:12px;font-weight:600;margin-bottom:4px}
+.fl .fd{font-size:10.5px;color:var(--txt3);font-family:var(--mono)}
+.fa{color:var(--txt3);align-self:center;font-size:15px;flex:none}
+
+.tl{display:flex;gap:2px;margin:12px 0 6px;flex-wrap:wrap}
+.tlc{flex:1;min-width:26px;background:var(--purple-bg);border-radius:3px;padding:5px 2px;text-align:center}
+.tlc .tn{font-size:9px;color:var(--txt3);font-family:var(--mono)}
+.tlc .tv{font-size:10px;font-weight:600;font-family:var(--mono);color:var(--purple);margin-top:1px}
+
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);
+  border-radius:0 8px 8px 0;padding:12px 15px;margin:12px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding-top:20px;line-height:2}
+@media(max-width:1100px){.kpi{grid-template-columns:repeat(3,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ========== HEADER ========== -->
+<div class="hd">
+  <h1>新业务计量过程拆解
+    <span class="tag tag-b">S010101010000</span>
+    <span class="tag tag-g">对公一般贷款</span>
+    <span class="tag tag-o">目标增长百分比</span>
+    <span class="tag tag-p">v2.4 完整 60 月排期</span>
+  </h1>
+  <div class="sub">
+    方案 <b>BUDGET_2026_5Y</b> · 基准日 <b>2025-12-31</b> · 预测期 <b>60 个月</b> ·
+    引擎 <b>run#20</b> · 金额单位 <b>亿元</b> ·
+    <span style="color:var(--orange)">取消剩余期限桶前移，rem_* 展示完整 60 月到期排期（每格都有值）</span>
+  </div>
+</div>
+
+<div class="kpi">
+  <div><div class="k">基准日余额</div><div class="v">29,452.72</div></div>
+  <div><div class="k">加权平均利率</div><div class="v">4.5000%</div></div>
+  <div><div class="k">第 1 年目标增量</div><div class="v">1,472.64</div></div>
+  <div><div class="k">第 60 月余额</div><div class="v">37,648.09</div></div>
+  <div><div class="k">5 年累计投放</div><div class="v" style="color:var(--blue)">62,084.26</div></div>
+  <div><div class="k">5 年累计增幅</div><div class="v" style="color:var(--green)">+27.81%</div></div>
+</div>
+
+<!-- ========== 1. 数据源 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">1</div><h2>原始数据源</h2>
+    <span class="tag tag-y">5 张配置表 + 1 张基础数据表</span></div>
+  <div class="sec-b">
+    <div class="src">
+      <div class="src-item">
+        <div class="t">📊 基础数据 <span class="tag tag-y">prcp_data_basic</span></div>
+        <div class="d">
+          data_date　<b>2025-12-31</b><br>
+          current_balance　<b>29,452.72 亿</b><br>
+          avg_balance　　<b>29,452.72 亿</b><br>
+          weighted_rate　<b>0.045</b>（小数 = 4.5%）<br>
+          orig_m1~y10　　<b>64 个期限桶</b>
+        </div>
+      </div>
+      <div class="src-item">
+        <div class="t">⚙️ 节点配置 <span class="tag tag-y">prcp_sim_node_config</span></div>
+        <div class="d">
+          is_model_calc　<b>1</b>（测算）<br>
+          rhythm_type　　<b>1</b>（线性）<br>
+          annual_growth_rate　<b>5.0000</b>（legacy）
+        </div>
+      </div>
+      <div class="src-item">
+        <div class="t">📈 增长配置 <span class="tag tag-y">prcp_sim_growth_config</span></div>
+        <div class="d">
+          growth_type　<b>1</b> 目标增长百分比<br>
+          year1　<b>5.0000</b>%　year2　<b>5.0000</b>%<br>
+          year3　<b>4.8000</b>%　year4　<b>4.8000</b>%<br>
+          year5　<b>5.0000</b>%
+        </div>
+      </div>
+      <div class="src-item">
+        <div class="t">🎵 节奏配置 <span class="tag tag-y">prcp_sim_rhythm</span></div>
+        <div class="d">
+          rhythm_type　<b>1</b>（线性）<br>
+          month_no 1~12　每档 <b>8.3333</b>%<br>
+          合计　<b>99.9996</b>%<br>
+          <span style="color:var(--txt3)">12 × 8.3333 舍入</span>
+        </div>
+      </div>
+      <div class="src-item">
+        <div class="t">📐 期限占比 <span class="tag tag-y">prcp_sim_term_ratio</span></div>
+        <div class="d">
+          12 月 / 20% / <b>3.2000</b>%<br>
+          24 月 / 30% / <b>3.3500</b>%<br>
+          36 月 / 25% / <b>3.5000</b>%<br>
+          60 月 / 25% / <b>3.7000</b>%
+        </div>
+      </div>
+      <div class="src-item">
+        <div class="t">🗄 账户册元数据 <span class="tag tag-y">prcp_coa_node</span></div>
+        <div class="d">
+          node_code　<b>S010101010000</b><br>
+          node_name　<b>1.1.对公一般贷款</b><br>
+          node_level　<b>4</b>（末级节点）<br>
+          category　　<b>A</b>（资产）
+        </div>
+      </div>
+    </div>
+    <div class="note note-b">
+      <b>⚠️ 利率单位口径</b>：<code>prcp_data_basic.weighted_rate</code> 存<b>小数</b>（0.045），
+      而 <code>prcp_sim_term_ratio.interest_rate</code> 存<b>百分数</b>（3.2000）。
+      引擎加权时统一 ÷100 换算，否则利息会虚高 100 倍。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 2. 桶语义（v2.3 核心变更） ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">2</div><h2>桶语义定义（v2.4）</h2>
+    <span class="tag tag-p">取消前移 · 完整排期</span></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th>桶</th><th>v2.1 语义（前移）</th><th>v2.4 语义</th><th>行为与用途</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><code>orig_mv</code></td>
+          <td>原始期限 v 个月，<b>每月前移</b></td>
+          <td><b>原始期限为 v 个月的累计投放额</b></td>
+          <td>只进不出，不随月份变化<br><span style="color:var(--green)">→ 用于加权平均利率</span></td>
+        </tr>
+        <tr>
+          <td><code>rem_mk</code></td>
+          <td>剩余期限 k 个月，<b>每月前移</b></td>
+          <td><b>距基准日第 k 个月到期的金额</b><br><span style="font-size:11px">（完整 60 月排期终态）</span></td>
+          <td>投放直落 <code>rem_m{M+v}</code>，到期按 M 取走<br>
+              <span style="color:var(--blue)">→ 每格只到期一次</span></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok">
+      <b>基准日是转换桥梁</b>：M0 时「剩余期限」恰好等于「距基准日到期月数」，
+      因此存量底数<b>零成本迁移</b>，无需任何数据转换。
+    </div>
+    <div class="note" style="margin-bottom:0">
+      <b>数学等价性</b>：新旧两种到期路径算出的余额轨迹完全一致
+      （M1 余额 29,575.44 亿、M60 余额 37,648.09 亿），仅到期取数的表达方式不同。
+      v2.3 → v2.4 的改动同样只影响展示层，<b>run#19 与 run#20 的结果数值完全一致</b>。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 3. 流程总览 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">3</div><h2>计量流程总览</h2>
+    <span class="tag tag-p">5 步按月滚动 + 排期回填</span></div>
+  <div class="sec-b">
+    <div class="flow">
+      <div class="fl"><div class="ft">① 年目标增量</div><div class="fd">compute_year_target</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="ft">② 节奏分摊</div><div class="fd">× rhythm_weight</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="ft">③ 取当月到期</div><div class="fd">peek / take_due</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="ft">④ 期限拆分落桶</div><div class="fd">rem_m{M+v}<br>+ full_plan 累加</div></div>
+      <div class="fa">→</div>
+      <div class="fl" style="background:var(--green-bg);border-color:#9be8cf">
+        <div class="ft" style="color:var(--green)">⑤ 指标重算</div><div class="fd">interest / rate</div></div>
+      <div class="fa">→</div>
+      <div class="fl" style="background:var(--purple-bg);border-color:#c9a6ff">
+        <div class="ft" style="color:var(--purple)">⑥ 排期回填</div><div class="fd">apply_final_plan</div></div>
+    </div>
+    <div class="note" style="margin-bottom:0">
+      <b>关键顺序（v2.4）</b>：每月循环内把投放落点累加进该节点的 <code>full_plan</code>，
+      <b>结果行先暂存不落库</b>；60 个月全部跑完后，才把完整排期回填到每一行的
+      <code>rem_*</code> 桶，再批量 INSERT。
+      这样才能让 M1 行也看到「未来 5 年每月都有到期」的完整时间轴。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 4. 逐步拆解 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">4</div><h2>计量过程逐步拆解（以 M1 · 2026-01 为例）</h2>
+    <span class="tag tag-y">逐代入公式</span></div>
+  <div class="sec-b">
+
+    <div class="step">
+      <div class="step-t">步骤 1 · 算当年净增目标 <span class="tag tag-o">growth_type = 1 目标增长百分比</span></div>
+      <div class="step-d">按 growth_type = 1，目标增量以「上月末余额 × 目标增速」计算，单位 % 需 ÷100。</div>
+      <div class="formula">
+        year_target = <span class="hl-b">base_balance</span> × <span class="hl">year1_value</span> ÷ 100<br>
+        　　　　　 = 29,452.7204 × <span class="hl">5.0000</span> ÷ 100<br>
+        　　　　　 = <span class="hl-g">1,472.6360 亿元</span>
+      </div>
+      <div class="calc-line"><span class="l">基数（上月末余额）</span><span class="r">29,452.7204 亿</span></div>
+      <div class="calc-line"><span class="l">第 1 年目标增速</span><span class="r">5.0000 %</span></div>
+      <div class="calc-line"><span class="l">→ 当年需增净目标</span><span class="r" style="color:var(--green)">1,472.6360 亿</span></div>
+      <div class="note note-b" style="margin-bottom:0">
+        <b>说明</b>：<code>year_target</code> 每月按当月余额重算，故同一年的 12 个月目标值会逐月上移
+        （M13 = 1,547.9786 → M24 = 1,620.4240 亿），这是「相对基数增速」的固有特征。
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-t">步骤 2 · 按节奏分摊到月 <span class="tag tag-y">rhythm_type = 1 线性</span></div>
+      <div class="step-d">线性节奏 12 个月均匀，每档 8.3333%。</div>
+      <div class="formula">
+        add = <span class="hl-b">year_target</span> × <span class="hl">rhythm_weight</span> ÷ 100<br>
+        　　 = <span class="hl-b">1,472.6360</span> × <span class="hl">8.3333</span> ÷ 100<br>
+        　　 = <span class="hl-g">122.7192 亿元</span>
+      </div>
+      <div class="calc-line"><span class="l">当年净增目标</span><span class="r">1,472.6360 亿</span></div>
+      <div class="calc-line"><span class="l">M1 节奏权重</span><span class="r">8.3333 %</span></div>
+      <div class="calc-line"><span class="l">→ 当月分摊投放额（add）</span><span class="r" style="color:var(--green)">122.7192 亿</span></div>
+      <div class="calc-line" style="border-top:1px dashed #eef0f3;padding-top:8px">
+        <span class="l">全年校验：12 × 122.7192 = 1,472.63</span><span class="r" style="color:var(--green)">✓ 与年目标一致</span></div>
+    </div>
+
+    <div class="step g">
+      <div class="step-t">步骤 3 · 快照并取走当月到期 <span class="tag tag-g">peek + take_due</span></div>
+      <div class="step-d">
+        判据：<b>增长方式名称是否含「目标」</b>。
+        <code>TARGET_GROWTH_TYPES = {1, 2}</code>（目标增长百分比 / 目标增长绝对值）→ 加上到期释放；
+        <code>{3, 4}</code>（增长百分比 / 增长值）→ 不加，到期自然出表。
+      </div>
+      <div class="formula">
+        planned_due = <span class="hl-o">peek_due(state, 1)</span> = <span class="hl">874.8342 亿</span>　<span style="color:var(--txt3)">（不清零，供结果表留痕）</span><br>
+        release　　= <span class="hl-o">take_due(state, 1)</span> = <span class="hl">874.8342 亿</span>　<span style="color:var(--txt3)">（取走并清零，用于扣减余额）</span><br><br>
+        month_new = <span class="hl-b">release</span> + <span class="hl-b">add</span>　<span style="color:var(--green)">← 目标类，回补</span><br>
+        　　　　 = <span class="hl">874.8342</span> + <span class="hl">122.7192</span><br>
+        　　　　 = <span class="hl-g">997.5534 亿元</span>
+      </div>
+      <div class="calc-line"><span class="l">当月计划到期（peek，保留在结果表）</span><span class="r">874.8342 亿</span></div>
+      <div class="calc-line"><span class="l">当月实际释放（take_due，从桶中取走）</span><span class="r">874.8342 亿</span></div>
+      <div class="calc-line"><span class="l">→ 当月新增加值（投放总额）</span><span class="r" style="color:var(--green)">997.5534 亿</span></div>
+    </div>
+
+    <div class="step p">
+      <div class="step-t">步骤 4 · 按期限占比拆分 + 落到绝对到期月 <span class="tag tag-p">4 档期限</span></div>
+      <div class="step-d">
+        month_new = 997.5534 亿 × 各期限 business_ratio。<br>
+        第 M 月投放期限 v 的业务 <b>直接落到 rem_m{M+v}</b>（不再靠每月前移推导）。
+      </div>
+      <div class="formula">
+        amount_v = <span class="hl-b">month_new</span> × <span class="hl">business_ratio</span> ÷ 100<br>
+        落地格子 = <span class="hl-g">rem_m{M + v}</span>　（绝对到期月）<br>
+        同时记　 <span class="hl-g">orig_m{v} += amount_v</span>（原始期限，只进不出）<br>
+        　　　和　 <span class="hl-p">full_plan[M + v] += amount_v</span>（完整排期累加，见步骤 5）
+      </div>
+      <div class="tbl">
+      <table>
+        <thead><tr>
+          <th>期限</th><th class="num">占比</th><th class="num">投放额（亿）</th>
+          <th class="num">落地格</th><th class="num">到期月</th><th class="num">新利率(%)</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>12 月</td><td class="num">20%</td><td class="num">199.5107</td>
+              <td class="num"><code>rem_m13</code></td><td class="num">M13 · 2027-01</td><td class="num">3.2000</td></tr>
+          <tr><td>24 月</td><td class="num">30%</td><td class="num">299.2660</td>
+              <td class="num"><code>rem_m25</code></td><td class="num">M25 · 2028-01</td><td class="num">3.3500</td></tr>
+          <tr><td>36 月</td><td class="num">25%</td><td class="num">249.3884</td>
+              <td class="num"><code>rem_m37</code></td><td class="num">M37 · 2029-01</td><td class="num">3.5000</td></tr>
+          <tr><td>60 月</td><td class="num">25%</td><td class="num">249.3884</td>
+              <td class="num"><code>rem_y10</code></td><td class="num">M61+ · 2031-01</td><td class="num">3.7000</td></tr>
+          <tr style="font-weight:600;background:#f7f8fa">
+            <td>合计</td><td class="num">100%</td><td class="num" style="color:var(--green)">997.5534</td>
+            <td colspan="3" class="num" style="color:var(--txt3);font-weight:400">占比和 = 100% ✓</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <div class="note note-b" style="margin-bottom:0">
+        <b>超出 60 月归档</b>：M + v &gt; 60 时按超出月数落 <code>y10 / y15 / y20 / y30</code>
+        （10Y / 15Y / 20Y / 30Y）。M1 的 60 月期业务 → M61 &gt; 60 → 归入 <code>rem_y10</code>。
+      </div>
+    </div>
+
+    <div class="step p">
+      <div class="step-t">步骤 5 · 累加完整 60 月排期 <span class="tag tag-p">full_plan · v2.4</span></div>
+      <div class="step-d">
+        <b>问题</b>：如果只读 <code>state</code>，第 M 行只能看到「截至 M 月已投放」的落点 ——
+        M1 时只有 M1 的投放进过桶，看不到 M2~M60 投放的未来落点。<br>
+        <b>解法</b>：每个节点维护一个 <code>full_plan</code> 累加器，<b>跨越全部 60 个月</b>
+        把每一笔投放的落点都记进去，与是否已取走无关。
+      </div>
+      <div class="formula">
+        初始化：<span class="hl-p">accumulate_plan</span>(full_plan, state₀, 60)　<span style="color:var(--txt3)">← 装入基准日存量</span><br>
+        每月投放：<span class="hl-p">full_plan[M+v] += amount_v</span>　<span style="color:var(--txt3)">（在 apply_term_split 内）</span><br><br>
+        60 月跑完后：<span class="hl-p">apply_final_plan</span>(row, full_plan)<br>
+        　　　　　　 for tgt, amt in full_plan.items(): row[<span class="hl-g">rem_{tgt}</span>] = amt
+      </div>
+      <div class="note note-b" style="margin-bottom:0">
+        <b>配套改动：延后 INSERT</b>。原来每月循环结束立即落库，
+        现在改为 <code>all_rows.extend(rows_k)</code> 暂存，
+        60 个月全部跑完 → 回填完整排期 → 分批（500 行/批）批量 INSERT。
+        <strong>顺序要求</strong>：SUMMARY 聚合节点必须在批量 INSERT <em>之后</em>执行，
+        因为它要用 <code>INSERT ... SELECT</code> 从已落库的结果行聚合。
+      </div>
+    </div>
+
+    <div class="step g">
+      <div class="step-t">步骤 6 · 主表指标重算 <span class="tag tag-g">余额 / 利率 / 利息</span></div>
+      <div class="step-d">更新 current_balance、avg_balance、weighted_rate、interest_amount。</div>
+      <div class="formula">
+        new_cb = <span class="hl-b">base_balance</span> + <span class="hl">add</span> 　　　　　　　= 29,452.7204 + 122.7192 = <span class="hl-g">29,575.4396 亿</span><br>
+        new_ab = avg_balance + <span class="hl">add</span> ÷ 2 　　　　　　　　　 = 29,452.7204 + 61.3596 = <span class="hl-g">29,514.0800 亿</span><br>
+        weighted_amount = Σ(amount_v × rate) = 199.5107×0.032 + 299.2660×0.0335 + 249.3884×0.035 + 249.3884×0.037<br>
+        　　　　　　　 = 6.3843 + 10.0254 + 8.7286 + 9.2274 = <span class="hl">34.3657 亿</span><br>
+        new_wr = (avg × wr + weighted_amount) ÷ (avg + month_new)<br>
+        　　　 = (29,514.0800×0.045 + 34.3657) ÷ (29,514.0800 + 997.5534)<br>
+        　　　 = (1,328.1336 + 34.3657) ÷ 30,511.6334 = <span class="hl-g">4.4654 %</span><br>
+        new_ia = new_ab × new_wr ÷ 12 = 29,514.0800 × 0.044654 ÷ 12 = <span class="hl-g">109.8277 亿</span>
+      </div>
+      <div class="note ok" style="margin-bottom:0">
+        <b>利率稀释</b>：新投放利率（3.2~3.7%）低于存量 4.5%，故加权平均利率从 4.5000% 降至 4.4654%。
+        验算：隐含年化 = interest ÷ avg × 12 = 109.8277 ÷ 29,514.08 × 12 = 4.4654% ✓
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 5. 到期时间轴 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">5</div><h2>完整 60 月到期排期</h2>
+    <span class="tag tag-p">v2.4 · 每格都有值</span>
+    <span class="tag tag-y">run#20 · 任意行均相同</span></div>
+  <div class="sec-b">
+    <div class="note note-b">
+      <b>v2.4 口径</b>：<code>rem_*</code> 展示的是<b>整个 5 年预测期的完整到期排期</b>——
+      包含基准日存量 + 全部 60 个月投放按期限推算的落点，
+      与「当前是第几个月」无关。所以<b>M1 / M30 / M60 三行的值完全相同</b>，每格都有值。
+    </div>
+
+    <div class="tbl">
+      <table>
+        <thead><tr>
+          <th>到期月</th><th class="num">M1</th><th class="num">M2</th><th class="num">M3</th>
+          <th class="num">M4</th><th class="num">M5</th><th class="num">M6</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>计划到期（亿）</b></td>
+              <td class="num">874.83</td><td class="num">874.83</td><td class="num">1,020.63</td>
+              <td class="num">1,020.63</td><td class="num">1,166.45</td><td class="num">1,312.24</td></tr>
+        </tbody>
+      </table>
+      <table style="margin-top:8px">
+        <thead><tr>
+          <th>到期月</th><th class="num">M7</th><th class="num">M8</th><th class="num">M9</th>
+          <th class="num">M10</th><th class="num">M11</th><th class="num">M12</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>计划到期（亿）</b></td>
+              <td class="num">1,312.24</td><td class="num">1,458.06</td><td class="num">1,458.06</td>
+              <td class="num">1,458.06</td><td class="num">1,458.06</td><td class="num">1,749.67</td></tr>
+        </tbody>
+      </table>
+      <table style="margin-top:8px">
+        <thead><tr>
+          <th>到期月</th><th class="num">M13</th><th class="num">M14</th><th class="num">M15</th>
+          <th class="num">M20</th><th class="num">M24</th><th class="num">M25</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>计划到期（亿）</b></td>
+              <td class="num">199.51</td><td class="num">199.61</td><td class="num">228.87</td>
+              <td class="num">316.88</td><td class="num">3,000.13</td><td class="num">364.97</td></tr>
+        </tbody>
+      </table>
+      <table style="margin-top:8px">
+        <thead><tr>
+          <th>到期月</th><th class="num">M30</th><th class="num">M36</th><th class="num">M40</th>
+          <th class="num">M48</th><th class="num">M60</th><th class="num">M61+ (y10)</th>
+        </tr></thead>
+        <tbody>
+          <tr><td><b>计划到期（亿）</b></td>
+              <td class="num">1,914.84</td><td class="num">3,523.36</td><td class="num">503.52</td>
+              <td class="num">3,308.40</td><td class="num">5,487.97</td><td class="num">3,165.50</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tbl" style="margin-top:14px">
+      <table>
+        <thead><tr><th>区段</th><th>构成</th><th class="num">金额（亿）</th></tr></thead>
+        <tbody>
+          <tr><td>M1 ~ M12</td><td>基准日存量到期（占比最大）</td><td class="num">874.83 ~ 1,749.67</td></tr>
+          <tr><td>M13 ~ M24</td>
+              <td>存量 + <b>M1~M12 各月投放的 12 月期</b>（每月约 199~229 亿）</td>
+              <td class="num">199.51 ~ 3,000.13</td></tr>
+          <tr><td>M25 ~ M36</td>
+              <td>存量 + <b>M1~M12 的 24 月期</b> + <b>M13~M24 的 12 月期</b></td>
+              <td class="num">364.97 ~ 3,523.36</td></tr>
+          <tr><td>M37 ~ M60</td>
+              <td>存量 + 各月投放的 12/24/36 月期陆续到期</td>
+              <td class="num">503.52 ~ 5,487.97</td></tr>
+          <tr><td>M61+ (y10)</td>
+              <td><b>M1~M24 各月投放的 60 月期</b>（超出 60 月归入 y10）</td>
+              <td class="num">3,165.50</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note ok" style="margin-bottom:0">
+      <b>为什么每格都有值</b>：预测期内<b>每个月</b>都有投放（节奏分摊），
+      每笔投放按期限占比落成 4 笔（12/24/36/60 月），
+      落点分别在 <code>M+12 / M+24 / M+36 / M+60</code>。
+      60 个月的投放错峰叠加，覆盖了从 M1 到 M60 的每一个到期月 ——
+      这正是「未来 5 年每个月都有到期」的量化体现。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 6. 基准日桶分布 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">6</div><h2>基准日剩余期限桶分布</h2>
+    <span class="tag tag-y">2025-12-31 · 来源 prcp_data_basic</span></div>
+  <div class="sec-b">
+    <div class="tl">
+      <div class="tlc"><div class="tn">m1</div><div class="tv">874.83</div></div>
+      <div class="tlc"><div class="tn">m2</div><div class="tv">874.83</div></div>
+      <div class="tlc"><div class="tn">m3</div><div class="tv">1,020.63</div></div>
+      <div class="tlc"><div class="tn">m4</div><div class="tv">1,020.63</div></div>
+      <div class="tlc"><div class="tn">m5</div><div class="tv">1,020.63</div></div>
+      <div class="tlc"><div class="tn">m6</div><div class="tv">1,312.24</div></div>
+      <div class="tlc"><div class="tn">m7</div><div class="tv">1,312.24</div></div>
+      <div class="tlc"><div class="tn">m8</div><div class="tv">1,312.24</div></div>
+      <div class="tlc"><div class="tn">m9</div><div class="tv">1,458.06</div></div>
+      <div class="tlc"><div class="tn">m10</div><div class="tv">1,458.06</div></div>
+      <div class="tlc"><div class="tn">m11</div><div class="tv">1,458.06</div></div>
+      <div class="tlc"><div class="tn">m12</div><div class="tv">1,749.67</div></div>
+      <div class="tlc"><div class="tn">m18</div><div class="tv">1,166.45</div></div>
+      <div class="tlc"><div class="tn">m24</div><div class="tv">2,624.50</div></div>
+      <div class="tlc"><div class="tn">m30</div><div class="tv">1,166.45</div></div>
+      <div class="tlc"><div class="tn">m36</div><div class="tv">2,332.89</div></div>
+      <div class="tlc"><div class="tn">m48</div><div class="tv">1,166.45</div></div>
+      <div class="tlc"><div class="tn">m60</div><div class="tv">2,916.14</div></div>
+      <div class="tlc"><div class="tn">y10</div><div class="tv">2,916.11</div></div>
+    </div>
+    <div class="calc-line" style="margin-top:12px">
+      <span class="l">Σ 全部桶 =</span><span class="r" style="color:var(--green)">29,452.7204 亿 = current_balance ✓</span></div>
+    <div class="note" style="margin-bottom:0">
+      <b>注</b>：基准日时「剩余期限」=「距基准日到期月数」，两者数值相同，
+      这正是 v2.2 → v2.3 语义切换时存量数据无需转换的原因。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 7. 结果表 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">7</div><h2>计量结果</h2>
+    <span class="tag tag-g">run#20 · 与引擎输出逐项一致</span></div>
+  <div class="sec-b">
+    <div class="tbl">
+      <table>
+        <thead><tr>
+          <th>月</th><th>数据日期</th><th class="num">年目标</th><th class="num">权重</th>
+          <th class="num">分摊投放</th><th class="num">计划到期</th>
+          <th class="num">累计投放</th><th class="num">当前余额</th>
+          <th class="num">加权利率</th><th class="num">当月利息</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>M1</td><td>2026-01-31</td><td class="num">1,472.6360</td><td class="num">8.3333</td>
+              <td class="num">122.7192</td><td class="num">874.8342</td><td class="num">997.55</td>
+              <td class="num"><b>29,575.4396</b></td><td class="num">4.4654%</td><td class="num">109.8277</td></tr>
+          <tr><td>M2</td><td>2026-02-28</td><td class="num">1,478.7720</td><td class="num">8.3333</td>
+              <td class="num">123.2305</td><td class="num">874.8342</td><td class="num">1,995.62</td>
+              <td class="num">29,698.6701</td><td class="num">4.4321%</td><td class="num">109.2344</td></tr>
+          <tr><td>M3</td><td>2026-03-31</td><td class="num">1,484.9335</td><td class="num">8.3333</td>
+              <td class="num">123.7440</td><td class="num">1,020.6251</td><td class="num">3,139.99</td>
+              <td class="num">29,822.4141</td><td class="num">4.3953%</td><td class="num">108.5547</td></tr>
+          <tr><td>M6</td><td>2026-06-30</td><td class="num">1,503.5725</td><td class="num">8.3333</td>
+              <td class="num">125.2972</td><td class="num">1,312.2365</td><td class="num">7,013.63</td>
+              <td class="num">30,196.7482</td><td class="num">4.2814%</td><td class="num">106.4103</td></tr>
+          <tr><td>M12</td><td>2026-12-31</td><td class="num">1,541.5554</td><td class="num">8.3333</td>
+              <td class="num">128.4624</td><td class="num">1,749.6683</td><td class="num">16,670.58</td>
+              <td class="num"><b>30,959.5714</b></td><td class="num">4.0563%</td><td class="num">102.1033</td></tr>
+          <tr class="hi"><td><b>M13</b></td><td>2027-01-31</td>
+              <td class="num"><b>1,547.9786</b></td><td class="num">8.3333</td>
+              <td class="num"><b>128.9977</b></td><td class="num"><b>199.5107</b></td>
+              <td class="num"><b>16,999.09</b></td>
+              <td class="num"><b>31,088.5690</b></td><td class="num">4.0497%</td><td class="num">102.1554</td></tr>
+          <tr><td>M14</td><td>2027-02-28</td><td class="num">1,554.4285</td><td class="num">8.3333</td>
+              <td class="num">129.5352</td><td class="num">199.6129</td><td class="num">17,328.24</td>
+              <td class="num">31,218.1042</td><td class="num">4.0432%</td><td class="num">102.2096</td></tr>
+          <tr><td>M24</td><td>2027-12-31</td><td class="num">1,620.4240</td><td class="num">8.3333</td>
+              <td class="num">135.0348</td><td class="num">3,000.1286</td><td class="num">25,379.59</td>
+              <td class="num"><b>32,543.5153</b></td><td class="num">3.9084%</td><td class="num">100.9620</td></tr>
+          <tr><td>M25</td><td>2028-01-31</td><td class="num">1,562.0887</td><td class="num">8.3333</td>
+              <td class="num">130.1735</td><td class="num">364.9677</td><td class="num">25,874.73</td>
+              <td class="num">32,673.6888</td><td class="num">3.9012%</td><td class="num">100.9853</td></tr>
+          <tr><td>M36</td><td>2028-12-31</td><td class="num">1,632.2116</td><td class="num">8.3333</td>
+              <td class="num">136.0171</td><td class="num">3,523.3630</td><td class="num">37,218.82</td>
+              <td class="num"><b>34,140.4258</b></td><td class="num">3.7664%</td><td class="num">99.7977</td></tr>
+          <tr><td>M48</td><td>2029-12-31</td><td class="num">1,712.3043</td><td class="num">8.3333</td>
+              <td class="num">142.6915</td><td class="num">3,308.4033</td><td class="num">49,208.73</td>
+              <td class="num"><b>35,815.6967</b></td><td class="num">3.6686%</td><td class="num">99.7674</td></tr>
+          <tr><td>M60</td><td>2030-12-31</td><td class="num">1,874.5936</td><td class="num">8.3333</td>
+              <td class="num">156.2155</td><td class="num">5,487.9671</td><td class="num">62,084.26</td>
+              <td class="num"><b>37,648.0883</b></td><td class="num">3.5991%</td><td class="num">100.6253</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note note-b" style="margin-top:12px">
+      <b>两个说明</b>：<br>
+      ① <b>M13 高亮</b>：进入第 2 年，年目标基数换为上年末余额 30,959.57 亿。
+      节奏权重跨年复用同一套 12 月配置。<br>
+      ② <b>M25 年目标变小</b>（1,620.42 → 1,562.09）：第 2→3 年增速由 5.0% 降为 4.8%，
+      故按新增速重算的目标值下移，属配置预期，非计算异常。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 8. 年度汇总 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">8</div><h2>五年年度汇总</h2>
+    <span class="tag tag-p">目标达成与余额演进</span></div>
+  <div class="sec-b">
+    <div class="tbl">
+      <table>
+        <thead><tr>
+          <th>年度</th><th class="num">目标增速</th><th class="num">实际投放(亿)</th>
+          <th class="num">到期释放(亿)</th><th class="num">年末余额(亿)</th>
+          <th class="num">累计投放(亿)</th><th class="num">余额同比</th>
+        </tr></thead>
+        <tbody>
+          <tr><td>第 1 年 <span style="color:var(--txt3);font-size:11px">2026</span></td>
+              <td class="num">5.00%</td><td class="num">1,506.8509</td><td class="num">15,163.7331</td>
+              <td class="num"><b>30,959.5714</b></td><td class="num">16,670.58</td><td class="num">—</td></tr>
+          <tr><td>第 2 年 <span style="color:var(--txt3);font-size:11px">2027</span></td>
+              <td class="num">5.00%</td><td class="num">1,583.9439</td><td class="num">7,125.0648</td>
+              <td class="num"><b>32,543.5153</b></td><td class="num">25,379.59</td>
+              <td class="num" style="color:var(--green)">+5.12%</td></tr>
+          <tr><td>第 3 年 <span style="color:var(--txt3);font-size:11px">2028</span></td>
+              <td class="num">4.80%</td><td class="num">1,596.9105</td><td class="num">10,242.3136</td>
+              <td class="num"><b>34,140.4258</b></td><td class="num">37,218.82</td>
+              <td class="num" style="color:var(--green)">+4.91%</td></tr>
+          <tr><td>第 4 年 <span style="color:var(--txt3);font-size:11px">2029</span></td>
+              <td class="num">4.80%</td><td class="num">1,675.2709</td><td class="num">10,314.6390</td>
+              <td class="num"><b>35,815.6967</b></td><td class="num">49,208.73</td>
+              <td class="num" style="color:var(--green)">+4.91%</td></tr>
+          <tr><td>第 5 年 <span style="color:var(--txt3);font-size:11px">2030</span></td>
+              <td class="num">5.00%</td><td class="num">1,832.3915</td><td class="num">11,043.1447</td>
+              <td class="num"><b>37,648.0883</b></td><td class="num">62,084.26</td>
+              <td class="num" style="color:var(--green)">+5.12%</td></tr>
+          <tr style="font-weight:600;background:#f7f8fa">
+            <td>5 年累计</td><td class="num">—</td><td class="num">8,195.3681</td>
+            <td class="num">53,888.8952</td><td class="num" style="color:var(--blue)">37,648.0883</td>
+            <td class="num" style="color:var(--blue)">62,084.26</td>
+            <td class="num" style="color:var(--blue)">+27.81%</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note ok" style="margin-bottom:0">
+      <b>余额同比与目标增速一致</b>（+5.12% vs 目标 5.00%、+4.91% vs 目标 4.80%），
+      说明「目标类回补到期」的机制正确生效。
+      第 1 年到期 15,163 亿明显高于后续年份，是基准日存量集中到期的正常现象。
+    </div>
+  </div>
+</div>
+
+<!-- ========== 9. 校验 ========== -->
+<div class="sec">
+  <div class="sec-h"><div class="sec-n">9</div><h2>关键校验点</h2>
+    <span class="tag tag-y">5 项恒等式</span></div>
+  <div class="sec-b">
+    <div class="tbl">
+      <table>
+        <thead><tr><th>校验项</th><th>公式</th><th class="num">M1 实测</th><th>结果</th></tr></thead>
+        <tbody>
+          <tr><td>节奏分摊守恒</td><td>Σ add = year_target × Σw/100</td>
+              <td class="num">12 × 122.7192 = 1,472.63</td><td style="color:var(--green)">✓</td></tr>
+          <tr><td>期限占比守恒</td><td>Σ amount_v = month_new</td>
+              <td class="num">199.51+299.27+249.39+249.39 = 997.55</td><td style="color:var(--green)">✓</td></tr>
+          <tr><td>到期定位正确</td><td>M + 期限 = 到期格</td>
+              <td class="num">M1 + 12 = rem_m13 → M13 到期 199.5107</td><td style="color:var(--green)">✓</td></tr>
+          <tr><td>排期覆盖完整</td><td>rem_* 60 格均有值</td>
+              <td class="num">M1:874.83 ~ M60:5,487.97，无空格</td><td style="color:var(--green)">✓</td></tr>
+          <tr><td>排期守恒</td><td>存量到期 + 投放到期 = 累计投放</td>
+              <td class="num">53,888.90 + 8,195.37 = 62,084.26</td><td style="color:var(--green)">✓</td></tr>
+          <tr><td>隐含年化 = 加权利率</td><td>interest ÷ avg × 12 = wr</td>
+              <td class="num">109.8277 ÷ 29,514.08 × 12 = 4.4654%</td><td style="color:var(--green)">✓</td></tr>
+          <tr><td>余额恒等式</td><td>new_cb = base_cb + add</td>
+              <td class="num">29,452.7204 + 122.7192 = 29,575.4396</td><td style="color:var(--green)">✓</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note note-b" style="margin-bottom:0">
+      <b>口径提醒</b>：到期释放（<code>month_release</code>）远大于分摊投放，差额来自基准日存量的到期，
+      不是计算误差。「到期 ≈ N 月前投放」不成立，因为底数存量本身也在滚动到期。
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  引擎实现：<code>backend/app/services/calculate_engine/new_business/engine.py</code><br>
+  核心函数：<code>compute_year_target</code> · <code>get_rhythm_weights</code> ·
+  <code>compute_month_new_v2</code> · <code>peek_due</code> · <code>take_due</code> ·
+  <code>apply_term_split</code> · <code>accumulate_plan</code> · <code>apply_final_plan</code><br>
+  数据来源：prcp_db · run#20 · 基准日 2025-12-31 · 生成时间 2026-10-22
+</div>
+
+</div>
+</body>
+</html>

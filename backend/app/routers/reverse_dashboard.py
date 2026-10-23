@@ -42,13 +42,14 @@ DEFAULT_METRIC_TYPES = ["ROE", "CET1", "LCR", "NSFR", "DELTA_EVE"]
 def _classify(node_code: str, path: str) -> str:
     code = node_code or ""
     p = path or ""
-    if code.startswith("ZX_A") or p.startswith("/L1_资产") or p == "/L1_ASSET/":
+    # 中信 ZX_COA 账户册编码：S01 资产 / S02 负债 / S03 权益 / S04 表外
+    if code.startswith("S01") or code.startswith("ZX_A") or p.startswith("/L1_资产") or p == "/L1_ASSET/":
         return "ASSET"
-    if code.startswith("ZX_L") or p.startswith("/L1_负债") or p == "/L1_LIABILITY/":
+    if code.startswith("S02") or code.startswith("ZX_L") or p.startswith("/L1_负债") or p == "/L1_LIABILITY/":
         return "LIABILITY"
-    if code.startswith("ZX_E") or p.startswith("/L1_权益") or p == "/L1_EQUITY/":
+    if code.startswith("S03") or code.startswith("ZX_E") or p.startswith("/L1_权益") or p == "/L1_EQUITY/":
         return "EQUITY"
-    if p.startswith("/L1_表外") or p == "/L1_OFF_BALANCE/":
+    if code.startswith("S04") or p.startswith("/L1_表外") or p == "/L1_OFF_BALANCE/":
         return "OFF_BALANCE"
     return "OTHER"
 
@@ -231,15 +232,17 @@ async def snapshot(
 
     # 5. 当前月份的余额/利率
     rev_rows = db.execute(text("""
-        SELECT coa_node_id, node_code, current_balance, weighted_rate, interest_amount, risk_weight
+        SELECT coa_node_id, node_code, current_balance, avg_balance,
+               weighted_rate, interest_amount, risk_weight
         FROM prcp_data_reverse
         WHERE scheme_code = :sc AND run_id = :rid AND date_offset = :do
           AND offset_unit = 'M' AND is_deleted = 0
     """), {"sc": scheme_code, "rid": run_id, "do": date_offset}).fetchall()
     rev_map: Dict[str, Dict] = {r[1]: {
         "coa_node_id": r[0], "current_balance": float(r[2] or 0),
-        "weighted_rate": float(r[3] or 0), "interest_amount": float(r[4] or 0),
-        "risk_weight": float(r[5] or 0),
+        "avg_balance": float(r[3] or 0),
+        "weighted_rate": float(r[4] or 0), "interest_amount": float(r[5] or 0),
+        "risk_weight": float(r[6] or 0),
     } for r in rev_rows}
 
     # 6. 当前月份的 5 个指标
@@ -261,20 +264,61 @@ async def snapshot(
               AND node_code IN ({ph})
               AND metric_type IN ({ph2})
         """), params).fetchall()
+        # 如果该 schema 没有任何指标数据，回退到任何 scheme_code（兼容 ZXCOA_V1 数据）
+        if not mrows:
+            params2 = {"dd": data_date}
+            for i, n in enumerate(nodes):
+                params2[f"n{i}"] = n["node_code"]
+            for i, m in enumerate(DEFAULT_METRIC_TYPES):
+                params2[f"m{i}"] = m
+            mrows = db.execute(text(f"""
+                SELECT node_code, metric_type, current_value
+                FROM prcp_metric_coefficient
+                WHERE is_deleted = 0
+                  AND data_date = :dd
+                  AND node_code IN ({ph})
+                  AND metric_type IN ({ph2})
+            """), params2).fetchall()
         for r in mrows:
             metric_map.setdefault(r[0], {})[r[1]] = float(r[2] or 0)
 
-    # 7. KPI 聚合
+    # 7. KPI 聚合（仅汇总叶子节点，避免父节点合计被重复计算）
     total_nodes = len(nodes)
     with_metrics = sum(1 for n in nodes if metric_map.get(n["node_code"]))
+
+    # ZX_COA 编码是按位置分层的（如 S01 / S0101 / S010101），不能用 startsWith 判断父子关系
+    # 用 path 字段（"/" 分隔）判断：节点 N 有子节点 ⇔ 存在节点 M 使 M.path 以 N.path + "/" 开头
+    node_paths = {n["node_code"]: n["path"] for n in nodes}
+    parent_set = set()
+    for nc_a, p_a in node_paths.items():
+        if not p_a:
+            continue
+        for nc_b, p_b in node_paths.items():
+            if nc_a == nc_b or not p_b:
+                continue
+            if p_b.startswith(p_a.rstrip("/") + "/") and p_b != p_a:
+                parent_set.add(nc_a)
+                break
+
+    def _is_leaf(nc: str) -> bool:
+        return nc not in parent_set
+
     asset_total = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                      if _classify(n["node_code"], n["path"]) == "ASSET" and n["node_code"] in rev_map)
+                      if _classify(n["node_code"], n["path"]) == "ASSET"
+                      and _is_leaf(n["node_code"])
+                      and n["node_code"] in rev_map)
     liability_total = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                          if _classify(n["node_code"], n["path"]) == "LIABILITY" and n["node_code"] in rev_map)
+                          if _classify(n["node_code"], n["path"]) == "LIABILITY"
+                          and _is_leaf(n["node_code"])
+                          and n["node_code"] in rev_map)
     equity_total = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                       if _classify(n["node_code"], n["path"]) == "EQUITY" and n["node_code"] in rev_map)
+                       if _classify(n["node_code"], n["path"]) == "EQUITY"
+                       and _is_leaf(n["node_code"])
+                       and n["node_code"] in rev_map)
     off_balance = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                      if _classify(n["node_code"], n["path"]) == "OFF_BALANCE" and n["node_code"] in rev_map)
+                      if _classify(n["node_code"], n["path"]) == "OFF_BALANCE"
+                      and _is_leaf(n["node_code"])
+                      and n["node_code"] in rev_map)
 
     metric_avg: Dict[str, Optional[float]] = {}
     metric_max: Dict[str, Optional[float]] = {}
@@ -285,6 +329,27 @@ async def snapshot(
         metric_max[m] = round(max(vals), 4) if vals else None
         metric_min[m] = round(min(vals), 4) if vals else None
 
+    # 贷款的加权平均利率：境内各项人民币贷款（S010101*）下属 L4 节点按余额加权平均
+    loan_weighted_num = 0.0
+    loan_weighted_den = 0.0
+    for n in nodes:
+        nc = n["node_code"]
+        # 只取 L4 子节点（不含 L3 父节点 S010101000000）
+        if not (nc.startswith("S01010101") or nc.startswith("S01010102") or
+                nc.startswith("S01010103") or nc.startswith("S01010104") or
+                nc.startswith("S01010105")):
+            continue
+        r = rev_map.get(nc)
+        if not r:
+            continue
+        bal = r["current_balance"]
+        rate = r["weighted_rate"]
+        if abs(bal) < 0.01:
+            continue
+        loan_weighted_num += bal * rate
+        loan_weighted_den += bal
+    loan_weighted_rate = round(loan_weighted_num / loan_weighted_den, 6) if loan_weighted_den > 0 else None
+
     kpi = {
         "total_nodes": total_nodes,
         "with_metrics": with_metrics,
@@ -292,10 +357,39 @@ async def snapshot(
         "liability_total": round(liability_total, 2),
         "equity_total": round(equity_total, 2),
         "off_balance": round(off_balance, 2),
+        "loan_weighted_rate": loan_weighted_rate,
         "metric_avg": metric_avg,
         "metric_max": metric_max,
         "metric_min": metric_min,
     }
+
+    # 指标评分（5 个 REG_* 指标）：按 prcp_kpi_value.score 聚合（基期数据日期 base_date）
+    kpi_scores = []
+    kpi_score_rows = db.execute(text("""
+        SELECT d.kpi_code, d.kpi_name, v.current_value, v.score,
+               s.min_value AS seg_min, s.max_value AS seg_max, s.segment_desc
+        FROM prcp_kpi_definition d
+        LEFT JOIN prcp_kpi_value v
+               ON v.kpi_id = d.id AND v.data_date = :bdd AND v.is_deleted = 0
+        LEFT JOIN prcp_kpi_score_rule r
+               ON r.kpi_id = d.id AND r.is_deleted = 0
+        LEFT JOIN prcp_kpi_score_segment s
+               ON s.rule_id = r.id AND s.is_deleted = 0
+               AND (s.min_value IS NULL OR v.current_value >= s.min_value)
+               AND (s.max_value IS NULL OR v.current_value <  s.max_value)
+        WHERE d.is_deleted = 0 AND d.kpi_code LIKE 'REG_%'
+        ORDER BY d.id
+    """), {"bdd": base_date}).fetchall()
+    for r in kpi_score_rows:
+        kpi_scores.append({
+            "kpi_code": r[0],
+            "kpi_name": r[1],
+            "value": float(r[2]) if r[2] is not None else None,
+            "score": float(r[3]) if r[3] is not None else None,
+            "segment_min": float(r[4]) if r[4] is not None else None,
+            "segment_max": float(r[5]) if r[5] is not None else None,
+            "segment_desc": r[6],
+        })
 
     # 8. 24 月趋势（5 指标每月平均值）
     trend_rows = db.execute(text("""
@@ -321,6 +415,20 @@ async def snapshot(
               AND node_code IN ({ph_n})
               AND metric_type IN ({ph_m})
         """), params).fetchall()
+        # 兼容 ZXCOA_V1：如果当前 scheme_code 没数据，回退到任意 scheme_code
+        if not all_metric_rows:
+            params2 = {}
+            for i, n in enumerate(nodes):
+                params2[f"n{i}"] = n["node_code"]
+            for i, m in enumerate(DEFAULT_METRIC_TYPES):
+                params2[f"m{i}"] = m
+            all_metric_rows = db.execute(text(f"""
+                SELECT data_date, node_code, metric_type, current_value
+                FROM prcp_metric_coefficient
+                WHERE is_deleted = 0
+                  AND node_code IN ({ph_n})
+                  AND metric_type IN ({ph_m})
+            """), params2).fetchall()
     else:
         all_metric_rows = []
 
@@ -367,7 +475,9 @@ async def snapshot(
             "node_level": n["node_level"],
             "category": cat,
             "current_balance": r_data.get("current_balance", 0),
+            "avg_balance": r_data.get("avg_balance", 0),
             "weighted_rate": r_data.get("weighted_rate", 0),
+            "interest_amount": r_data.get("interest_amount", 0),
             "metric_values": mv,
         })
 
@@ -421,6 +531,7 @@ async def snapshot(
         "date_offset": date_offset,
         "data_date": data_date.isoformat() if isinstance(data_date, date) else str(data_date),
         "kpi": kpi,
+        "kpi_scores": kpi_scores,
         "trend": trend,
         "category_distribution": category_distribution,
         "node_matrix": node_matrix,

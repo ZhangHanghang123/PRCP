@@ -63,12 +63,15 @@ const ReverseMetricTable: React.FC = () => {
 
   // 2. 加载 runs
   const loadRuns = async () => {
-    if (!activeScheme) return
+    if (!activeScheme) { setRuns([]); setActiveRun(null); return }
     try {
       const r = await dataReverseApi.runs(activeScheme)
-      setRuns(r.items || [])
-      const success = (r.items || []).filter((x: any) => x.status === 'SUCCESS')
-      if (success.length) setActiveRun(success[0].id)
+      const items = r.items || []
+      setRuns(items)
+      // 默认选最新 SUCCESS；切换方案后重置
+      const ok = items.filter((x: any) => x.status === 'SUCCESS')
+      if (ok.length) setActiveRun(ok[0].id)
+      else setActiveRun(null)
     } catch (e) { message.error('Runs 加载失败') }
   }
   useEffect(() => { loadRuns() }, [activeScheme])

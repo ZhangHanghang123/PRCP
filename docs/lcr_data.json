@@ -1,0 +1,324 @@
+[
+  {
+    "code": "S010101000000",
+    "name": "1.境内人民币各项贷款",
+    "is_leaf": false,
+    "balance": 8380847647531.74,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S010101010000",
+    "name": "1.1.对公一般贷款",
+    "is_leaf": true,
+    "balance": 2945272044075.94,
+    "rule_desc": "对公一般贷款 流入 100%"
+  },
+  {
+    "code": "S010101020000",
+    "name": "1.2.个人贷款",
+    "is_leaf": true,
+    "balance": 1828186569200.79,
+    "rule_desc": "个人贷款 流入 50%"
+  },
+  {
+    "code": "S010101030000",
+    "name": "1.3.信用卡贷款",
+    "is_leaf": true,
+    "balance": 444525501384.64,
+    "rule_desc": "信用卡 流入 50%"
+  },
+  {
+    "code": "S010101040000",
+    "name": "1.4.票据贴现",
+    "is_leaf": true,
+    "balance": 201340076281.32,
+    "rule_desc": "票据贴现 流入 100%"
+  },
+  {
+    "code": "S010101050000",
+    "name": "1.5.非银贷款",
+    "is_leaf": true,
+    "balance": 348478250000.0,
+    "rule_desc": "非银贷款 流入 100%"
+  },
+  {
+    "code": "S010102000000",
+    "name": "2.人民币非信贷类业务",
+    "is_leaf": false,
+    "balance": 2613045206589.05,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S010102010000",
+    "name": "2.1.债券投资",
+    "is_leaf": false,
+    "balance": 1794400523623.64,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S010102010100",
+    "name": "2.1.1金市自营债券",
+    "is_leaf": false,
+    "balance": 1184382566128.63,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S010102010101",
+    "name": "2.1.1.1AC",
+    "is_leaf": true,
+    "balance": 543980069724.63,
+    "rule_desc": "国债 AC Level 1 HQLA 折算 100%"
+  },
+  {
+    "code": "S010102010102",
+    "name": "2.1.1.2FVOCI",
+    "is_leaf": true,
+    "balance": 640402496404.0,
+    "rule_desc": "政策性金融债 FVOCI Level 1 HQLA 折算 100%"
+  },
+  {
+    "code": "S010102010103",
+    "name": "2.1.1.3FVTPL",
+    "is_leaf": true,
+    "balance": 50000000000.0,
+    "rule_desc": "FVTPL公司债 不计入"
+  },
+  {
+    "code": "S010102010200",
+    "name": "2.1.2司库债券",
+    "is_leaf": false,
+    "balance": 610017957495.01,
+    "rule_desc": "司库债券 汇总"
+  },
+  {
+    "code": "S010102010201",
+    "name": "2.1.2.1AC",
+    "is_leaf": true,
+    "balance": 566351367717.5,
+    "rule_desc": "国债 AC Level 1 HQLA 折算 100%"
+  },
+  {
+    "code": "S010102010202",
+    "name": "2.1.2.2FVOCI",
+    "is_leaf": true,
+    "balance": 43666589777.51,
+    "rule_desc": "政策性金融债 FVOCI Level 1 HQLA 折算 100%"
+  },
+  {
+    "code": "S010102010203",
+    "name": "2.1.2.3FVTPL",
+    "is_leaf": true,
+    "balance": 30000000000.0,
+    "rule_desc": "FVTPL公司债 Level 2A HQLA 折算 85%"
+  },
+  {
+    "code": "S010102020000",
+    "name": "2.2.结构化融资",
+    "is_leaf": true,
+    "balance": 205172333337.52,
+    "rule_desc": "结构化融资 流入 100%"
+  },
+  {
+    "code": "S010102030000",
+    "name": "2.3.同业资产（不含拆放非银）",
+    "is_leaf": true,
+    "balance": 248117663093.33,
+    "rule_desc": "同业资产 流入 100%"
+  },
+  {
+    "code": "S010102040000",
+    "name": "2.4.存款准备金",
+    "is_leaf": true,
+    "balance": 365354686534.56,
+    "rule_desc": "存款准备金 Level 1 HQLA 折算 100%"
+  },
+  {
+    "code": "S010103000000",
+    "name": "3.人民币非生息资产",
+    "is_leaf": false,
+    "balance": 867778998074.61,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S010103010000",
+    "name": "3.1.FVTPL类资产",
+    "is_leaf": true,
+    "balance": 640262452968.54,
+    "rule_desc": "FVTPL类资产 不计入"
+  },
+  {
+    "code": "S010103020000",
+    "name": "3.2.其他非生息资产",
+    "is_leaf": false,
+    "balance": 227516545106.07,
+    "rule_desc": "汇总节点 3.2.其他非生息资产"
+  },
+  {
+    "code": "S010103020100",
+    "name": "3.2.1. 其中：现金",
+    "is_leaf": true,
+    "balance": 127516545106.0,
+    "rule_desc": "库存现金 Level 1 HQLA 折算 100%"
+  },
+  {
+    "code": "S010103020200",
+    "name": "3.2.2. 其中：其它",
+    "is_leaf": true,
+    "balance": 100000000000.0,
+    "rule_desc": "其它非生息资产 分母流入 100%"
+  },
+  {
+    "code": "S010201000000",
+    "name": "1.外币贷款",
+    "is_leaf": true,
+    "balance": 80000000000.0,
+    "rule_desc": "外币贷款 流入 100%"
+  },
+  {
+    "code": "S010202010000",
+    "name": "2.1.外币债券",
+    "is_leaf": true,
+    "balance": 35000000000.0,
+    "rule_desc": "外币债券 流入 100%"
+  },
+  {
+    "code": "S010202020000",
+    "name": "2.2.同业资产",
+    "is_leaf": true,
+    "balance": 25000000000.0,
+    "rule_desc": "外币同业 流入 100%"
+  },
+  {
+    "code": "S010203000000",
+    "name": "3.外币非生息资产",
+    "is_leaf": true,
+    "balance": 10000000000.0,
+    "rule_desc": "外币非生息资产 流入 50%"
+  },
+  {
+    "code": "S020101010000",
+    "name": "1.1.对公存款",
+    "is_leaf": false,
+    "balance": 4222682106931.64,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S020101010100",
+    "name": "1.1.1对公活期存款",
+    "is_leaf": true,
+    "balance": 2486212417437.03,
+    "rule_desc": "对公活期 流出 48.5%（业务关系加权）"
+  },
+  {
+    "code": "S020101010200",
+    "name": "1.1.2对公定期存款",
+    "is_leaf": true,
+    "balance": 1736469689494.61,
+    "rule_desc": "对公定期 流出 100%"
+  },
+  {
+    "code": "S020101020000",
+    "name": "1.2.零售存款",
+    "is_leaf": false,
+    "balance": 2169431482604.05,
+    "rule_desc": "汇总节点不参与 LCR 计算"
+  },
+  {
+    "code": "S020101020100",
+    "name": "1.2.1零售活期存款",
+    "is_leaf": true,
+    "balance": 434867199487.65,
+    "rule_desc": "零售活期 流出 8%"
+  },
+  {
+    "code": "S020101020200",
+    "name": "1.2.2零售定期存款",
+    "is_leaf": true,
+    "balance": 1734564283116.4,
+    "rule_desc": "零售定期 流出 100%"
+  },
+  {
+    "code": "S020102010100",
+    "name": "2.2.1.1货币市场同业拆入",
+    "is_leaf": true,
+    "balance": 32988348999.99,
+    "rule_desc": "同业拆入 流出 100%"
+  },
+  {
+    "code": "S020102010200",
+    "name": "2.2.1.2货币市场债券回购",
+    "is_leaf": true,
+    "balance": 95875096000.0,
+    "rule_desc": "债券回购（信用债抵押）流出 25%"
+  },
+  {
+    "code": "S020102010300",
+    "name": "2.2.1.3同业存单（NCD）",
+    "is_leaf": true,
+    "balance": 932237942418.69,
+    "rule_desc": "同业存单 NCD 流出 100%"
+  },
+  {
+    "code": "S020102010400",
+    "name": "2.2.1.4同业存款",
+    "is_leaf": true,
+    "balance": 915605054241.89,
+    "rule_desc": "同业存款 流出 100%"
+  },
+  {
+    "code": "S020102010500",
+    "name": "2.2.1.5票据转贴现回购",
+    "is_leaf": true,
+    "balance": 1000000000.0,
+    "rule_desc": "票据转贴现回购（信用债抵押）流出 25%"
+  },
+  {
+    "code": "S020102020100",
+    "name": "2.2.2.1公开市场回购（买断）",
+    "is_leaf": true,
+    "balance": 353887790000.0,
+    "rule_desc": "公开市场回购（国债抵押）流出 0%"
+  },
+  {
+    "code": "S020102020200",
+    "name": "2.2.2.2中期借贷便利（MLF）",
+    "is_leaf": true,
+    "balance": 160370000000.0,
+    "rule_desc": "MLF 流出 100%"
+  },
+  {
+    "code": "S020102020300",
+    "name": "2.2.2.3结构性货币政策工具",
+    "is_leaf": true,
+    "balance": 42212093203.19,
+    "rule_desc": "结构性货币政策工具 流出 100%"
+  },
+  {
+    "code": "S020102020400",
+    "name": "2.2.2.4票据再贴现回购",
+    "is_leaf": true,
+    "balance": 1525214781.84,
+    "rule_desc": "票据再贴现回购（国债抵押）流出 0%"
+  },
+  {
+    "code": "S020201000000",
+    "name": "1.外币存款",
+    "is_leaf": true,
+    "balance": 150000000000.0,
+    "rule_desc": "外币存款 流出 100%"
+  },
+  {
+    "code": "S020202000000",
+    "name": "2.外币市场化负债",
+    "is_leaf": true,
+    "balance": 80000000000.0,
+    "rule_desc": "外币市场化负债 流出 100%"
+  },
+  {
+    "code": "S030000000000",
+    "name": "所有者权益",
+    "is_leaf": true,
+    "balance": 786217000000.0,
+    "rule_desc": "所有者权益 不计入 LCR 分子分母"
+  }
+]

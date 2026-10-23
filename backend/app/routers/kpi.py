@@ -545,7 +545,8 @@ class SegmentIn(BaseModel):
     seg_order: int = 0
     min_value: Optional[float] = None
     max_value: Optional[float] = None
-    score: float
+    score: float                # 最大值分数（上界 max_value 处的得分），兼容旧数据
+    score_min: Optional[float] = None   # 最小值分数（下界 min_value 处的得分）；None=不启用段内插值
     segment_desc: Optional[str] = None
 
 
@@ -592,7 +593,7 @@ async def list_score_rules(
         return {"items": []}
     rule_ids = [r[0] for r in rules]
     segs = db.execute(
-        text(f"""SELECT id, rule_id, seg_order, min_value, max_value, score, segment_desc
+        text(f"""SELECT id, rule_id, seg_order, min_value, max_value, score, score_min, segment_desc
                 FROM prcp_kpi_score_segment
                 WHERE rule_id IN :ids AND is_deleted=0
                 ORDER BY rule_id, seg_order"""),
@@ -604,7 +605,9 @@ async def list_score_rules(
             "id": s[0], "rule_id": s[1], "seg_order": s[2],
             "min_value": float(s[3]) if s[3] is not None else None,
             "max_value": float(s[4]) if s[4] is not None else None,
-            "score": float(s[5]), "segment_desc": s[6],
+            "score": float(s[5]),
+            "score_min": float(s[6]) if s[6] is not None else None,
+            "segment_desc": s[7],
         })
     return {"items": [{
         "id": r[0], "scheme_id": r[1], "kpi_id": r[2], "rule_name": r[3],
@@ -640,11 +643,12 @@ async def create_score_rule(p: ScoreRuleIn, db: Session = Depends(get_db),
         for seg in p.segments:
             db.execute(
                 text("""INSERT INTO prcp_kpi_score_segment
-                    (rule_id, seg_order, min_value, max_value, score, segment_desc)
-                    VALUES (:r, :o, :mn, :mx, :sc, :d)"""),
+                    (rule_id, seg_order, min_value, max_value, score, score_min, segment_desc)
+                    VALUES (:r, :o, :mn, :mx, :sc, :smin, :d)"""),
                 {"r": rid, "o": seg.seg_order,
                  "mn": seg.min_value, "mx": seg.max_value,
-                 "sc": seg.score, "d": seg.segment_desc},
+                 "sc": seg.score, "smin": seg.score_min,
+                 "d": seg.segment_desc},
             )
         db.commit()
     except Exception as e:
@@ -681,11 +685,12 @@ async def update_score_rule(rid: int, p: ScoreRuleIn, db: Session = Depends(get_
         for seg in p.segments:
             db.execute(
                 text("""INSERT INTO prcp_kpi_score_segment
-                    (rule_id, seg_order, min_value, max_value, score, segment_desc)
-                    VALUES (:r, :o, :mn, :mx, :sc, :d)"""),
+                    (rule_id, seg_order, min_value, max_value, score, score_min, segment_desc)
+                    VALUES (:r, :o, :mn, :mx, :sc, :smin, :d)"""),
                 {"r": rid, "o": seg.seg_order,
                  "mn": seg.min_value, "mx": seg.max_value,
-                 "sc": seg.score, "d": seg.segment_desc},
+                 "sc": seg.score, "smin": seg.score_min,
+                 "d": seg.segment_desc},
             )
         db.commit()
     except Exception as e:
@@ -712,7 +717,7 @@ async def delete_score_rule(rid: int, db: Session = Depends(get_db),
 @router.post("/score-calc")
 async def score_calc(payload: dict, db: Session = Depends(get_db),
                      user=Depends(get_current_user)):
-    """根据指标值 + 规则 ID 计算分数"""
+    """根据指标值 + 规则 ID 计算分数（支持 PIECEWISE 分段 / LINEAR 线性插值）"""
     rule_id = payload.get("rule_id")
     value = payload.get("value")
     if rule_id is None or value is None:
@@ -724,31 +729,90 @@ async def score_calc(payload: dict, db: Session = Depends(get_db),
     ).first()
     if not rule:
         raise HTTPException(404, "规则不存在")
+    calc_method, higher_is_better = (rule[0] or "PIECEWISE").upper(), rule[1]
     segs = db.execute(
-        text("""SELECT min_value, max_value, score, segment_desc
+        text("""SELECT id, min_value, max_value, score, score_min, segment_desc, seg_order
             FROM prcp_kpi_score_segment
             WHERE rule_id=:r AND is_deleted=0 ORDER BY seg_order"""),
         {"r": rule_id},
     ).fetchall()
+    if calc_method == "LINEAR":
+        # 列序：id(0) min(1) max(2) score(3) score_min(4) desc(5)
+        anchors = [(float(s[1]) if s[1] is not None else float(s[2] or 0),
+                    float(s[3]), s[0], s[5])
+                   for s in segs if s[1] is not None or s[2] is not None]
+        anchors.sort(key=lambda p: p[0])
+        score = _linear_interpolate([(s[1], s[2], s[3]) for s in segs], value)
+        if score is None:
+            return {"matched": False, "value": value, "score": None,
+                    "calc_method": calc_method,
+                    "message": "规则缺少有效锚点（每段至少需配置 min_value）"}
+        # 找出命中区间
+        prev_seg_desc = None
+        next_seg_desc = None
+        if anchors:
+            x_first, y_first, _, desc_first = anchors[0]
+            x_last, y_last, _, desc_last = anchors[-1]
+            if value <= x_first:
+                matched_range = {"from": x_first, "to": x_first,
+                                 "from_score": y_first, "to_score": y_first,
+                                 "clamped": "lower"}
+            elif value >= x_last:
+                matched_range = {"from": x_last, "to": x_last,
+                                 "from_score": y_last, "to_score": y_last,
+                                 "clamped": "upper"}
+            else:
+                for (xa, ya, ida, desa), (xb, yb, idb, desb) in zip(anchors, anchors[1:]):
+                    if xa <= value <= xb:
+                        matched_range = {"from": xa, "to": xb,
+                                         "from_score": ya, "to_score": yb,
+                                         "from_seg_desc": desa, "to_seg_desc": desb,
+                                         "clamped": None}
+                        break
+        else:
+            matched_range = None
+        return {"matched": True, "value": value, "score": score,
+                "calc_method": calc_method, "matched_range": matched_range,
+                "higher_is_better": higher_is_better}
+
+    # PIECEWISE（默认）
+    # 段内插值：score_min（=score_min，下界分数）为 None 时退化为阶梯评分
+    #   score = score_min + (x - min) / (max - min) × (score_max - score_min)
     matched = None
     for s in segs:
-        mn, mx, sc, desc = s
+        sid, mn, mx, sc, sc_min, desc, so = s
         in_range = True
         if mn is not None and value < float(mn):
             in_range = False
         if mx is not None and value > float(mx):
             in_range = False
         if in_range:
-            matched = {"score": float(sc), "min_value": float(mn) if mn is not None else None,
+            sc = float(sc)
+            sc_min_v = float(sc_min) if sc_min is not None else None
+            # 插值条件：两端分数都配了，且区间宽度 > 0
+            if sc_min_v is not None and mn is not None and mx is not None and float(mx) > float(mn):
+                ratio = (value - float(mn)) / (float(mx) - float(mn))
+                final_score = sc_min_v + ratio * (sc - sc_min_v)
+                mode = "INTERPOLATED"
+            else:
+                final_score = sc
+                mode = "STEPPED"
+            matched = {"score": round(final_score, 2),
+                       "score_max": sc,
+                       "score_min": sc_min_v,
+                       "interpolate_mode": mode,
+                       "min_value": float(mn) if mn is not None else None,
                        "max_value": float(mx) if mx is not None else None,
-                       "segment_desc": desc}
+                       "segment_desc": desc, "segment_id": sid, "seg_order": so}
             break
     if matched is None:
         return {"matched": False, "value": value, "score": None,
+                "calc_method": calc_method,
                 "message": "所有区间均不匹配，请检查规则配置"}
     return {"matched": True, "value": value, "score": matched["score"],
+            "calc_method": calc_method,
             "matched_range": {k: v for k, v in matched.items() if k != "score"},
-            "higher_is_better": rule[1]}
+            "higher_is_better": higher_is_better}
 
 
 # ============== 指标维护页专用：数据日期 + 试算分数 ==============
@@ -839,32 +903,81 @@ def _get_rpt_items_map(db, rpt_id) -> dict:
 
 
 def _calc_score_for_value(db, kpi_id, value):
-    """根据 value 查该指标的默认 score_rule，返回 score；无规则返回 None"""
+    """根据 value 查该指标的默认 score_rule，返回 score；无规则返回 None
+
+    支持两种 calc_method：
+      - PIECEWISE 分段：按 min/max 区间命中 → 取该段的 score
+      - LINEAR  线性：每段是一个锚点 (min_value=x, score=y)，段之间线性插值，
+        段外按两端锚点延伸（clamp）
+    """
     if value is None:
         return None
     rule = db.execute(
-        text("""SELECT id FROM prcp_kpi_score_rule
+        text("""SELECT id, calc_method FROM prcp_kpi_score_rule
             WHERE kpi_id=:k AND status='ACTIVE' AND is_deleted=0
             ORDER BY id DESC LIMIT 1"""),
         {"k": kpi_id},
     ).first()
     if not rule:
         return None
-    rule_id = rule[0]
+    rule_id, calc_method = rule[0], (rule[1] or "PIECEWISE").upper()
     segs = db.execute(
-        text("""SELECT min_value, max_value, score FROM prcp_kpi_score_segment
+        text("""SELECT min_value, max_value, score, score_min FROM prcp_kpi_score_segment
             WHERE rule_id=:r AND is_deleted=0 ORDER BY seg_order"""),
         {"r": rule_id},
     ).fetchall()
+    if calc_method == "LINEAR":
+        return _linear_interpolate(segs, value)
+    # PIECEWISE（默认）—— 支持段内插值
     for s in segs:
-        mn, mx, sc = s
+        mn, mx, sc, sc_min = s
         in_range = True
         if mn is not None and value < float(mn):
             in_range = False
         if mx is not None and value > float(mx):
             in_range = False
         if in_range:
-            return float(sc)
+            sc = float(sc)
+            if sc_min is not None and mn is not None and mx is not None and float(mx) > float(mn):
+                ratio = (value - float(mn)) / (float(mx) - float(mn))
+                return round(float(sc_min) + ratio * (sc - float(sc_min)), 2)
+            return sc
+    return None
+
+
+def _linear_interpolate(segs, value):
+    """对 LINEAR 规则的 seg 集合执行线性插值。
+
+    segs 每行的列序（v2 起）：(min_value, max_value, score, score_min)
+    —— score_min 是 PIECEWISE 插值用的，LINEAR 锚点模式下不参与计算。
+
+    语义约定：LINEAR 规则的每个 segment 是「锚点」，其 (min_value, score) 描述
+    score 曲线上的一个控制点（max_value 字段不参与计算，仅占位以保持 schema 一致）。
+    段之间（按 seg_order 升序）按 x 轴线性插值；落在两端之外的输入值会被
+    clamp 到最近锚点的得分。
+    """
+    if not segs:
+        return None
+    anchors = []  # [(x, score)]
+    for row in segs:
+        mn, _mx, sc = row[0], row[1], row[2]
+        x = mn if mn is not None else _mx
+        if x is None:
+            continue
+        anchors.append((float(x), float(sc)))
+    if not anchors:
+        return None
+    anchors.sort(key=lambda p: p[0])
+    if value <= anchors[0][0]:
+        return anchors[0][1]
+    if value >= anchors[-1][0]:
+        return anchors[-1][1]
+    for (x1, y1), (x2, y2) in zip(anchors, anchors[1:]):
+        if x1 <= value <= x2:
+            if x2 == x1:
+                return y1
+            t = (value - x1) / (x2 - x1)
+            return round(y1 + t * (y2 - y1), 4)
     return None
 
 

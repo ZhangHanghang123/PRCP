@@ -1,5 +1,23 @@
 html, body, #root { margin: 0; padding: 0; height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif; }
-.app-layout { min-height: 100vh; }
+/* ========== 布局：整页不滚动，侧栏与内容区各自独立滚动 ==========
+ * 原来用 min-height:100vh，页面内容变长时 body 整体滚动，
+ * 导致左侧菜单展开时会把右侧功能区一起带着下滑。
+ * 改为 height:100vh + overflow:hidden，两个子区域各自 overflow-y:auto。
+ */
+.app-layout { height: 100vh; overflow: hidden; }
+
+/* 右侧主区：header 固定，content 独立滚动，footer 吸底 */
+.app-layout > .ant-layout { height: 100vh; overflow: hidden; }
+.app-main-col {
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.app-main-col > .ant-layout-header { flex: none; }
+.app-main-col > .ant-layout-content { flex: 1 1 auto; overflow-y: auto; }
+.app-main-col > .ant-layout-footer { flex: none; }
+
 .app-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   padding: 0 24px;
@@ -15,6 +33,15 @@ html, body, #root { margin: 0; padding: 0; height: 100%; font-family: -apple-sys
   box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 .app-sider { background: #fff !important; box-shadow: 2px 0 8px rgba(0,0,0,0.05); }
+/* 侧栏：整体不滚动，菜单区独立滚动 */
+.app-sider .ant-layout-sider-children {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.app-sider .app-sider-logo { flex: none; }
+.app-sider .ant-menu { flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; }
 .app-content { background: #f0f2f5; padding: 24px; margin: 0 !important; }
 .app-footer { text-align: center; padding: 16px 24px; background: transparent; color: #999; font-size: 12px; border-top: 1px solid #f0f0f0; }
 .app-footer a { color: #999; }

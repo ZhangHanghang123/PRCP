@@ -51,7 +51,15 @@ const MainLayout: React.FC = () => {
     { key: '/model', icon: <ExperimentOutlined />, label: '模型管理' },
     { key: '/reverse', icon: <AimOutlined />, label: '组合反算' },
     { key: '/rate', icon: <LineChartOutlined />, label: '利率管理' },
-    { key: '/sim/list', icon: <PlayCircleOutlined />, label: '新业务模拟方案' },
+    {
+      key: '/sim',
+      icon: <PlayCircleOutlined />,
+      label: '新业务模拟',
+      children: [
+        { key: '/sim/list', label: '① 模拟方案' },
+        { key: '/sim/results-table', label: '② 结果查询' },
+      ],
+    },
     {
       key: '/esg',
       icon: <AreaChartOutlined />,
@@ -87,7 +95,7 @@ const MainLayout: React.FC = () => {
           onClick={({ key }) => navigate(key)}
         />
       </Sider>
-      <Layout>
+      <Layout className="app-main-col">
         <Header className="app-header">
           <h2>组算平台 · Portfolio Resource Coordination</h2>
           <Dropdown menu={userMenu} placement="bottomRight">

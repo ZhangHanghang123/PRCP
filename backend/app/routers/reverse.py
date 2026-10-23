@@ -35,7 +35,7 @@ class TargetIn(BaseModel):
     scheme_id: int
     kpi_id: Optional[int] = None
     kpi_code: Optional[str] = None
-    target_name: str
+    target_name: Optional[str] = None
     target_value: float
     constraint_type: str = "GE"
     weight: float = 1.0
@@ -231,6 +231,9 @@ async def list_targets(
 @router.post("/targets")
 async def create_target(p: TargetIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    # target_name 自动兜底：kpi_code + 约束 + 目标值（前端已去掉该输入）
+    target_name = (p.target_name or "").strip() or \
+                  f"{p.kpi_code or '未知KPI'} {p.constraint_type} {p.target_value}"
     try:
         rid = db.execute(
             text("""INSERT INTO prcp_reverse_target
@@ -239,7 +242,7 @@ async def create_target(p: TargetIn, db: Session = Depends(get_db), user=Depends
                  created_by, updated_by)
                 VALUES (:sid, :kid, :kc, :n, :tv, :ct, :w, :hm, :so, :d, :u, :u)"""),
             {"sid": p.scheme_id, "kid": p.kpi_id, "kc": p.kpi_code,
-             "n": p.target_name, "tv": p.target_value, "ct": p.constraint_type,
+             "n": target_name, "tv": p.target_value, "ct": p.constraint_type,
              "w": p.weight, "hm": p.horizon_month, "so": p.sort_order,
              "d": p.description, "u": uid},
         ).lastrowid
@@ -251,13 +254,15 @@ async def create_target(p: TargetIn, db: Session = Depends(get_db), user=Depends
 @router.put("/targets/{tid}")
 async def update_target(tid: int, p: TargetIn, db: Session = Depends(get_db), user=Depends(get_current_user)):
     uid = user.get("id", 1) if isinstance(user, dict) else getattr(user, "id", 1)
+    target_name = (p.target_name or "").strip() or \
+                  f"{p.kpi_code or '未知KPI'} {p.constraint_type} {p.target_value}"
     r = db.execute(
         text("""UPDATE prcp_reverse_target SET
             kpi_id=:kid, kpi_code=:kc, target_name=:n, target_value=:tv,
             constraint_type=:ct, weight=:w, horizon_month=:hm,
             sort_order=:so, description=:d, updated_by=:u
             WHERE id=:id AND is_deleted=0"""),
-        {"kid": p.kpi_id, "kc": p.kpi_code, "n": p.target_name, "tv": p.target_value,
+        {"kid": p.kpi_id, "kc": p.kpi_code, "n": target_name, "tv": p.target_value,
          "ct": p.constraint_type, "w": p.weight, "hm": p.horizon_month,
          "so": p.sort_order, "d": p.description, "u": uid, "id": tid},
     )

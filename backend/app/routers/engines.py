@@ -135,6 +135,7 @@ async def list_results(
     coa_node_id: Optional[int] = Query(None),
     category: Optional[str] = Query(None),
     with_buckets: bool = Query(False, description="是否返回 64+64 期限桶（数据量会变大）"),
+    limit: int = Query(20000, ge=1, le=200000, description="返回行数上限（节点数×月数，超出会截断）"),
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -153,5 +154,11 @@ async def list_results(
         coa_node_id=coa_node_id,
         category=category,
         with_buckets=with_buckets,
+        limit=limit,
     )
-    return {"items": items, "engine_type": engine_type}
+    return {
+        "items": items,
+        "engine_type": engine_type,
+        "returned": len(items),
+        "truncated": len(items) >= limit,
+    }

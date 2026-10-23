@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>指标管理 · 需求设计文档</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg); color:var(--txt); line-height:1.65; font-size:14px; padding:0 0 60px;
+}
+.wrap{display:flex;max-width:1400px;margin:0 auto}
+
+.nav{width:238px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px;letter-spacing:.5px}
+.nav a{display:block;padding:7px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;
+  font-size:13px;margin-bottom:1px;transition:.15s}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+
+.hd{background:var(--card);border-radius:12px;padding:28px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:23px;font-weight:600;margin-bottom:10px}
+.hd .meta{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);
+  padding-top:14px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;
+  font-family:var(--mono);vertical-align:middle}
+.tag-b{background:var(--blue-bg);color:var(--blue)}
+.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}
+.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}
+.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:16px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-h h2{font-size:16px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:22px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:16px 0 8px;color:var(--txt)}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+.sec-b ul,.sec-b ol{margin:0 0 12px 22px;color:var(--txt2)}
+.sec-b li{margin-bottom:5px}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);
+  border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tbl{overflow-x:auto}
+code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:nowrap}
+
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);
+  border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+
+.flow{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap;margin:14px 0}
+.fl{flex:1;min-width:104px;background:#f7f8fa;border:1px solid var(--line);border-radius:9px;
+  padding:12px 10px;text-align:center}
+.fl .fn{font-size:10px;color:var(--blue);font-weight:600;font-family:var(--mono)}
+.fl .ft{font-size:12.5px;font-weight:600;margin:3px 0}
+.fl .fd{font-size:10.5px;color:var(--txt3);line-height:1.5}
+.fl.g{background:var(--green-bg);border-color:#9be8cf}.fl.g .fn,.fl.g .ft{color:var(--green)}
+.fl.p{background:var(--purple-bg);border-color:#c9a6ff}.fl.p .fn,.fl.p .ft{color:var(--purple)}
+.fl.o{background:var(--orange-bg);border-color:#ffca8b}.fl.o .fn,.fl.o .ft{color:var(--orange)}
+.fl.c{background:var(--cyan-bg);border-color:#9de8e5}.fl.c .fn,.fl.c .ft{color:#0aa39e}
+.fa{align-self:center;color:var(--txt3);font-size:16px;flex:none}
+
+.fx{background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:13px 16px;
+  margin:12px 0;font-family:var(--mono);font-size:12.5px;line-height:2.1;overflow-x:auto}
+.hl{background:var(--orange-bg);padding:1px 5px;border-radius:3px;color:var(--orange);font-weight:600}
+.hl-b{background:var(--blue-bg);padding:1px 5px;border-radius:3px;color:var(--blue);font-weight:600}
+.hl-g{background:var(--green-bg);padding:1px 5px;border-radius:3px;color:var(--green);font-weight:600}
+.hl-p{background:var(--purple-bg);padding:1px 5px;border-radius:3px;color:var(--purple);font-weight:600}
+
+.wire{background:#fbfcfd;border:2px solid var(--line);border-radius:10px;padding:14px;margin:14px 0}
+.wire-t{font-size:11px;color:var(--txt3);font-family:var(--mono);margin-bottom:10px;
+  padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.wire-r{display:flex;gap:10px;margin-bottom:10px}
+.wire-box{border:1.5px solid #c9cdd4;border-radius:7px;padding:9px 11px;font-size:11.5px;
+  background:#fff;color:var(--txt2);flex:1;text-align:center;font-family:var(--mono)}
+.wire-box.hl-b{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.wire-box.hl-g{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.wire-box.hl-o{border-color:var(--orange);background:var(--orange-bg);color:var(--orange)}
+.wire-box.hl-p{border-color:var(--purple);background:var(--purple-bg);color:var(--purple)}
+.wire-box.tall{padding:26px 11px}
+.wire-lbl{font-size:10px;color:var(--txt3);margin-bottom:3px;font-family:var(--mono)}
+
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:11px;margin:14px 0}
+.kpi div{background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:13px 15px}
+.kpi .k{font-size:11px;color:var(--txt3);margin-bottom:5px}
+.kpi .v{font-size:19px;font-weight:600;font-family:var(--mono);letter-spacing:-.3px}
+
+.toc{background:var(--card);border-radius:12px;padding:18px 26px;margin-bottom:18px;border:1px solid var(--line)}
+.toc h4{font-size:13px;font-weight:600;margin-bottom:11px;color:var(--txt3)}
+.toc-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:7px}
+.toc a{display:block;padding:8px 12px;background:#f7f8fa;border-radius:7px;text-decoration:none;
+  color:var(--txt2);font-size:12.5px;border:1px solid var(--line)}
+.toc a:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.toc a b{color:var(--blue);font-family:var(--mono);margin-right:5px}
+
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s1" class="on">1 整体业务描述</a>
+  <a href="#s2">2 整理业务流程</a>
+  <a href="#s3">3 产品功能设计</a>
+  <a href="#s4">4 产品前端原型设计</a>
+  <a href="#s5">5 后台存储表设计</a>
+  <a href="#s6">6 计量逻辑设计</a>
+  <a href="#s7">7 计量案例</a>
+  <a href="#s8">8 配置说明与案例</a>
+</div>
+
+<div class="main">
+
+<div class="hd">
+  <h1>指标管理 · 需求设计文档</h1>
+  <div style="margin-top:10px">
+    <span class="tag tag-b">PRCP 组算平台</span>
+    <span class="tag tag-g">公式 + 函数双引擎</span>
+    <span class="tag tag-o">分段插值评分</span>
+    <span class="tag tag-p">多版本指标值</span>
+  </div>
+  <div class="meta">
+    <div>模块 <b>指标管理（KPI Management）</b></div>
+    <div>版本 <b>v1.2</b>（含 score_min 插值）</div>
+    <div>接口 <b>23 个</b></div>
+    <div>数据表 <b>6 张</b></div>
+    <div>路由 <b>/prcp/kpi</b></div>
+    <div>日期 <b>2026-10-22</b></div>
+  </div>
+</div>
+
+<div class="toc">
+  <h4>文档结构</h4>
+  <div class="toc-g">
+    <a href="#s1"><b>01</b>整体业务描述</a>
+    <a href="#s2"><b>02</b>整理业务流程</a>
+    <a href="#s3"><b>03</b>产品功能设计</a>
+    <a href="#s4"><b>04</b>产品前端原型设计</a>
+    <a href="#s5"><b>05</b>后台存储表设计</a>
+    <a href="#s6"><b>06</b>计量逻辑设计</a>
+    <a href="#s7"><b>07</b>计量案例</a>
+    <a href="#s8"><b>08</b>配置说明与案例</a>
+  </div>
+</div>
+
+<!-- ================================================================
+     1 整体业务描述
+============================================================ -->
+<div class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>整体业务描述</h2></div>
+  <div class="sec-b">
+
+    <h3>1.1 业务背景</h3>
+    <p>
+      银行的价值管理（Value Management）需要回答：<strong>「我们的经营指标表现如何？离监管达标线还有多远？目标完成得怎么样？」</strong>
+    </p>
+    <p>传统做法的痛点：</p>
+    <ul>
+      <li><strong>指标口径分散</strong> —— 同一个指标在不同报表里算法可能不一致，缺乏统一管理</li>
+      <li><strong>计算逻辑固化在代码里</strong> —— 改一个指标算法要发版，业务人员无法自助调整</li>
+      <li><strong>监管指标难以量化评价</strong> —— LCR/CET1 等指标只有数值，没有「好/坏」的评判</li>
+      <li><strong>历史数据无法对比</strong> —— 只有当前值，看不到环比、同比与趋势</li>
+    </ul>
+
+    <h3>1.2 模块定位</h3>
+    <p>
+      指标管理是 PRCP 组算平台的<b>「指标中枢」</b>：负责指标的定义、计算、评分与维护，
+      为上层反算决策、报表分析、经营驾驶舱提供统一的指标数据与评分。
+    </p>
+
+    <div class="kpi">
+      <div><div class="k">指标方案</div><div class="v">2</div></div>
+      <div><div class="k">指标定义</div><div class="v">6</div></div>
+      <div><div class="k">函数型指标</div><div class="v">5</div></div>
+      <div><div class="k">评分规则</div><div class="v">5</div></div>
+      <div><div class="k">评分分段</div><div class="v">110</div></div>
+      <div><div class="k">接口数</div><div class="v">23</div></div>
+    </div>
+
+    <h3>1.3 核心能力</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">能力</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>双引擎指标</b></td>
+            <td>支持<b>公式指标</b>（在页面写算式，如 <code>生息资产/总资产*100</code>）与
+                <b>函数指标</b>（挂载 Python 脚本，复杂逻辑如 LCR/NSFR 的多级折算）</td></tr>
+        <tr><td><b>多方案隔离</b></td>
+            <td>每个指标方案独立维护一套指标定义，互不干扰（如「监管口径方案」「内部考核方案」）</td></tr>
+        <tr><td><b>指标间引用</b></td>
+            <td>公式可引用同方案的其他指标（<code>ctx</code> 上下文注入），支持指标层层依赖</td></tr>
+        <tr><td><b>公式校验</b></td>
+            <td>保存前可调用校验接口试算，检查语法与依赖是否正确</td></tr>
+        <tr><td><b>多版本管理</b></td>
+            <td>同一指标同一日期可存多个版本（V1.0/V2.0），保留历史口径便于回溯</td></tr>
+        <tr><td><b>四期对比</b></td>
+            <td>自动维护当前值、上期值（环比）、去年同期值、评分，支持趋势分析</td></tr>
+        <tr><td><b>分段评分</b></td>
+            <td>支持阶梯评分（命中区间取固定分）与<b>段内线性插值</b>（区间内平滑过渡）</td></tr>
+        <tr><td><b>批量试算</b></td>
+            <td>一键计算某方案某日期的全部指标值与分数，也可单指标试算</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>1.4 与其他模块的关系</h3>
+    <div class="fx" style="line-height:2.1">
+<span class="hl-b">prcp_coa_node</span> 账户册节点 ──┐<br>
+                                          ├──→ <span class="hl-g">prcp_kpi_definition</span> 指标定义 ──→ 指标值 ──→ 分数<br>
+<span class="hl-b">prcp_rpt_item</span> 报表表项 ──┘         │<br>
+　　　　　　　　　　　　　　　　　　↓<br>
+　　　　　　　　　　　　　　<span class="hl-p">prcp_kpi_score_rule</span> 评分规则 ──→ <span class="hl-p">prcp_kpi_score_segment</span> 分段<br><br>
+<span style="color:#00a870">【下游】</span>报表管理（嵌入指标值）｜ 反算决策（指标约束）｜ 经营驾驶舱（KPI 展示）
+    </div>
+
+    <div class="note note-b">
+      <b>模块边界</b>：本模块负责<b>监管/经营指标的度量与评分</b>，
+      不负责「指标目标值的制定」（属反算决策模块）与「指标达成率评价」（属报表分析）。
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     2 业务流程
+============================================================ -->
+<div class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>整理业务流程</h2></div>
+  <div class="sec-b">
+
+    <h3>2.1 主流程</h3>
+    <div class="flow">
+      <div class="fl"><div class="fn">STEP 1</div><div class="ft">建方案</div><div class="fd">指标口径<br>隔离</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">STEP 2</div><div class="ft">定指标</div><div class="fd">公式 or<br>函数</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">STEP 3</div><div class="ft">取值</div><div class="fd">选日期<br>试算</div></div>
+      <div class="fa">→</div>
+      <div class="fl o"><div class="fn">STEP 4</div><div class="ft">配评分</div><div class="fd">分段<br>或锚点</div></div>
+      <div class="fa">→</div>
+      <div class="fl g"><div class="fn">STEP 5</div><div class="ft">算分数</div><div class="fd">区间命中<br>+ 插值</div></div>
+      <div class="fa">→</div>
+      <div class="fl p"><div class="fn">STEP 6</div><div class="ft">看结果</div><div class="fd">值 + 分<br>+ 汇总</div></div>
+    </div>
+
+    <h3>2.2 业务流程图</h3>
+    <div class="fx" style="line-height:1.95">
+<span style="color:#165dff">①</span> 创建指标方案　　名称 / 编码 / 描述（如「REG 监管指标方案」）<br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#165dff">②</span> 定义指标（indicator_type 二选一）<br>
+<span style="color:#8f959e">      ├─ type=1 公式指标 → 写算式，如 <span class="hl-b">ROE*100</span>，可引用同方案其他指标编码</span><br>
+<span style="color:#8f959e">      └─ type=2 函数指标 → 指定 script_path + script_name，如 <span class="hl-p">kpi_funcs.lcr::calc</span></span><br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#165dff">③</span> 绑定报表（rpt_id）　指标挂在报表表项下，便于报表取数<br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#ff8f1f">④</span> 配置评分规则（可选）<br>
+<span style="color:#8f959e">      ├─ <b>PIECEWISE 分段</b>：[最小值, 最大值) → 分数，可开启段内插值</span><br>
+<span style="color:#8f959e">      └─ <b>LINEAR 线性</b>：(指标值, 分数) 锚点对，锚点间线性插值 + 端点clamp</span><br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#00a870">⑤</span> 取值与评分<br>
+<span style="color:#8f959e">      ├─ 选数据日期 → 单指标【重算】或【一键试算全部】</span><br>
+<span class="hl-g">      ├─ 公式引擎 evaluate(formula, ctx) 或 脚本执行器 run_function_kpi(...)</span><br>
+<span class="hl-g">      ├─ 评分引擎：区间命中 → 段内插值 → 得分</span><br>
+<span style="color:#8f959e">      └─ 写入 prcp_kpi_value（当前值/上期/去年同期/分数）</span><br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#7d3ff5">⑥</span> 结果查看：指标维护 Tab（值+分数列表）｜ 方案总分汇总（总分/均分/已评分数）
+    </div>
+
+    <h3>2.3 数据流转</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:70px">阶段</th><th style="width:150px">输入</th><th>处理</th><th style="width:150px">输出</th></tr></thead>
+      <tbody>
+        <tr><td><b>定义</b></td>
+            <td><code>prcp_kpi_scheme</code><br><code>prcp_kpi_definition</code></td>
+            <td>写指标编码/名称/类型/公式或脚本/单位/阈值</td>
+            <td>指标定义清单</td></tr>
+        <tr><td><b>上下文</b></td>
+            <td><code>prcp_kpi_value</code></td>
+            <td>按方案+日期取出同方案其他指标的当前值 → <code>ctx[kpi_code]</code></td>
+            <td>指标间引用上下文</td></tr>
+        <tr><td><b>取值</b></td>
+            <td>公式 或 脚本 + <code>prcp_rpt_item</code> + ctx</td>
+            <td>公式引擎求值 / 脚本执行器运行</td>
+            <td>current_value</td></tr>
+        <tr><td><b>评分</b></td>
+            <td><code>prcp_kpi_score_rule</code><br><code>prcp_kpi_score_segment</code></td>
+            <td>区间命中 → score_min/score_max 插值 → score</td>
+            <td>score</td></tr>
+        <tr><td><b>落库</b></td>
+            <td>值 + 分数 + 上期/去年同期</td>
+            <td>UPSERT 到 <code>prcp_kpi_value</code>（kpi_id+data_date+version 唯一）</td>
+            <td>指标值明细</td></tr>
+        <tr><td><b>汇总</b></td>
+            <td>全部指标值</td>
+            <td>统计总分 / 均分 / 已评分数</td>
+            <td>方案级评分概览</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>2.4 关键业务规则</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">规则</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>方案隔离</b></td><td>指标定义、评分规则、指标值均按 <code>scheme_id</code> 隔离，跨方案不可见</td></tr>
+        <tr><td><b>类型互斥</b></td><td><code>indicator_type=1</code> 用 <code>formula</code>；<code>=2</code> 用 <code>script_path</code>，二者不同时生效</td></tr>
+        <tr><td><b>依赖顺序</b></td><td>公式引用其他指标时，被引用指标<b>必须先算出值</b>（未算出按 0 处理）</td></tr>
+        <tr><td><b>版本唯一</b></td><td><code>(kpi_id, data_date, version)</code> 定位一条指标值，重复试算为覆盖</td></tr>
+        <tr><td><b>评分可选</b></td><td>未配评分规则的指标 <code>score = NULL</code>，列表显示 <code>—</code></td></tr>
+        <tr><td><b>段内插值</b></td><td><code>score_min</code> 非空且区间宽度 &gt; 0 时启用插值，否则阶梯评分</td></tr>
+        <tr><td><b>正则反向</b></td><td><code>higher_is_better=0</code> 时分数随指标值上升而下降（EVE 类指标）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     3 产品功能设计
+============================================================ -->
+<div class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>产品功能设计</h2></div>
+  <div class="sec-b">
+
+    <h3>3.1 功能清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:56px">编号</th><th style="width:120px">功能模块</th><th style="width:160px">功能点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>F01</td><td rowspan="5"><b>指标方案</b></td>
+            <td>方案列表</td><td>展示编码/名称/指标数/状态/描述</td></tr>
+        <tr><td>F02</td><td>创建方案</td><td>录入编码、名称、描述</td></tr>
+        <tr><td>F03</td><td>编辑方案</td><td>修改名称与描述</td></tr>
+        <tr><td>F04</td><td>删除方案</td><td>软删除，级联清除其下指标定义/规则/值</td></tr>
+        <tr><td>F05</td><td>进入方案</td><td>点击切换当前方案（决定后续 Tab 的数据范围）</td></tr>
+
+        <tr><td>F06</td><td rowspan="6"><b>指标定义</b></td>
+            <td>定义列表</td><td>展示类型/编码/名称/所属报表/公式/单位/状态</td></tr>
+        <tr><td>F07</td><td>新增定义</td><td>选类型 → 填公式或脚本 → 选报表 → 填单位与阈值</td></tr>
+        <tr><td>F08</td><td>编辑定义</td><td>修改公式/脚本/单位等</td></tr>
+        <tr><td>F09</td><td>删除定义</td><td>软删除，同时清除其评分规则与指标值</td></tr>
+        <tr><td>F10</td><td>公式试算</td><td>输入假设 ctx 值，实时返回公式计算结果</td></tr>
+        <tr><td>F11</td><td>公式校验</td><td>检查语法合法性 + 依赖的指标是否存在</td></tr>
+
+        <tr><td>F12</td><td rowspan="2"><b>公式引擎</b></td>
+            <td>表达式求值</td><td><code>evaluate(formula, ctx)</code>，支持四则运算与函数</td></tr>
+        <tr><td>F13</td><td>脚本执行器</td><td><code>run_function_kpi(script_path, script_name, ...)</code> 动态加载并执行</td></tr>
+
+        <tr><td>F14</td><td rowspan="6"><b>指标评分</b></td>
+            <td>规则列表</td><td>展示规则名/算法/总分/方向/段数/状态，可展开看分段预览</td></tr>
+        <tr><td>F15</td><td>新增/编辑规则</td><td>选算法（分段/线性）+ 方向（正向/逆向）+ 总分</td></tr>
+        <tr><td>F16</td><td>分段维护</td>
+            <td>表格编辑：序号 / 最小值 / 最大值 / <b>最小值分数</b> / <b>最大值分数</b> / 描述</td></tr>
+        <tr><td>F17</td><td>锚点维护</td><td>LINEAR 模式：锚点 x（指标值）+ 锚点 score + 说明</td></tr>
+        <tr><td>F18</td><td>占比/权重校验</td><td>节奏无需；分段无强制校验，但保存时做区间合法性检查</td></tr>
+        <tr><td>F19</td><td>删除规则</td><td>软删除规则及其全部分段</td></tr>
+
+        <tr><td>F20</td><td rowspan="4"><b>指标维护</b></td>
+            <td>指标值列表</td><td>日期/指标/版本/当前值/上期/去年同期/分数/来源</td></tr>
+        <tr><td>F21</td><td>单指标重算</td><td>按选定日期重新计算该指标的值与分数</td></tr>
+        <tr><td>F22</td><td>一键试算全部</td><td>批量计算当前方案该日期的全部指标，返回汇总</td></tr>
+        <tr><td>F23</td><td>新增/编辑/删除值</td><td>支持手工录入与维护指标值</td></tr>
+
+        <tr><td>F24</td><td rowspan="2"><b>汇总分析</b></td>
+            <td>数据日期筛选</td><td>按日期聚合的指标值列表（含每日期值个数）</td></tr>
+        <tr><td>F25</td><td>方案总分汇总</td><td>试算后展示 总分 / 均分 / 已评分数（N/M）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>3.2 状态与枚举</h3>
+    <h4>指标类型（PRCP_INDICATOR_TYPE）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">值</th><th style="width:110px">名称</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>1</b></td><td>公式指标</td><td>用 <code>formula</code> 字段的算式计算，简单逻辑优先用此类型</td></tr>
+        <tr><td><b>2</b></td><td>函数指标</td><td>挂载 <code>script_path</code> + <code>script_name</code>，复杂逻辑（LCR 分档折算等）用此类型</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>计量单位（PRCP_CALC_UNIT）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:80px">值</th><th style="width:120px">名称</th><th>展示格式</th></tr></thead>
+      <tbody>
+        <tr><td><code>PERCENT</code></td><td>百分比 %</td><td>数值 + <code>%</code> 后缀</td></tr>
+        <tr><td><code>AMOUNT</code></td><td>金额</td><td>千分位 + 2 位小数</td></tr>
+        <tr><td><code>BP</code></td><td>基点 BP</td><td>数值 + <code>BP</code></td></tr>
+        <tr><td><code>RATIO</code></td><td>比率</td><td>原值展示（通常已 ×100）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>评分算法</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">算法</th><th style="width:100px">段语义</th><th>计算方式</th></tr></thead>
+      <tbody>
+        <tr><td><b>PIECEWISE</b><br><span style="font-size:11px;color:var(--txt3)">分段</span></td>
+            <td><code>[最小值, 最大值)</code><br>区间</td>
+            <td>命中区间后：<br>
+                · <code>score_min</code> 为空 → <b>阶梯评分</b>，直接取该段 <code>score</code><br>
+                · <code>score_min</code> 有值 → <b>段内插值</b>，
+                  <code>score_min + (x-min)/(max-min) × (score-score_min)</code></td></tr>
+        <tr><td><b>LINEAR</b><br><span style="font-size:11px;color:var(--txt3)">线性</span></td>
+            <td><code>(x, score)</code><br>锚点对</td>
+            <td>锚点按 x 排序后线性插值；输入值超出锚点范围时按端点 <b>clamp</b>（取最近锚点分数）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>3.3 接口清单（23 个）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:56px">编号</th><th style="width:78px">方法</th><th style="width:250px">路径</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td colspan="4" style="background:var(--blue-bg);color:var(--blue);font-weight:600">指标方案（4）</td></tr>
+        <tr><td>A1</td><td>GET</td><td><code>/schemes</code></td><td>方案列表（含指标数统计）</td></tr>
+        <tr><td>A2</td><td>POST</td><td><code>/schemes</code></td><td>创建方案</td></tr>
+        <tr><td>A3</td><td>PUT</td><td><code>/schemes/{sid}</code></td><td>更新方案</td></tr>
+        <tr><td>A4</td><td>DELETE</td><td><code>/schemes/{sid}</code></td><td>删除方案（软删）</td></tr>
+
+        <tr><td colspan="4" style="background:var(--green-bg);color:var(--green);font-weight:600">指标定义（7）</td></tr>
+        <tr><td>B1</td><td>GET</td><td><code>/rpt-items</code></td><td>报表表项下拉（绑定用）</td></tr>
+        <tr><td>B2</td><td>GET</td><td><code>/definitions</code></td><td>定义列表（按 scheme_id / keyword 过滤）</td></tr>
+        <tr><td>B3</td><td>POST</td><td><code>/definitions</code></td><td>新增定义</td></tr>
+        <tr><td>B4</td><td>PUT</td><td><code>/definitions/{kid}</code></td><td>更新定义</td></tr>
+        <tr><td>B5</td><td>DELETE</td><td><code>/definitions/{kid}</code></td><td>删除定义（级联规则与值）</td></tr>
+        <tr><td>B6</td><td>POST</td><td><code>/formula/eval</code></td><td>公式试算（传假设 ctx）</td></tr>
+        <tr><td>B7</td><td>POST</td><td><code>/formula/validate</code></td><td>公式语法校验</td></tr>
+        <tr><td>B8</td><td>GET</td><td><code>/functions/scripts</code></td><td>可用的函数脚本清单</td></tr>
+
+        <tr><td colspan="4" style="background:var(--orange-bg);color:var(--orange);font-weight:600">指标值（4）</td></tr>
+        <tr><td>C1</td><td>GET</td><td><code>/values</code></td><td>指标值列表（按方案/日期/指标）</td></tr>
+        <tr><td>C2</td><td>POST</td><td><code>/values</code></td><td>新增/更新指标值（UPSERT）</td></tr>
+        <tr><td>C3</td><td>DELETE</td><td><code>/values/{vid}</code></td><td>删除指标值</td></tr>
+        <tr><td>C4</td><td>GET</td><td><code>/value-dates</code></td><td>按日期聚合的指标值列表</td></tr>
+
+        <tr><td colspan="4" style="background:var(--purple-bg);color:var(--purple);font-weight:600">指标评分（8）</td></tr>
+        <tr><td>D1</td><td>GET</td><td><code>/score-rules</code></td><td>评分规则列表（含分段的 <code>score_min</code>）</td></tr>
+        <tr><td>D2</td><td>POST</td><td><code>/score-rules</code></td><td>创建评分规则</td></tr>
+        <tr><td>D3</td><td>PUT</td><td><code>/score-rules/{rid}</code></td><td>更新规则（全删重建分段）</td></tr>
+        <tr><td>D4</td><td>DELETE</td><td><code>/score-rules/{rid}</code></td><td>删除规则及其分段</td></tr>
+        <tr><td>D5</td><td>POST</td><td><code>/score-calc</code></td><td>单次评分计算（返回插值明细）</td></tr>
+        <tr><td>D6</td><td>POST</td><td><code>/recalc</code></td><td>单指标重算（值 + 分数）</td></tr>
+        <tr><td>D7</td><td>POST</td><td><code>/values/calc-score</code></td><td>按日期批量计算分数（线性插值）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note note-b">
+      统一前缀 <code>/prcp/api/kpi</code>，需 JWT 认证（<code>Authorization: Bearer &lt;token&gt;</code>）。
+      <strong>登录接口例外</strong>：<code>/prcp/api/auth/login</code> 使用
+      <code>OAuth2PasswordRequestForm</code>（form-data），非 JSON。
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     4 前端原型设计
+============================================================ -->
+<div class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>产品前端原型设计</h2></div>
+  <div class="sec-b">
+
+    <h3>4.1 页面结构</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">Tab</th><th style="width:120px">路由参数</th><th>核心内容</th><th style="width:120px">对应功能</th></tr></thead>
+      <tbody>
+        <tr><td><b>指标方案</b></td><td><code>?tab=schemes</code></td>
+            <td>方案表格 + 新建/编辑弹窗</td><td>F01~F05</td></tr>
+        <tr><td><b>指标定义</b></td><td><code>?tab=defs</code></td>
+            <td>定义表格（含公式列）+ 定义弹窗（公式试算）</td><td>F06~F11</td></tr>
+        <tr><td><b>指标评分</b></td><td><code>?tab=scores</code></td>
+            <td>规则表格（可展开看分段）+ 规则弹窗（分段表格编辑器）</td><td>F14~F19</td></tr>
+        <tr><td><b>指标维护</b></td><td><code>?tab=values</code></td>
+            <td>指标值表格 + 分数列 + 一键试算 + 总分汇总</td><td>F20~F25</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note">
+      <b>⚠️ 已知体验问题</b>：直接访问 <code>?tab=defs</code>（或 scores/values）时，
+      若未先在「指标方案」Tab 点【进入】，<code>activeScheme</code> 为空 → 页面显示
+      「请先选择一个指标方案」空态引导而非报错。这是<b>设计行为</b>（方案是数据范围的根），
+      但用户容易误认为是页面故障。<b>建议</b>：加载方案后若无选中项，自动选中第一个方案。
+    </div>
+
+    <h3>4.2 原型线框</h3>
+
+    <h4>① 指标方案 Tab</h4>
+    <div class="wire">
+      <div class="wire-t">/kpi?tab=schemes</div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:3;text-align:left">🔍 搜索方案</div>
+        <div class="wire-box" style="flex:1">状态筛选 ▾</div>
+        <div class="wire-box hl-b" style="flex:1">+ 新建方案</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="text-align:left;padding:11px">方案编码 ▲</div>
+        <div class="wire-box" style="text-align:left;padding:11px">方案名称</div>
+        <div class="wire-box" style="text-align:left;padding:11px">指标数</div>
+        <div class="wire-box" style="text-align:left;padding:11px">状态</div>
+        <div class="wire-box" style="text-align:left;padding:11px">描述</div>
+        <div class="wire-box" style="text-align:left;padding:11px">操作</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-g" style="text-align:left;padding:11px">REG_KPI</div>
+        <div class="wire-box" style="text-align:left;padding:11px">监管指标方案</div>
+        <div class="wire-box" style="text-align:left;padding:11px">5</div>
+        <div class="wire-box" style="text-align:left;padding:11px">ACTIVE</div>
+        <div class="wire-box" style="text-align:left;padding:11px">LCR/NSFR/CET1/EVE/ROE</div>
+        <div class="wire-box" style="text-align:left;padding:11px">[进入][编辑][🗑]</div>
+      </div>
+    </div>
+
+    <h4>② 指标定义 Tab</h4>
+    <div class="wire">
+      <div class="wire-t">/kpi?tab=defs　—— 需先在方案 Tab 点【进入】</div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:2;text-align:left">🔍 按名称/编码搜索</div>
+        <div class="wire-box" style="flex:1">所属报表 ▾</div>
+        <div class="wire-box" style="flex:1">类型 ▾</div>
+        <div class="wire-box hl-b" style="flex:1">+ 新增指标</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="text-align:left;padding:11px">类型</div>
+        <div class="wire-box" style="text-align:left;padding:11px">编码</div>
+        <div class="wire-box" style="text-align:left;padding:11px">名称</div>
+        <div class="wire-box" style="text-align:left;padding:11px">所属报表</div>
+        <div class="wire-box" style="text-align:left;padding:11px">公式/脚本</div>
+        <div class="wire-box" style="text-align:left;padding:11px">单位</div>
+        <div class="wire-box" style="text-align:left;padding:11px">操作</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-o" style="text-align:left;padding:11px">⚡函数</div>
+        <div class="wire-box" style="text-align:left;padding:11px">REG_LCR</div>
+        <div class="wire-box" style="text-align:left;padding:11px">LCR 流动性覆盖率</div>
+        <div class="wire-box" style="text-align:left;padding:11px">流动性报表</div>
+        <div class="wire-box" style="text-align:left;padding:11px;font-size:10.5px">kpi_funcs/lcr.py :: calc</div>
+        <div class="wire-box" style="text-align:left;padding:11px">%</div>
+        <div class="wire-box" style="text-align:left;padding:11px">[编辑][重算][🗑]</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-b" style="text-align:left;padding:11px">公式</div>
+        <div class="wire-box" style="text-align:left;padding:11px">roe</div>
+        <div class="wire-box" style="text-align:left;padding:11px">roe</div>
+        <div class="wire-box" style="text-align:left;padding:11px">—</div>
+        <div class="wire-box" style="text-align:left;padding:11px">ROE*100</div>
+        <div class="wire-box" style="text-align:left;padding:11px">%</div>
+        <div class="wire-box" style="text-align:left;padding:11px">[编辑][重算][🗑]</div>
+      </div>
+    </div>
+
+    <h4>③ 指标评分 Tab —— 分段规则编辑器（核心）</h4>
+    <div class="wire">
+      <div class="wire-t">/kpi?tab=scores　→ 点【编辑】打开规则弹窗（width=1000）</div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:1;text-align:left;padding:14px">
+          <b style="color:var(--txt)">规则列表</b><br>
+          REG_LCR v12b 0-500 分 ｜ 分段 ｜ 总分 500 ｜ ↑正向 ｜ 23 段 ｜ ▾<br>
+          <span style="color:var(--txt3);font-size:10.5px">展开预览：</span>
+          <span class="tag tag-b" style="font-size:10px">≥120 &lt;122 → 0~15 分 插值</span>
+          <span class="tag tag-b" style="font-size:10px">≥150 &lt;160 → 500~480 分 插值</span>
+        </div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-b" style="flex:1">所属方案</div>
+        <div class="wire-box hl-b" style="flex:1">所属指标</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:2">规则名称</div>
+        <div class="wire-box" style="flex:1">计算方法 ▾</div>
+        <div class="wire-box" style="flex:.8">总分</div>
+        <div class="wire-box" style="flex:.8">方向 ▾</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-p" style="flex:1;text-align:left">📊 评分段（按指标值区间 → 分数）</div>
+        <div class="wire-box" style="flex:1">+ 添加段</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="padding:9px 4px">序号</div>
+        <div class="wire-box" style="padding:9px 4px">最小值 ≥</div>
+        <div class="wire-box" style="padding:9px 4px">最大值 &lt;</div>
+        <div class="wire-box hl-o" style="padding:9px 4px">最小值分数</div>
+        <div class="wire-box hl-b" style="padding:9px 4px">最大值分数</div>
+        <div class="wire-box" style="padding:9px 4px">描述</div>
+        <div class="wire-box" style="padding:9px 4px">操作</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box">1</div>
+        <div class="wire-box">-∞</div>
+        <div class="wire-box">120</div>
+        <div class="wire-box hl-o">0</div>
+        <div class="wire-box hl-b">0</div>
+        <div class="wire-box">🔴 不达标</div>
+        <div class="wire-box">🗑</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box">2</div>
+        <div class="wire-box">120</div>
+        <div class="wire-box">122</div>
+        <div class="wire-box hl-o">0</div>
+        <div class="wire-box hl-b">15</div>
+        <div class="wire-box">🟠 危险 0-150</div>
+        <div class="wire-box">🗑</div>
+      </div>
+    </div>
+
+    <h4>④ 指标维护 Tab</h4>
+    <div class="wire">
+      <div class="wire-t">/kpi?tab=values</div>
+      <div class="wire-r">
+        <div class="wire-box hl-p" style="flex:2;text-align:left">当前方案：REG_KPI · 监管指标方案</div>
+        <div class="wire-box" style="flex:1.5">📅 数据日期 ▾</div>
+        <div class="wire-box" style="flex:.8">5 行数据</div>
+        <div class="wire-box hl-b" style="flex:1">⚡一键试算全部</div>
+        <div class="wire-box hl-p" style="flex:1">总分 213.4</div>
+        <div class="wire-box hl-b" style="flex:1">均分 42.7</div>
+        <div class="wire-box" style="flex:1">5/5 已评分</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="text-align:left;padding:11px">数据日期</div>
+        <div class="wire-box" style="text-align:left;padding:11px">指标</div>
+        <div class="wire-box" style="text-align:left;padding:11px">名称</div>
+        <div class="wire-box" style="text-align:left;padding:11px">版本</div>
+        <div class="wire-box" style="text-align:left;padding:11px">当前值</div>
+        <div class="wire-box hl-p" style="text-align:left;padding:11px">📊 指标分数</div>
+        <div class="wire-box" style="text-align:left;padding:11px">来源</div>
+        <div class="wire-box" style="text-align:left;padding:11px">操作</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="text-align:left;padding:11px">2025-12-31</div>
+        <div class="wire-box" style="text-align:left;padding:11px">REG_LCR</div>
+        <div class="wire-box" style="text-align:left;padding:11px">LCR 流动性覆盖率</div>
+        <div class="wire-box" style="text-align:left;padding:11px">V1.0</div>
+        <div class="wire-box" style="text-align:left;padding:11px">123.45%</div>
+        <div class="wire-box hl-p" style="text-align:left;padding:11px;font-weight:600">31.2</div>
+        <div class="wire-box" style="text-align:left;padding:11px">MODEL</div>
+        <div class="wire-box" style="text-align:left;padding:11px">[⚡试算][编辑][🗑]</div>
+      </div>
+    </div>
+
+    <h3>4.3 交互设计要点</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">设计点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>方案为根</b></td><td>四个 Tab 共用 <code>activeScheme</code>；未选方案时 defs/scores/values 显示空态引导</td></tr>
+        <tr><td><b>Tab 与 URL 同步</b></td><td><code>?tab=xxx</code> 双向同步，可直接分享带 Tab 的链接</td></tr>
+        <tr><td><b>类型切换联动</b></td><td>定义弹窗切「公式/函数」时，公式框与脚本选择器互斥显示</td></tr>
+        <tr><td><b>分段表即时校验</b></td><td>分段表格中最小值/最大值留空表示 ∓∞，允许只填一端</td></tr>
+        <tr><td><b>插值提示</b></td><td>两个分数列标题着色（最小值分数橙 / 最大值分数蓝），Tooltip 说明插值规则</td></tr>
+        <tr><td><b>插值标记</b></td><td>规则列表展开预览时，有 <code>score_min</code> 的段显示 <code>60~100 分 [插值]</code></td></tr>
+        <tr><td><b>分数着色</b></td><td>≥90 绿 / ≥60 蓝 / 其他橙；无分数显示灰色 <code>—</code></td></tr>
+        <tr><td><b>汇总即时反馈</b></td><td>试算完成后顶部展示 总分 / 均分 / N/M 已评分数</td></tr>
+        <tr><td><b>单位格式化</b></td><td>PERCENT 加 <code>%</code>；AMOUNT 千分位 2 位小数</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     5 表设计
+============================================================ -->
+<div class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>后台存储表设计</h2></div>
+  <div class="sec-b">
+
+    <h3>5.1 表关系图</h3>
+    <div class="fx" style="line-height:2.15">
+<span class="hl-b">prcp_kpi_scheme</span> 指标方案（1）<br>
+　　│ 1 : N<br>
+　　├─→ <span class="hl-b">prcp_kpi_definition</span> 指标定义（含公式/脚本）<br>
+　　│　　　│ 1 : N　　　　　　　1 : 1<br>
+　　│　　　├─→ <span class="hl-p">prcp_kpi_score_rule</span> 评分规则 ────→ <span class="hl-p">prcp_kpi_score_segment</span> 分段（N）<br>
+　　│　　　│　　　　　　　　　　　　　　score / score_min<br>
+　　│　　　│ 1 : N<br>
+　　│　　　└─→ <span class="hl-g">prcp_kpi_value</span> 指标值（按 日期 + 版本）<br>
+　　│　　　　　　　　　current_value / score<br>
+　　│<br>
+　　└─ N : 1 → 外部依赖<br>
+　　　　　　<code>prcp_rpt_item</code>　报表表项（定义挂靠）<br>
+　　　　　　<code>sys_dict</code>　　　　指标类型 / 计量单位
+    </div>
+
+    <h3>5.2 核心表结构</h3>
+
+    <h4>5.2.1 prcp_kpi_scheme —— 指标方案</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">字段</th><th style="width:120px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">id</code></td><td>bigint PK</td><td>主键</td></tr>
+        <tr><td><code class="t">scheme_code</code></td><td>varchar(32)</td><td>方案编码，如 <code>REG_KPI</code></td></tr>
+        <tr><td><code class="t">scheme_name</code></td><td>varchar(64)</td><td>方案名称</td></tr>
+        <tr><td><code class="t">description</code></td><td>text</td><td>描述</td></tr>
+        <tr><td><code class="t">kpi_count</code></td><td>int</td><td>指标数（冗余统计）</td></tr>
+        <tr><td><code class="t">status / is_deleted</code></td><td>varchar(16) / tinyint</td><td>ACTIVE / INACTIVE；软删标记</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.2 prcp_kpi_definition —— 指标定义</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">字段</th><th style="width:130px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">indicator_type</code></td><td>tinyint(1) NOT NULL</td>
+            <td><b>1</b> 公式指标 ｜ <b>2</b> 函数指标（互斥决定用 formula 还是 script）</td></tr>
+        <tr><td><code class="t">kpi_code / kpi_name</code></td><td>varchar(32/64)</td><td>指标编码（公式中引用）/ 名称</td></tr>
+        <tr><td><code class="t">rpt_id</code></td><td>bigint NOT NULL</td><td>所属报表（挂靠 <code>prcp_rpt_item</code>）</td></tr>
+        <tr><td><code class="t">formula</code></td><td>text</td><td><b>type=1 用</b>：算式，如 <code>ROE*100</code>，可引用同方案其他 <code>kpi_code</code></td></tr>
+        <tr><td><code class="t">script_path / script_name</code></td><td>varchar(255/128)</td>
+            <td><b>type=2 用</b>：脚本路径与函数名，如 <code>kpi_funcs/lcr.py</code> :: <code>calc</code></td></tr>
+        <tr><td><code class="t">calc_unit</code></td><td>varchar(16)</td><td>PERCENT / AMOUNT / BP / RATIO</td></tr>
+        <tr><td><code class="t">formula_desc</code></td><td>text</td><td>口径说明（业务文档）</td></tr>
+        <tr><td><code class="t">threshold_min / threshold_max</code></td><td>decimal(20,6)</td><td>预警阈值（下限/上限）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.3 prcp_kpi_score_rule —— 评分规则</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">字段</th><th style="width:120px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">calc_method</code></td><td>varchar(32)</td>
+            <td><b>PIECEWISE</b> 分段 ｜ <b>LINEAR</b> 线性锚点</td></tr>
+        <tr><td><code class="t">total_score</code></td><td>decimal</td><td>总分（示例中 LCR 用 500 而非 100）</td></tr>
+        <tr><td><code class="t">higher_is_better</code></td><td>tinyint</td>
+            <td><b>1</b> 正向（越高越好，如 LCR）｜ <b>0</b> 逆向（越高越差，如 EVE）</td></tr>
+        <tr><td><code class="t">rule_name / description</code></td><td>varchar/text</td><td>规则名称与说明</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.4 prcp_kpi_score_segment —— 评分分段 ★核心表</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:140px">字段</th><th style="width:120px">类型</th><th style="width:80px">约束</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">rule_id</code></td><td>bigint</td><td>NOT NULL</td><td>所属规则</td></tr>
+        <tr><td><code class="t">seg_order</code></td><td>int</td><td>NOT NULL</td><td>分段序号（升序判定）</td></tr>
+        <tr><td><code class="t">min_value</code></td><td>decimal(20,6)</td><td>—</td>
+            <td>区间下界（<b>含</b>）；NULL = −∞</td></tr>
+        <tr><td><code class="t">max_value</code></td><td>decimal(20,6)</td><td>—</td>
+            <td>区间上界（<b>不含</b>）；NULL = +∞</td></tr>
+        <tr><td><code class="t">score</code></td><td>decimal(8,2)</td><td>NOT NULL</td>
+            <td><b>最大值分数</b>：该段上界处的得分</td></tr>
+        <tr><td><code class="t">score_min</code></td><td>decimal(8,2)</td><td>NULL</td>
+            <td><b>最小值分数</b>：该段下界处的得分。<b>NULL = 不启用插值</b>（阶梯评分）</td></tr>
+        <tr><td><code class="t">segment_desc</code></td><td>varchar(255)</td><td>—</td><td>分段说明（如「🟠 危险 0-150」）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note note-b">
+      <b>score_min 的语义（2026-10-22 新增）</b><br>
+      区间 <code>[min_value, max_value)</code> 映射到分数区间 <code>[score_min, score]</code>，
+      段内按 x 轴线性插值。<code>score_min</code> 为 NULL 时退化为阶梯评分（取 <code>score</code>），
+      <strong>旧数据零迁移</strong>。
+    </div>
+
+    <h4>5.2.5 prcp_kpi_value —— 指标值</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">字段</th><th style="width:120px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">kpi_id / data_date / version</code></td><td>bigint / date / varchar(32)</td>
+            <td><b>联合定位一条指标值</b>，version 默认 <code>V1.0</code></td></tr>
+        <tr><td><code class="t">current_value</code></td><td>decimal(20,6)</td><td>当前值</td></tr>
+        <tr><td><code class="t">prev_value</code></td><td>decimal(20,6)</td><td>上期值（环比基期）</td></tr>
+        <tr><td><code class="t">prev_year_value</code></td><td>decimal(20,6)</td><td>去年同期值（同比基期）</td></tr>
+        <tr><td><code class="t">score</code></td><td>decimal(8,2)</td><td>评分结果（NULL = 未配规则或未试算）</td></tr>
+        <tr><td><code class="t">calc_source</code></td><td>varchar(16)</td>
+            <td><b>MANUAL</b> 手工 ｜ <b>MODEL</b> 模型计算 ｜ <b>IMPORT</b> 导入</td></tr>
+        <tr><td><code class="t">calc_log</code></td><td>longtext</td><td>计算日志（脚本异常时记录堆栈）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.6 prcp_kpi_calc_rule —— 取数逻辑（预留）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">字段</th><th style="width:120px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">numerator_json / denominator_json</code></td><td>longtext</td>
+            <td>分子/分母 = 账户册节点的 JSON 描述（预留结构化取数）</td></tr>
+        <tr><td><code class="t">calc_method</code></td><td>varchar(32)</td><td>取数方法（默认 RATIO）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note">
+      <b>当前状态</b>：该表已建但<b>暂无数据</b>（0 行），是「用账户册节点结构化定义指标」的演进方向。
+      当前实际计算走 <code>formula</code>（type=1）与 <code>script_path</code>（type=2）。
+    </div>
+
+    <h3>5.3 数据量参考（实测）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">表名</th><th style="width:90px">行数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">prcp_kpi_scheme</code></td><td>2</td><td>指标方案</td></tr>
+        <tr><td><code class="t">prcp_kpi_definition</code></td><td>6</td><td>指标定义（5 函数型 + 1 公式型）</td></tr>
+        <tr><td><code class="t">prcp_kpi_score_rule</code></td><td>5</td><td>评分规则（LCR/NSFR/CET1/EVE/ROE）</td></tr>
+        <tr><td><code class="t">prcp_kpi_score_segment</code></td><td><b>110</b></td><td>评分分段（23/23/23/23/18 段）</td></tr>
+        <tr><td><code class="t">prcp_kpi_value</code></td><td>5</td><td>指标值</td></tr>
+        <tr><td><code class="t">prcp_kpi_calc_rule</code></td><td>0</td><td>取数逻辑（预留未启用）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     6 计量逻辑
+============================================================ -->
+<div class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>计量逻辑设计</h2>
+    <span class="tag tag-p">双引擎 + 插值评分</span></div>
+  <div class="sec-b">
+
+    <h3>6.1 计量流程（6 步）</h3>
+    <div class="flow">
+      <div class="fl"><div class="fn">①</div><div class="ft">构造 ctx</div><div class="fd">同方案<br>其他指标值</div></div>
+      <div class="fa">→</div>
+      <div class="fl b"><div class="fn">②</div><div class="ft">分派引擎</div><div class="fd">type=1 / 2</div></div>
+      <div class="fa">→</div>
+      <div class="fl c"><div class="fn">③</div><div class="ft">求值</div><div class="fd">公式 or<br>脚本</div></div>
+      <div class="fa">→</div>
+      <div class="fl o"><div class="fn">④</div><div class="ft">区间命中</div><div class="fd">二分/线性<br>查找分段</div></div>
+      <div class="fa">→</div>
+      <div class="fl g"><div class="fn">⑤</div><div class="ft">段内插值</div><div class="fd">score_min→score</div></div>
+      <div class="fa">→</div>
+      <div class="fl p"><div class="fn">⑥</div><div class="ft">落库</div><div class="fd">值 + 四期<br>+ 分数</div></div>
+    </div>
+
+    <h3>6.2 步骤拆解</h3>
+
+    <h4>步骤 1 · 构造上下文 ctx</h4>
+    <div class="step-d" style="font-size:12.5px;color:var(--txt2);margin-bottom:8px">
+      取同方案下<strong>其他</strong>指标的该日期值，组成 <code>{kpi_code: value}</code> 字典。未算出按 0 处理。
+    </div>
+    <div class="fx">
+ctx = { <span class="hl">"ROE"</span>: 12.34, <span class="hl">"LCR"</span>: 123.45, ... }<br>
+<span style="color:#8f959e">// 未算出值的指标按 0.0 填充，保证公式不会因缺键而失败</span>
+    </div>
+
+    <h4>步骤 2-3 · 双引擎分派求值</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">类型</th><th>求值方式</th><th style="width:180px">适用</th></tr></thead>
+      <tbody>
+        <tr><td><b>type=1</b><br>公式</td>
+            <td><code>float(evaluate(formula, ctx))</code><br>
+                <span style="color:var(--txt3);font-size:11.5px">formula 为空 → 返回 None</span></td>
+            <td>简单算式，如 <code>ROE*100</code>、<code>(A-B)/C*100</code></td></tr>
+        <tr><td><b>type=2</b><br>函数</td>
+            <td><code>run_function_kpi(script_path, script_name,<br>&nbsp;&nbsp;&nbsp;scheme_id, data_date, kpi_info, rpt_items, kpi_values)</code></td>
+            <td>复杂逻辑，如 LCR 的多级折算、NSFR 的加权计算</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="fx">
+<span style="color:#165dff">公式指标</span>　value = <span class="hl-g">evaluate</span>(formula, ctx)<br>
+<span style="color:#0fc6c2">函数指标</span>　value = <span class="hl-g">run_function_kpi</span>(script_path, ..., rpt_items, ctx)<br><br>
+<span style="color:#8f959e">异常处理：FormulaError / FunctionKpiError / 其他异常 → 捕获并写入 calc_log，值返回 None</span>
+    </div>
+
+    <h4>步骤 4 · 区间命中</h4>
+    <div class="fx">
+<span style="color:#8f959e">// 按 seg_order 升序遍历，首个命中即返回</span><br>
+for s in segments（seg_order ASC）:<br>
+　　in_range = <span class="hl">True</span><br>
+　　if s.min_value is not None and value &lt; s.min_value:　in_range = <span class="hl-b">False</span><br>
+　　if s.max_value is not None and value &gt; s.max_value:　in_range = <span class="hl-b">False</span><br>
+　　if in_range: <span class="hl-g">matched = s</span>; break<br><br>
+未命中 → <span style="color:#f53f3f">matched=False, score=None</span>，提示「所有区间均不匹配，请检查规则配置」
+    </div>
+    <div class="note">
+      <b>⚠️ 端点语义不对称</b>：判定用 <code>&lt; min</code> 与 <code>&gt; max</code>，
+      所以 <code>max_value</code> 实际是<b>闭区间上界</b>（与 UI 标注的「最大值 &lt;」略有出入）。
+      相邻段 <code>[a,b)</code> 与 <code>[b,c)</code> 在 <code>b</code> 处会同时命中前一段，
+      但因按 seg_order 升序遍历，<b>实际归属前一段</b>，符合预期。
+    </div>
+
+    <h4>步骤 5 · 段内插值评分</h4>
+    <div class="fx">
+<span style="color:#8f959e"># 插值条件：两端分数都配了，且区间宽度 &gt; 0</span><br>
+if score_min is not None and min_value is not None and max_value is not None and max_value &gt; min_value:<br>
+　　ratio = (value − min_value) ÷ (max_value − min_value)<br>
+　　score = <span class="hl-g">score_min + ratio × (score − score_min)</span>　　<span style="color:#0a7">mode = INTERPOLATED</span><br>
+else:<br>
+　　score = <span class="hl-b">score</span>　　　　　　　　　　　　　　　　　　　<span style="color:#0a7">mode = STEPPED</span>
+    </div>
+
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:200px">场景</th><th style="width:200px">配置</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td>阶梯评分（旧行为）</td><td><code>score_min = NULL</code></td><td>命中即取 <code>score</code></td></tr>
+        <tr><td>段内插值</td><td><code>score_min</code> 与 <code>score</code> 均有值，区间宽度 &gt; 0</td>
+            <td>区间内按比例线性过渡</td></tr>
+        <tr><td>恒定段</td><td><code>score_min = score</code></td><td>插值公式自然退化为恒定</td></tr>
+        <tr><td>零宽峰点</td><td><code>min_value = max_value</code></td>
+            <td>宽度为 0 → 强制 STEPPED（回填时已置 score_min = score）</td></tr>
+        <tr><td>端点外</td><td><code>min_value=NULL</code> 或 <code>max_value=NULL</code></td>
+            <td>无法插值 → STEPPED</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>LINEAR 线性锚点模式</h4>
+    <div class="fx">
+anchors = [(min_value or max_value, score), ...]　<span style="color:#8f959e">// 按 x 升序</span><br>
+if value ≤ anchors[0].x:　　score = anchors[0].score　　<span style="color:#8f959e">// clamp 下界</span><br>
+elif value ≥ anchors[−1].x:　score = anchors[−1].score　<span style="color:#8f959e">// clamp 上界</span><br>
+else: 找到相邻锚点 (x1,y1) (x2,y2)<br>
+　　　t = (value − x1) ÷ (x2 − x1)<br>
+　　　score = <span class="hl-g">y1 + t × (y2 − y1)</span>
+    </div>
+
+    <h4>步骤 6 · 落库</h4>
+    <div class="fx">
+UPSERT prcp_kpi_value（kpi_id, data_date, version）<br>
+　　current_value　　= value<br>
+　　prev_value　　　= 上一期的 current_value　　<span style="color:#8f959e">// 环比基期</span><br>
+　　prev_year_value　= 去年同期的 current_value　　<span style="color:#8f959e">// 同比基期</span><br>
+　　score　　　　　　= 评分结果<br>
+　　calc_source　　　= MODEL（脚本计算）/ MANUAL（手工录入）<br>
+　　calc_log　　　　= 异常堆栈（成功时为 NULL）
+    </div>
+
+    <h3>6.3 核心公式汇总</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">环节</th><th>公式</th></tr></thead>
+      <tbody>
+        <tr><td>上下文</td><td><code>ctx[kpi_code] = 该方案该日期其他指标的 current_value</code></td></tr>
+        <tr><td>公式求值</td><td><code>value = evaluate(formula, ctx)</code></td></tr>
+        <tr><td>函数求值</td><td><code>value = run_function_kpi(script_path, script_name, scheme_id, data_date, kpi_info, rpt_items, kpi_values)</code></td></tr>
+        <tr><td>区间命中</td><td><code>min ≤ value ≤ max</code>（min/max 为 NULL 时视为 ∓∞），按 seg_order 取首个命中</td></tr>
+        <tr><td><b>段内插值</b></td><td><code>score = score_min + (value − min)/(max − min) × (score − score_min)</code></td></tr>
+        <tr><td>阶梯评分</td><td><code>score = 该段 score</code>（<code>score_min</code> 为 NULL 时）</td></tr>
+        <tr><td>线性插值</td><td><code>score = y1 + (value − x1)/(x2 − x1) × (y2 − y1)</code>，端点 clamp</td></tr>
+        <tr><td>方案总分</td><td><code>total = Σ score</code>　<code>avg = total / scored_count</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>6.4 不变式（校验点）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:160px">不变式</th><th style="width:230px">公式</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>上下文完备</td><td><code>ctx 覆盖同方案全部其他指标</code></td><td>缺键按 0，公式不报错</td></tr>
+        <tr><td>插值单调</td><td><code>score ∈ [min(score_min,score), max(...)]</code></td><td>插值结果不超出两端分数范围</td></tr>
+        <tr><td>端点一致</td><td><code>score(x=min) = score_min</code><br><code>score(x=max) = score</code></td><td>插值曲线过两端点</td></tr>
+        <tr><td>边界连续</td><td><code>段N.score = 段(N+1).score_min</code></td><td>回填后相邻段得分连续</td></tr>
+        <tr><td>值分一致</td><td><code>(kpi_id, data_date, version)</code> 唯一</td><td>重复试算为覆盖，不产生重复行</td></tr>
+        <tr><td>未评分标记</td><td><code>score IS NULL</code></td><td>未配规则时保持 NULL，前端显示「—」</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     7 计量案例
+============================================================ -->
+<div class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>计量案例</h2>
+    <span class="tag tag-g">LCR 实测数据</span></div>
+  <div class="sec-b">
+
+    <h3>7.1 案例背景</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">项目</th><th>配置</th></tr></thead>
+      <tbody>
+        <tr><td>方案</td><td><code>REG_KPI</code> · 监管指标方案</td></tr>
+        <tr><td>指标</td><td><code>REG_LCR</code> · LCR 流动性覆盖率</td></tr>
+        <tr><td>指标类型</td><td><b>type=2 函数指标</b>　脚本 <code>kpi_funcs/lcr.py :: calc</code></td></tr>
+        <tr><td>单位</td><td><code>PERCENT</code>（%）</td></tr>
+        <tr><td>评分规则</td><td><code>REG_LCR v12b 0-500 分</code> · PIECEWISE · 总分 500 · <b>正向</b> · 23 段</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>7.2 分段结构（节选）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th>序号</th><th class="num">最小值 ≥</th><th class="num">最大值 &lt;</th>
+        <th class="num">最小值分数</th><th class="num">最大值分数</th><th>描述</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td class="num">−∞</td><td class="num">120</td>
+            <td class="num">0</td><td class="num">0</td><td>🔴 不达标 (≤红线)</td></tr>
+        <tr><td>2</td><td class="num">120</td><td class="num">122</td>
+            <td class="num">0</td><td class="num">15</td><td>🟠 危险 0-150</td></tr>
+        <tr><td>3</td><td class="num">122</td><td class="num">124</td>
+            <td class="num">15</td><td class="num">45</td><td>🟠 危险 0-150</td></tr>
+        <tr><td>4</td><td class="num">124</td><td class="num">126</td>
+            <td class="num">45</td><td class="num">75</td><td>🟠 危险 0-150</td></tr>
+        <tr><td>…</td><td class="num">…</td><td class="num">…</td><td class="num">…</td><td class="num">…</td><td>…</td></tr>
+        <tr style="background:var(--orange-bg)"><td>17</td><td class="num">150</td><td class="num">150</td>
+            <td class="num">500</td><td class="num">500</td><td><b>⭐ 适度最优 500</b>（零宽峰点，恒定）</td></tr>
+        <tr><td>18</td><td class="num">150</td><td class="num">160</td>
+            <td class="num">500</td><td class="num">480</td><td>🟢 过优（逆向递减）</td></tr>
+        <tr><td>…</td><td class="num">…</td><td class="num">…</td><td class="num">…</td><td class="num">…</td><td>…</td></tr>
+        <tr><td>23</td><td class="num">200</td><td class="num">+∞</td>
+            <td class="num">320</td><td class="num">300</td><td>🟢 极度过剩</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok">
+      <b>score_min 回填规则</b>：第 N 段的最小值分数 = 第 N−1 段的最大值分数（阶梯在边界处连续）。
+      首段与零宽峰点强制恒定。这样相邻段在边界处得分连续，段内线性过渡，
+      <strong>且不改变原有档位判定结果</strong>。
+    </div>
+
+    <h3>7.3 评分计算实测</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th class="num">LCR 值</th><th class="num">得分</th><th class="num">命中区间</th>
+        <th>计算过程</th><th class="num">模式</th></tr></thead>
+      <tbody>
+        <tr><td class="num">0</td><td class="num">0.00</td><td class="num">[0, 120)</td>
+            <td>首段恒定</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">119</td><td class="num">0.00</td><td class="num">[0, 120)</td>
+            <td>同上</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">120</td><td class="num">0.00</td><td class="num">[0, 120)</td>
+            <td>边界值，归前一段</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr style="background:var(--green-bg)"><td class="num"><b>121</b></td><td class="num"><b>7.50</b></td>
+            <td class="num">[120, 122)</td>
+            <td><code>0 + (121−120)/(122−120) × (15−0)</code><br>= 0 + 0.5 × 15 = <b>7.5</b></td>
+            <td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr style="background:var(--green-bg)"><td class="num"><b>123</b></td><td class="num"><b>30.00</b></td>
+            <td class="num">[122, 124)</td>
+            <td><code>15 + (123−122)/(124−122) × (45−15)</code><br>= 15 + 0.5 × 30 = <b>30</b></td>
+            <td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">125</td><td class="num">60.00</td><td class="num">[124, 126)</td>
+            <td>中点 = (45+75)/2</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">130</td><td class="num">135.00</td><td class="num">[128, 130)</td>
+            <td>上界值</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">149</td><td class="num">460.00</td><td class="num">[148, 150)</td>
+            <td>接近峰点</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr style="background:var(--orange-bg)"><td class="num"><b>150</b></td><td class="num"><b>480.00</b></td>
+            <td class="num">[148, 150)</td>
+            <td>边界值，归前一段（未取峰点）</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">151</td><td class="num">498.00</td><td class="num">[150, 160)</td>
+            <td>峰点后开始递减</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">170</td><td class="num">440.00</td><td class="num">[160, 170)</td>
+            <td>递减段</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+        <tr><td class="num">250</td><td class="num">318.75</td><td class="num">[200, +∞)</td>
+            <td>末端段内插值</td><td class="num"><span class="tag tag-b">INTERPOLATED</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note">
+      <b>峰值 500 分的取法</b>：段 17 是零宽区间 <code>[150, 150]</code>，
+      按区间判定 <code>150 ≤ 150 ≤ 150</code> 会命中，但因<b>按 seg_order 升序遍历</b>，
+      段 16 <code>[148, 150]</code> 在 150 处先命中 → 得分 480 而非 500。
+      若需让 150 精确取 500 分，需将段 16 的 <code>max_value</code> 调整为 <code>149.999…</code>
+      或调整分段顺序。
+    </div>
+
+    <h3>7.4 其他 4 个规则验证</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">规则</th><th class="num">样例值</th><th class="num">得分</th>
+        <th>说明</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="3"><b>REG_NSFR</b><br><span style="font-size:11px;color:var(--txt3)">净稳定资金比例 · 正向</span></td>
+            <td class="num">0</td><td class="num">0.00</td><td>首段恒定</td></tr>
+        <tr><td class="num">101</td><td class="num">35.00</td><td>段内插值</td></tr>
+        <tr><td class="num">102</td><td class="num">85.00</td><td>段内插值</td></tr>
+
+        <tr><td rowspan="3"><b>REG_CET1</b><br><span style="font-size:11px;color:var(--txt3)">核心一级资本充足率 · 正向</span></td>
+            <td class="num">0</td><td class="num">0.00</td><td>低于红线 8.7%</td></tr>
+        <tr><td class="num">9</td><td class="num">285.00</td><td>刚过红线，插值爬升</td></tr>
+        <tr><td class="num">11</td><td class="num">453.33</td><td>接近最优</td></tr>
+
+        <tr><td rowspan="4"><b>REG_EVE</b><br><span style="font-size:11px;color:var(--txt3)">经济价值变动 · <b>逆向</b></span></td>
+            <td class="num">0</td><td class="num">320.00</td><td>利率下行，得分高</td></tr>
+        <tr><td class="num">3</td><td class="num">360.00</td><td rowspan="3">分数随值上升而<b>下降</b> ✓<br>逆向逻辑正确</td></tr>
+        <tr><td class="num">9</td><td class="num">420.00</td></tr>
+        <tr><td class="num">30</td><td class="num">0.00</td></tr>
+
+        <tr><td rowspan="3"><b>REG_ROE</b><br><span style="font-size:11px;color:var(--txt3)">净资产收益率 · 正向</span></td>
+            <td class="num">0</td><td class="num">0.00</td><td>低于红线 6%</td></tr>
+        <tr><td class="num">11</td><td class="num">413.33</td><td>段内插值</td></tr>
+        <tr><td class="num">15</td><td class="num">499.39</td><td>接近满分</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>7.5 一次试算的完整链路</h3>
+    <div class="fx" style="line-height:2.1">
+<span style="color:#165dff">①</span> 用户选方案 REG_KPI + 数据日期 2025-12-31 → 点【一键试算全部】<br><br>
+<span style="color:#165dff">②</span> 遍历该方案 6 个指标定义<br>
+　　├─ REG_LCR（type=2）→ <span class="hl-p">run_function_kpi("kpi_funcs/lcr.py","calc",...)</span> → 123.45<br>
+　　├─ REG_NSFR（type=2）→ 脚本计算 → 105.20<br>
+　　├─ REG_CET1（type=2）→ 脚本计算 → 9.85<br>
+　　├─ REG_EVE（type=2）→ 脚本计算 → 4.30<br>
+　　├─ REG_ROE（type=2）→ 脚本计算 → 11.20<br>
+　　└─ roe（type=1）→ <span class="hl-b">evaluate("ROE*100", ctx)</span> → 11.20 × 100 = 1120.00<br>
+　　　　<span style="color:#8f959e">// ctx["ROE"] 取不到（编码大小写不匹配）→ 按 0 → 得 0</span><br><br>
+<span style="color:#ff8f1f">③</span> 对每个值查该指标的评分规则 → 区间命中 + 插值<br>
+　　REG_LCR = 123.45 → 命中 [122,124) → 15 + (123.45−122)/2 × 30 = <span class="hl-o">32.18</span><br><br>
+<span style="color:#7d3ff5">④</span> UPSERT prcp_kpi_value（值 + prev + prev_year + score）<br><br>
+<span style="color:#00a870">⑤</span> 返回汇总 { total, avg, scored_count, count } → 顶部展示
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     8 配置说明
+============================================================ -->
+<div class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n">8</div><h2>配置说明与案例</h2></div>
+  <div class="sec-b">
+
+    <h3>8.1 配置总览</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:90px">层次</th><th style="width:140px">配置项</th>
+        <th style="width:80px">必填</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2"><b>方案级</b></td><td>方案编码 / 名称</td><td>是</td><td>编码唯一，是数据隔离的根</td></tr>
+        <tr><td>描述</td><td>—</td><td>如「监管口径指标集」</td></tr>
+
+        <tr><td rowspan="5"><b>指标级</b></td><td>indicator_type</td><td>是</td><td><b>1</b> 公式 / <b>2</b> 函数，二者互斥</td></tr>
+        <tr><td>kpi_code / kpi_name</td><td>是</td><td><code>kpi_code</code> 在方案内唯一，是公式引用的键</td></tr>
+        <tr><td>rpt_id</td><td>是</td><td>挂靠报表表项，决定在哪个报表中展示</td></tr>
+        <tr><td>formula / script</td><td>是</td><td>按 <code>indicator_type</code> 二选一必填</td></tr>
+        <tr><td>calc_unit / threshold</td><td>—</td><td>单位影响展示格式；阈值为预警用</td></tr>
+
+        <tr><td rowspan="4"><b>评分级</b></td><td>calc_method</td><td>是</td><td><b>PIECEWISE</b> 分段 / <b>LINEAR</b> 线性</td></tr>
+        <tr><td>total_score</td><td>是</td><td>总分上限（LCR 示例用 500）</td></tr>
+        <tr><td>higher_is_better</td><td>是</td><td><b>1</b> 正向 / <b>0</b> 逆向</td></tr>
+        <tr><td>分段明细</td><td>是</td><td>区间两端可留空表示 ∓∞；<code>score_min</code> 留空则阶梯评分</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.2 5 个监管指标配置对照</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:100px">指标</th><th style="width:80px">类型</th>
+        <th style="width:90px">单位</th><th style="width:80px">方向</th>
+        <th style="width:70px">总分</th><th style="width:70px">段数</th><th>阈值与要点</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>REG_LCR</b><br><span style="font-size:11px;color:var(--txt3)">流动性覆盖率</span></td>
+            <td>函数</td><td>%</td><td><span class="tag tag-g">↑ 正向</span></td>
+            <td class="num">500</td><td class="num">23</td>
+            <td>红线 120%；峰值 150%（适度最优）；&gt;200% 属极度剩余，扣分</td></tr>
+        <tr><td><b>REG_NSFR</b><br><span style="font-size:11px;color:var(--txt3)">净稳定资金比例</span></td>
+            <td>函数</td><td>%</td><td><span class="tag tag-g">↑ 正向</span></td>
+            <td class="num">500</td><td class="num">23</td>
+            <td>红线 100%；≥115% 后进入过优/极度过剩区</td></tr>
+        <tr><td><b>REG_CET1</b><br><span style="font-size:11px;color:var(--txt3)">核心一级资本充足率</span></td>
+            <td>函数</td><td>%</td><td><span class="tag tag-g">↑ 正向</span></td>
+            <td class="num">500</td><td class="num">23</td>
+            <td>红线 8.7%；≥13% 属极度过剩</td></tr>
+        <tr><td><b>REG_EVE</b><br><span style="font-size:11px;color:var(--txt3)">经济价值变动</span></td>
+            <td>函数</td><td>金额</td><td><span class="tag tag-o">↓ 逆向</span></td>
+            <td class="num">500</td><td class="num">23</td>
+            <td>利率冲击下价值变动；<b>越高越差</b>，≥15% 判不达标</td></tr>
+        <tr><td><b>REG_ROE</b><br><span style="font-size:11px;color:var(--txt3)">净资产收益率</span></td>
+            <td>函数</td><td>%</td><td><span class="tag tag-g">↑ 正向</span></td>
+            <td class="num">500</td><td class="num">18</td>
+            <td>红线 6%；≥12% 得满分，段数最少（18）</td></tr>
+        <tr><td><b>roe</b><br><span style="font-size:11px;color:var(--txt3)">公式示例</span></td>
+            <td>公式</td><td>%</td><td>—</td><td>—</td><td>—</td>
+            <td><code>formula = ROE*100</code>，演示公式型与指标间引用</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.3 分段配置的三种典型模式</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">模式</th><th style="width:230px">配置</th><th>效果</th></tr></thead>
+      <tbody>
+        <tr><td><b>阶梯评分</b><br><span style="font-size:11px;color:var(--txt3)">STEP</span></td>
+            <td><code>score_min</code> 全部留空</td>
+            <td>命中即取固定分，档位判定清晰、无中间态</td></tr>
+        <tr><td><b>段内插值</b><br><span style="font-size:11px;color:var(--txt3)">RAMP</span></td>
+            <td><code>score_min</code> = 上一段的 <code>score</code></td>
+            <td>档内平滑过渡，得分随指标值连续变化（<b>推荐</b>）</td></tr>
+        <tr><td><b>混合</b><br><span style="font-size:11px;color:var(--txt3)">HYBRID</span></td>
+            <td>关键档设 <code>score_min = score</code>（恒定），<br>过渡档用插值</td>
+            <td>红线以下恒 0 分，达标区平滑爬升</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.4 配置案例：新建一个监管指标</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">步骤</th><th style="width:140px">操作</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>新建方案</td><td>编码 <code>NEW_KPI</code>，名称「新业务考核指标集」</td></tr>
+        <tr><td>2</td><td>新增指标</td>
+            <td>类型 <b>公式</b> ｜ 编码 <code>KPI_NIM</code> ｜ 名称「净息差」<br>
+                所属报表「盈利分析」｜ 单位 <code>PERCENT</code><br>
+                公式 <code>净利息收入/生息资产*100</code>（或引用其他指标编码）</td></tr>
+        <tr><td>3</td><td>公式试算</td>
+            <td>输入假设 ctx（如 <code>{"净利息收入": 500, "生息资产": 50000}</code>）→ 试算得 1.0</td></tr>
+        <tr><td>4</td><td>配评分规则</td>
+            <td>名称「净息差三档插值」｜ 算法 <b>分段</b> ｜ 总分 100 ｜ 方向 <b>正向</b></td></tr>
+        <tr><td>5</td><td>填分段</td>
+            <td>① [−∞, 1.5) 最小分 0 / 最大分 60 「不达标」<br>
+                 ② [1.5, 2.0) 最小分 60 / 最大分 80 「达标」<br>
+                 ③ [2.0, +∞) 最小分 80 / 最大分 100 「优秀」</td></tr>
+        <tr><td>6</td><td>取值</td>
+            <td>指标维护 Tab → 选日期 → 【一键试算全部】→ 看值与分数</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.5 配置检查清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:40px">☐</th><th>检查项</th><th style="width:230px">判定标准</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>方案编码唯一</td><td>创建前确认 <code>scheme_code</code> 不重复</td></tr>
+        <tr><td>☐</td><td>指标编码方案内唯一</td><td>公式靠 <code>kpi_code</code> 引用，重复会覆盖</td></tr>
+        <tr><td>☐</td><td>类型与内容匹配</td><td><code>indicator_type=1</code> 必有 <code>formula</code>；<code>=2</code> 必有 <code>script_path</code></td></tr>
+        <tr><td>☐</td><td>公式依赖可解</td><td>被引用的指标编码存在，且已算出值（否则按 0）</td></tr>
+        <tr><td>☐</td><td>脚本路径有效</td><td><code>script_path</code> 文件存在且 <code>script_name</code> 函数可调用</td></tr>
+        <tr><td>☐</td><td>单位与量纲匹配</td><td>百分比类公式记得 <code>×100</code></td></tr>
+        <tr><td>☐</td><td>分段区间不重叠</td><td>相邻段 <code>[a,b)</code> 与 <code>[b,c)</code> 首尾相接</td></tr>
+        <tr><td>☐</td><td>插值两端分数合理性</td><td><code>score_min</code> ≤（或 ≥）<code>score</code>，符合指标方向</td></tr>
+        <tr><td>☐</td><td>方向与指标性质一致</td><td>成本类/风险类指标（如 EVE）设 <code>higher_is_better=0</code></td></tr>
+        <tr><td>☐</td><td>试算覆盖全部指标</td><td>【一键试算全部】后核对「N/M 已评分」中 N=M</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.6 常见问题排查</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:220px">现象</th><th>原因与解决</th></tr></thead>
+      <tbody>
+        <tr><td>直接访问 <code>?tab=defs</code> 显示「请先选择一个指标方案」</td>
+            <td>方案是数据范围的根，<b>不是报错</b>。需先在指标方案 Tab 点【进入】<br>
+                <span style="color:var(--txt3)">建议：加载后自动选中第一个方案</span></td></tr>
+        <tr><td>公式算出的值恒为 0</td>
+            <td>被引用的指标未算出值（ctx 按 0 填充），或 <code>kpi_code</code> 大小写不匹配</td></tr>
+        <tr><td>函数指标报「脚本执行失败」</td>
+            <td><code>script_path</code> / <code>script_name</code> 错误；详情看 <code>calc_log</code></td></tr>
+        <tr><td>分数列显示「—」</td><td>该指标未配评分规则，或配了但未试算（<code>score IS NULL</code>）</td></tr>
+        <tr><td>分数全部相同（无插值效果）</td>
+            <td><code>score_min</code> 全为 NULL → 走阶梯评分；需回填或手工填写</td></tr>
+        <tr><td>峰值分数取不到（如 LCR=150 得 480 不是 500）</td>
+            <td>零宽峰点段被前一段抢先命中（按 seg_order 升序）</td></tr>
+        <tr><td>接口报 500</td>
+            <td>若改动过 segment 查询列数，需检查所有元组解包点<br>
+                （曾因加 <code>score_min</code> 后解包数不匹配导致 <code>TypeError</code>）</td></tr>
+        <tr><td>登录接口返回 422</td>
+            <td><code>/auth/login</code> 用 <code>OAuth2PasswordRequestForm</code>（form-data），非 JSON</td></tr>
+        <tr><td>重复试算产生重复行</td>
+            <td>确认 <code>(kpi_id, data_date, version)</code> 唯一约束生效，正常应为覆盖</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<div class="foot">
+  指标管理 · 需求设计文档 v1.2<br>
+  技术栈：FastAPI + SQLAlchemy 2 + MySQL 8 ｜ Vue3 + Ant Design + ECharts<br>
+  接口 23 个 ｜ 数据表 6 张 ｜ 路由 /prcp/kpi ｜ 生成时间 2026-10-22
+</div>
+
+</div>
+</div>
+
+<script>
+const secs=[...document.querySelectorAll('.sec')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('on'));
+      const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id);
+      if(a)a.classList.add('on');
+    }
+  });
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

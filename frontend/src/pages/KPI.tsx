@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Card, Row, Col, Form, Input, Select, Button, Table, Space, Tag,
   Modal, message, Spin, Empty, Tabs, DatePicker, Popconfirm, Statistic, Alert, InputNumber, Tree, Divider, Radio,
@@ -14,8 +15,12 @@ import { kpiApi, reportsApi } from '../api'
 import { DictSelect, DictTag } from '../components'
 import KpiScore from './KpiScore'
 
+type TabKey = 'schemes' | 'defs' | 'scores' | 'values'
+const TAB_KEYS: TabKey[] = ['schemes', 'defs', 'scores', 'values']
+
 const KPI: React.FC = () => {
-  const [tab, setTab] = useState<'schemes' | 'defs' | 'scores' | 'values'>('schemes')
+  // tab 与 URL ?tab= 双向绑定（菜单直接跳 /kpi?tab=defs 等）
+  const [searchParams, setSearchParams] = useSearchParams()
   const [schemes, setSchemes] = useState<any[]>([])
   const [defs, setDefs] = useState<any[]>([])
   const [values, setValues] = useState<any[]>([])
@@ -24,6 +29,28 @@ const KPI: React.FC = () => {
   const [activeScheme, setActiveScheme] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [keyword, setKeyword] = useState('')
+
+  // URL ?tab= → 初始 Tab；空则默认 schemes
+  const urlTab = searchParams.get('tab') as TabKey | null
+  const initialTab: TabKey = urlTab && TAB_KEYS.includes(urlTab) ? urlTab : 'schemes'
+  const [tab, setTab] = useState<TabKey>(initialTab)
+
+  // 写回 URL + 切换（菜单可直链，刷新保留）
+  const switchTab = (k: TabKey) => {
+    setTab(k)
+    setSearchParams({ tab: k }, { replace: true })
+  }
+
+  // AntD Tabs 的 onChange 包装：必须先选指标方案才能进 defs/scores/values
+  const onTabChange = (k: string) => {
+    const next = k as TabKey
+    if ((next === 'defs' || next === 'scores' || next === 'values') && !activeScheme) {
+      message.warning('请先在【指标方案】Tab 中选择或创建一个指标方案')
+      switchTab('schemes')
+      return
+    }
+    switchTab(next)
+  }
 
   // 方案
   const [schemeModal, setSchemeModal] = useState(false)
@@ -300,7 +327,7 @@ const KPI: React.FC = () => {
   const onCreateDef = () => {
     if (!activeScheme) {
       message.warning('请先在"方案" Tab 中选择或创建一个指标方案')
-      setTab('schemes')
+      switchTab('schemes')
       return
     }
     setEditingDef(null)
@@ -453,7 +480,7 @@ const KPI: React.FC = () => {
       render: (_, r) => (
         <Space size="small">
           <Button size="small" type={r.id === activeScheme ? 'primary' : 'default'}
-            onClick={() => { setActiveScheme(r.id); setTab('defs') }}>
+            onClick={() => { setActiveScheme(r.id); switchTab('defs') }}>
             进入
           </Button>
           <Button size="small" icon={<EditOutlined />} onClick={() => onEditScheme(r)}>编辑</Button>
@@ -532,14 +559,7 @@ const KPI: React.FC = () => {
   ]
 
   // 切换 Tab：必须先选指标方案才能进入"指标定义" / "指标评分" / "指标维护"
-  const onTabChange = (k: string) => {
-    if ((k === 'defs' || k === 'scores' || k === 'values') && !activeScheme) {
-      message.warning('请先在【指标方案】Tab 中选择或创建一个指标方案')
-      setTab('schemes')
-      return
-    }
-    setTab(k as any)
-  }
+  // （URL 同步的 onTabChange 已声明在组件顶部）
 
   // 当前选中的方案
   const currentScheme = schemes.find((s) => s.id === activeScheme)
@@ -585,7 +605,7 @@ const KPI: React.FC = () => {
           {!currentScheme && schemes.length > 0 && (
             <Tag color="warning">⚠️ 未选方案</Tag>
           )}
-          <Button size="small" type="link" onClick={() => setTab('schemes')}>
+          <Button size="small" type="link" onClick={() => switchTab('schemes')}>
             ➕ 新建方案
           </Button>
         </Space>
@@ -648,7 +668,7 @@ const KPI: React.FC = () => {
                     description={
                       <div>
                         <div style={{ marginBottom: 8 }}>请先选择一个指标方案</div>
-                        <Button type="primary" onClick={() => setTab('schemes')}>
+                        <Button type="primary" onClick={() => switchTab('schemes')}>
                           前往【指标方案】
                         </Button>
                       </div>
@@ -732,7 +752,7 @@ const KPI: React.FC = () => {
                     description={
                       <div>
                         <div style={{ marginBottom: 8 }}>请先选择一个指标方案</div>
-                        <Button type="primary" onClick={() => setTab('schemes')}>
+                        <Button type="primary" onClick={() => switchTab('schemes')}>
                           前往【指标方案】
                         </Button>
                       </div>

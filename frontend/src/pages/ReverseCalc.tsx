@@ -10,7 +10,7 @@ import {
   ExperimentOutlined, RocketOutlined, FunctionOutlined,
   AimOutlined,
 } from '@ant-design/icons'
-import { reverseApi } from '../api'
+import { reverseApi, coaApi } from '../api'
 import { DictSelect, DictTag } from '../components'
 
 const CONSTRAINT_LABELS: Record<string, { label: string; color: string }> = {
@@ -26,6 +26,7 @@ const ReverseCalc: React.FC = () => {
   const [kpiOpts, setKpiOpts] = useState<any[]>([])
   const [kpiScope, setKpiScope] = useState<any>(null)   // 后端返回的链路上文（model/scheme）
   const [modelOpts, setModelOpts] = useState<any[]>([])
+  const [coaSchemes, setCoaSchemes] = useState<any[]>([])
 
   const [activeSchemeId, setActiveSchemeId] = useState<number | null>(null)
   const [activeRunId, setActiveRunId] = useState<number | null>(null)
@@ -82,10 +83,15 @@ const ReverseCalc: React.FC = () => {
     const r = await reverseApi.modelOptions()
     setModelOpts(r.items || [])
   }
+  const loadCoaSchemes = async () => {
+    const r = await coaApi.listSchemes({ status: 'ACTIVE' })
+    setCoaSchemes(r.items || [])
+  }
 
   useEffect(() => {
     loadSchemes()
     loadModelOpts()
+    loadCoaSchemes()
     loadRuns()
   }, [])
 
@@ -138,7 +144,10 @@ const ReverseCalc: React.FC = () => {
     setEditingScheme(null)
     schemeForm.resetFields()
     schemeForm.setFieldsValue({
-      scheme_type: 'OPTIMIZE', algorithm: 'CVXPY_QP', coa_scheme_id: 6,
+      scheme_type: 'OPTIMIZE', algorithm: 'CVXPY_QP',
+      coa_scheme_id: coaSchemes.find((c: any) => c.scheme_code === 'ZX_CITIC_2026')?.id
+                     || coaSchemes[0]?.id
+                     || undefined,
       data_date: '2025-12-31', horizon_months: 24, status: 'DRAFT',
       model_id: undefined,
     })
@@ -299,7 +308,6 @@ const ReverseCalc: React.FC = () => {
   ]
 
   const targetColumns = [
-    { title: '目标名称', dataIndex: 'target_name', key: 'tn' },
     { title: '关联 KPI', dataIndex: 'kpi_code', key: 'kc', width: 140,
       render: (v: string, r: any) => v ? (
         <Tooltip title={r.ref_formula || r.ref_kpi_name}>
@@ -544,10 +552,14 @@ const ReverseCalc: React.FC = () => {
           <Row gutter={16}>
             <Col span={12}>
               <Form.Item label="账户册方案" name="coa_scheme_id" rules={[{ required: true }]}>
-                <Select>
-                  <Select.Option value={4}>COA_V6 (61 节点)</Select.Option>
-                  <Select.Option value={6}>ZXCOA_V1 (40 节点)</Select.Option>
-                </Select>
+                <Select
+                  allowClear showSearch optionFilterProp="label" disabled={coaSchemes.length === 0}
+                  placeholder={coaSchemes.length === 0 ? '暂无 ACTIVE 账户册方案' : '选择账户册方案'}
+                  options={coaSchemes.map((c: any) => ({
+                    value: c.id,
+                    label: `${c.scheme_code}（${c.node_count ?? '?'} 节点）`,
+                  }))}
+                />
               </Form.Item>
             </Col>
             <Col span={12}>
@@ -600,9 +612,6 @@ const ReverseCalc: React.FC = () => {
                 <Select.Option key={s.id} value={s.id}>{s.scheme_code} · {s.scheme_name}</Select.Option>
               ))}
             </Select>
-          </Form.Item>
-          <Form.Item label="目标名称" name="target_name" rules={[{ required: true }]}>
-            <Input placeholder="如 NIM ≥ 2.8%" />
           </Form.Item>
           <Form.Item
             label="关联 KPI"

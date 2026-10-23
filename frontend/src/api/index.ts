@@ -296,8 +296,10 @@ export const simApi = {
   // 账户册方案下拉（参数配置页 + 列表筛选）
   listCoaSchemes: () => http.get('/sim/coa-schemes').then((r) => r.data),
   // 账户册节点树
-  coaTree: (coaSchemeId: number) =>
-    http.get('/sim/coa-tree', { params: { coa_scheme_id: coaSchemeId } }).then((r) => r.data),
+  coaTree: (coaSchemeId: number, simSchemeId?: number) =>
+    http.get('/sim/coa-tree', {
+      params: { coa_scheme_id: coaSchemeId, sim_scheme_id: simSchemeId },
+    }).then((r) => r.data),
   // 节点基础信息 + 当前余额
   nodeInfo: (coaNodeId: number) =>
     http.get(`/sim/node-info/${coaNodeId}`).then((r) => r.data),
@@ -314,6 +316,17 @@ export const simApi = {
   saveNodeConfig: (schemeId: number, data: any) =>
     http.post('/sim/node-config', data, { params: { scheme_id: schemeId } }).then((r) => r.data),
   deleteNodeConfig: (cfgId: number) => http.delete(`/sim/node-config/${cfgId}`).then((r) => r.data),
+  // 节奏配置（12 个月权重）
+  getRhythm: (cfgId: number) => http.get(`/sim/rhythm/${cfgId}`).then((r) => r.data),
+  saveRhythm: (cfgId: number, weights: any[]) =>
+    http.put(`/sim/rhythm/${cfgId}`, { weights }).then((r) => r.data),
+  resetRhythmLinear: (cfgId: number) =>
+    http.post(`/sim/rhythm/${cfgId}/reset-linear`, null).then((r) => r.data),
+  // 新业务增长配置（增长方式 + 5 年分期增长参数）
+  getGrowth: (cfgId: number) => http.get(`/sim/growth/${cfgId}`).then((r) => r.data),
+  saveGrowth: (cfgId: number, data: any) =>
+    http.put(`/sim/growth/${cfgId}`, data).then((r) => r.data),
+  deleteGrowth: (cfgId: number) => http.delete(`/sim/growth/${cfgId}`).then((r) => r.data),
   // 引擎计量
   runEngine: (schemeId: number, monthCount: number = 24) =>
     http.post(`/sim/schemes/${schemeId}/run`, null, { params: { month_count: monthCount } }).then((r) => r.data),
@@ -338,6 +351,54 @@ export const metricCoefficientApi = {
   // 反算指标结果表（数据维护 → 反算指标结果表）
   reverseTable: (params: any = {}) =>
     http.get('/metric-coefficient/reverse-table', { params }).then((r) => r.data),
+}
+
+// LCR 参数补录（指标计量 → LCR 参数补录）
+export const lcrParamApi = {
+  list: (params: any = {}) => http.get('/lcr-param', { params }).then((r) => r.data),
+  options: () => http.get('/lcr-param/options').then((r) => r.data),
+  create: (data: any) => http.post('/lcr-param', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/lcr-param/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/lcr-param/${id}`).then((r) => r.data),
+}
+
+// NSFR 参数补录（指标计量 → NSFR 参数补录）
+export const nsfrParamApi = {
+  list: (params: any = {}) => http.get('/nsfr-param', { params }).then((r) => r.data),
+  options: () => http.get('/nsfr-param/options').then((r) => r.data),
+  create: (data: any) => http.post('/nsfr-param', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/nsfr-param/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/nsfr-param/${id}`).then((r) => r.data),
+}
+
+// CET1 / EVE / NIM / ROE 参数补录（资本/利率风险/净息差/净资产收益率）
+export const cet1ParamApi = {
+  list: (params: any = {}) => http.get('/cet1-param', { params }).then((r) => r.data),
+  options: () => http.get('/cet1-param/options').then((r) => r.data),
+  create: (data: any) => http.post('/cet1-param', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/cet1-param/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/cet1-param/${id}`).then((r) => r.data),
+}
+export const eveParamApi = {
+  list: (params: any = {}) => http.get('/eve-param', { params }).then((r) => r.data),
+  options: () => http.get('/eve-param/options').then((r) => r.data),
+  create: (data: any) => http.post('/eve-param', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/eve-param/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/eve-param/${id}`).then((r) => r.data),
+}
+export const nimParamApi = {
+  list: (params: any = {}) => http.get('/nim-param', { params }).then((r) => r.data),
+  options: () => http.get('/nim-param/options').then((r) => r.data),
+  create: (data: any) => http.post('/nim-param', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/nim-param/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/nim-param/${id}`).then((r) => r.data),
+}
+export const roeParamApi = {
+  list: (params: any = {}) => http.get('/roe-param', { params }).then((r) => r.data),
+  options: () => http.get('/roe-param/options').then((r) => r.data),
+  create: (data: any) => http.post('/roe-param', data).then((r) => r.data),
+  update: (id: string, payload: any) => http.put(`/roe-param/${id}`, payload).then((r) => r.data),
+  remove: (id: string) => http.delete(`/roe-param/${id}`).then((r) => r.data),
 }
 
 // 组合反算 · 结果驾驶舱

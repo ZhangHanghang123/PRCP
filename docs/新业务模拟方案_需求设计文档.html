@@ -1,0 +1,1474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>新业务模拟方案 · 需求设计文档</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg); color:var(--txt); line-height:1.65; font-size:14px; padding:0 0 60px;
+}
+.wrap{display:flex;max-width:1400px;margin:0 auto}
+
+/* ---------- 侧边导航 ---------- */
+.nav{width:238px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px;letter-spacing:.5px}
+.nav a{display:block;padding:7px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;
+  font-size:13px;margin-bottom:1px;transition:.15s}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+
+/* ---------- 头部 ---------- */
+.hd{background:var(--card);border-radius:12px;padding:28px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:23px;font-weight:600;margin-bottom:10px}
+.hd .meta{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);
+  padding-top:14px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;
+  font-family:var(--mono);vertical-align:middle}
+.tag-b{background:var(--blue-bg);color:var(--blue)}
+.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}
+.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}
+.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+
+/* ---------- 章节 ---------- */
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:16px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-h h2{font-size:16px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:22px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:16px 0 8px;color:var(--txt)}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+.sec-b ul,.sec-b ol{margin:0 0 12px 22px;color:var(--txt2)}
+.sec-b li{margin-bottom:5px}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+
+/* ---------- 表格 ---------- */
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);
+  border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tbl{overflow-x:auto}
+code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:nowrap}
+
+/* ---------- 提示块 ---------- */
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);
+  border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+
+/* ---------- 流程图 ---------- */
+.flow{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap;margin:14px 0}
+.fl{flex:1;min-width:104px;background:#f7f8fa;border:1px solid var(--line);border-radius:9px;
+  padding:12px 10px;text-align:center}
+.fl .fn{font-size:10px;color:var(--blue);font-weight:600;font-family:var(--mono)}
+.fl .ft{font-size:12.5px;font-weight:600;margin:3px 0}
+.fl .fd{font-size:10.5px;color:var(--txt3);line-height:1.5}
+.fl.g{background:var(--green-bg);border-color:#9be8cf}.fl.g .fn,.fl.g .ft{color:var(--green)}
+.fl.p{background:var(--purple-bg);border-color:#c9a6ff}.fl.p .fn,.fl.p .ft{color:var(--purple)}
+.fl.o{background:var(--orange-bg);border-color:#ffca8b}.fl.o .fn,.fl.o .ft{color:var(--orange)}
+.fa{align-self:center;color:var(--txt3);font-size:16px;flex:none}
+
+/* ---------- 公式 ---------- */
+.fx{background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:13px 16px;
+  margin:12px 0;font-family:var(--mono);font-size:12.5px;line-height:2.1;overflow-x:auto}
+.hl{background:var(--orange-bg);padding:1px 5px;border-radius:3px;color:var(--orange);font-weight:600}
+.hl-b{background:var(--blue-bg);padding:1px 5px;border-radius:3px;color:var(--blue);font-weight:600}
+.hl-g{background:var(--green-bg);padding:1px 5px;border-radius:3px;color:var(--green);font-weight:600}
+.hl-p{background:var(--purple-bg);padding:1px 5px;border-radius:3px;color:var(--purple);font-weight:600}
+
+/* ---------- 原型线框 ---------- */
+.wire{background:#fbfcfd;border:2px solid var(--line);border-radius:10px;padding:14px;margin:14px 0}
+.wire-t{font-size:11px;color:var(--txt3);font-family:var(--mono);margin-bottom:10px;
+  padding-bottom:8px;border-bottom:1px dashed var(--line)}
+.wire-r{display:flex;gap:10px;margin-bottom:10px}
+.wire-box{border:1.5px solid #c9cdd4;border-radius:7px;padding:9px 11px;font-size:11.5px;
+  background:#fff;color:var(--txt2);flex:1;text-align:center;font-family:var(--mono)}
+.wire-box.hl-b{border-color:var(--blue);background:var(--blue-bg);color:var(--blue)}
+.wire-box.hl-g{border-color:var(--green);background:var(--green-bg);color:var(--green)}
+.wire-box.hl-o{border-color:var(--orange);background:var(--orange-bg);color:var(--orange)}
+.wire-box.tall{padding:26px 11px}
+.wire-lbl{font-size:10px;color:var(--txt3);margin-bottom:3px;font-family:var(--mono)}
+
+/* ---------- 统计块 ---------- */
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:11px;margin:14px 0}
+.kpi div{background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:13px 15px}
+.kpi .k{font-size:11px;color:var(--txt3);margin-bottom:5px}
+.kpi .v{font-size:19px;font-weight:600;font-family:var(--mono);letter-spacing:-.3px}
+
+/* ---------- 目录 ---------- */
+.toc{background:var(--card);border-radius:12px;padding:18px 26px;margin-bottom:18px;border:1px solid var(--line)}
+.toc h4{font-size:13px;font-weight:600;margin-bottom:11px;color:var(--txt3)}
+.toc-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:7px}
+.toc a{display:block;padding:8px 12px;background:#f7f8fa;border-radius:7px;text-decoration:none;
+  color:var(--txt2);font-size:12.5px;border:1px solid var(--line)}
+.toc a:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.toc a b{color:var(--blue);font-family:var(--mono);margin-right:5px}
+
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- ========== 侧边导航 ========== -->
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s1" class="on">1 整体业务描述</a>
+  <a href="#s2">2 整理业务流程</a>
+  <a href="#s3">3 产品功能设计</a>
+  <a href="#s4">4 前端原型设计</a>
+  <a href="#s5">5 后台存储表设计</a>
+  <a href="#s6">6 计量逻辑设计</a>
+  <a href="#s7">7 计量案例</a>
+  <a href="#s8">8 配置说明与案例</a>
+</div>
+
+<div class="main">
+
+<!-- ========== 头部 ========== -->
+<div class="hd">
+  <h1>新业务模拟方案 · 需求设计文档</h1>
+  <div style="margin-top:10px">
+    <span class="tag tag-b">PRCP 组算平台</span>
+    <span class="tag tag-g">计量引擎 v2.4</span>
+    <span class="tag tag-o">60 月预测期</span>
+    <span class="tag tag-p">4 种增长方式</span>
+  </div>
+  <div class="meta">
+    <div>模块 <b>新业务模拟（New Business Simulation）</b></div>
+    <div>版本 <b>v2.4</b></div>
+    <div>参考实现 <b>BUDGET_2026_5Y</b></div>
+    <div>引擎实测 <b>run#20 · 3,420 行 / 6,000ms</b></div>
+    <div>日期 <b>2026-10-22</b></div>
+  </div>
+</div>
+
+<!-- ========== 目录 ========== -->
+<div class="toc">
+  <h4>文档结构</h4>
+  <div class="toc-g">
+    <a href="#s1"><b>01</b>整体业务描述</a>
+    <a href="#s2"><b>02</b>整理业务流程</a>
+    <a href="#s3"><b>03</b>产品功能设计</a>
+    <a href="#s4"><b>04</b>产品前端原型设计</a>
+    <a href="#s5"><b>05</b>后台存储表设计</a>
+    <a href="#s6"><b>06</b>计量逻辑设计</a>
+    <a href="#s7"><b>07</b>计量案例</a>
+    <a href="#s8"><b>08</b>配置说明与案例</a>
+  </div>
+</div>
+
+<!-- ================================================================
+     1 整体业务描述
+============================================================ -->
+<div class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>整体业务描述</h2></div>
+  <div class="sec-b">
+
+    <h3>1.1 业务背景</h3>
+    <p>
+      银行的资产负债管理（ALM）需要回答一个核心问题：<strong>「未来 1~5 年，如果按设定的业务增长目标推进，
+      我的资产负债表、期限结构、利息收支会怎么演变？」</strong>
+    </p>
+    <p>
+      传统做法依赖 Excel 手工测算，存在三个痛点：
+    </p>
+    <ul>
+      <li><strong>无法覆盖全量科目</strong> —— 账户册 57 个节点、20+ 层级，Excel 公式难以维护</li>
+      <li><strong>无法做期限滚动</strong> —— 新增业务按期限占比落桶、逐月到期滚动的过程手工难以模拟</li>
+      <li><strong>无法做敏感性分析</strong> —— 调整增速/节奏/期限结构后需要重算全部结果</li>
+    </ul>
+
+    <h3>1.2 模块定位</h3>
+    <p>
+      新业务模拟模块是一个<strong>「配置驱动 + 引擎计算」</strong>的资产负债预测工具：
+      用户在账户册的末级节点上配置「怎么增长、按什么节奏增长、增长出来的钱期限多长」，
+      引擎按月推演未来 60 个月的余额、期限结构、加权平均利率与利息收支。
+    </p>
+
+    <div class="kpi">
+      <div><div class="k">覆盖科目</div><div class="v">57</div></div>
+      <div><div class="k">可配置末级节点</div><div class="v">37</div></div>
+      <div><div class="k">增长方式</div><div class="v">4</div></div>
+      <div><div class="k">预测期</div><div class="v">60 月</div></div>
+      <div><div class="k">期限桶</div><div class="v">64</div></div>
+      <div><div class="k">计算性能</div><div class="v">6s</div></div>
+    </div>
+
+    <h3>1.3 核心能力</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">能力</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>多方案并行</b></td>
+            <td>可创建多个模拟方案（如「五年预算方案」「激进扩张方案」「基准情景」），各自独立配置与计算，支持方案间对比</td></tr>
+        <tr><td><b>全科目覆盖</b></td>
+            <td>账户册所有末级节点均可独立配置，引擎自动向上聚合到各级汇总节点</td></tr>
+        <tr><td><b>4 种增长方式</b></td>
+            <td>按业务性质匹配：目标增长百分比 / 目标增长绝对值 / 增长百分比 / 增长值</td></tr>
+        <tr><td><b>节奏控制</b></td>
+            <td>支持线性均衡、开门红、季末冲量、前低后高等投放形态，模拟真实的业务投放季节性</td></tr>
+        <tr><td><b>期限结构建模</b></td>
+            <td>新增业务按期限占比拆分到不同期限档，逐月滚动到期，反映资产负债的期限结构演变</td></tr>
+        <tr><td><b>全指标输出</b></td>
+            <td>每月输出当前余额、平均余额、加权平均利率、当月利息，以及 128 个期限桶明细</td></tr>
+        <tr><td><b>可追溯</b></td>
+            <td>每一行结果都记录当月年目标、节奏权重、分摊投放、到期释放、完整到期排期，可逐笔复盘</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>1.4 典型使用场景</h3>
+    <ul>
+      <li><strong>年度预算编制</strong> —— 制定未来 5 年各业务条线的规模增长计划</li>
+      <li><strong>经营计划测算</strong> —— 测算不同增长情景下的利息净收入、资产负债结构</li>
+      <li><strong>流动性压力测试</strong> —— 输入不同增长假设，评估未来各月的到期缺口</li>
+      <li><strong>资源配置</strong> —— 识别哪些科目在特定月份集中到期，提前安排资金调度</li>
+    </ul>
+
+    <div class="note note-b">
+      <b>模块边界</b>：本模块只负责<strong>新业务的增量测算</strong>，
+      不涉及存量业务的重定价、行为模型、利率情景模拟（这些由其他模块承担）。
+      本模块的输出是「如果业务按此配置增长，未来会怎样」。
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     2 业务流程
+============================================================ -->
+<div class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>整理业务流程</h2></div>
+  <div class="sec-b">
+
+    <h3>2.1 主流程</h3>
+    <div class="flow">
+      <div class="fl"><div class="fn">STEP 1</div><div class="ft">创建方案</div><div class="fd">选账户册<br>设基准日</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">STEP 2</div><div class="ft">配置节点</div><div class="fd">逐个末级节点<br>设增长方式</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">STEP 3</div><div class="ft">配节奏</div><div class="fd">12 个月<br>投放权重</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">STEP 4</div><div class="ft">配期限</div><div class="fd">期限占比<br>+ 利率</div></div>
+      <div class="fa">→</div>
+      <div class="fl g"><div class="fn">STEP 5</div><div class="ft">跑引擎</div><div class="fd">按月推演<br>60 个月</div></div>
+      <div class="fa">→</div>
+      <div class="fl p"><div class="fn">STEP 6</div><div class="ft">看结果</div><div class="fd">驾驶舱<br>明细追溯</div></div>
+    </div>
+
+    <h3>2.2 业务流程图</h3>
+    <div class="fx" style="line-height:1.9">
+<span style="color:#8f959e">【前置】</span>账户册已导入基准日数据（<span class="hl-b">prcp_data_basic</span>，含余额与 64 个期限桶）<br><br>
+<span style="color:#165dff">①</span> 创建模拟方案　　选定账户册方案 + 基准日（默认最新数据日）<br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#165dff">②</span> 选择参与测算的节点<br>
+<span style="color:#8f959e">      ├─ is_model_calc = 1 → 参与测算（配置增长方式/节奏/期限）<br>
+<span style="color:#8f959e">      └─ is_model_calc = 2 → 存量保持（余额利率不变，仅记录到期）</span><br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#165dff">③</span> 逐节点配置四要素<br>
+<span style="color:#8f959e">      ├─ 增长方式 + 5 年增长参数　→ <span class="hl-p">growth_config</span><br>
+<span style="color:#8f959e">      ├─ 投放节奏（12 月权重）　　→ <span class="hl-p">rhythm</span><br>
+<span style="color:#8f959e">      └─ 期限占比 + 各期限利率　 → <span class="hl-p">term_ratio</span></span><br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#00a870">④</span> 运行引擎（POST /sim/schemes/{sid}/run?month_count=60）<br>
+<span style="color:#8f959e">      ├─ 逐月遍历 60 个月 × 全部节点<br>
+<span class="hl-g">      ├─ 每笔投放落桶到「绝对到期月」并累加进 full_plan</span><br>
+<span class="hl-g">      ├─ 60 月跑完后回填完整排期 → 批量落库</span><br>
+<span class="hl-g">      └─ 递归聚合 20 个 SUMMARY 汇总节点</span><br>
+<span style="color:#8f959e">      ↓</span><br>
+<span style="color:#7d3ff5">⑤</span> 结果查看<br>
+<span style="color:#8f959e">      ├─ 驾驶舱：全局汇总（分资产/负债/权益，单位亿元）<br>
+<span style="color:#8f959e">      ├─ 趋势区：余额/利率/利息的 60 月走势 + 投放节奏分解<br>
+<span style="color:#8f959e">      └─ 节点级：账户册树 → 单节点 128 桶明细 + 排期追溯</span>
+    </div>
+
+    <h3>2.3 数据流转</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:70px">阶段</th><th style="width:130px">输入</th><th>处理</th><th style="width:150px">输出</th></tr></thead>
+      <tbody>
+        <tr><td><b>配置</b></td>
+            <td><code>prcp_sim_scheme</code><br><code>prcp_sim_node_config</code></td>
+            <td>写入节点是否测算、节奏类型等基础开关</td>
+            <td>37 条节点配置</td></tr>
+        <tr><td><b>参数</b></td>
+            <td><code>prcp_sim_growth_config</code><br><code>prcp_sim_rhythm</code><br><code>prcp_sim_term_ratio</code></td>
+            <td>写入增长方式、5 年参数、12 月权重、期限占比与利率</td>
+            <td>444 条节奏 + 128 条期限 + 37 条增长</td></tr>
+        <tr><td><b>底数</b></td>
+            <td><code>prcp_data_basic</code></td>
+            <td>读取基准日余额、加权利率、64 个期限桶作为起点</td>
+            <td>节点初始 state</td></tr>
+        <tr><td><b>计算</b></td>
+            <td>以上全部</td>
+            <td>逐月推演：算年目标 → 节奏分摊 → 取到期 → 落桶 → 累加排期 → 重算指标</td>
+            <td>内存中的 <code>all_rows</code></td></tr>
+        <tr><td><b>落库</b></td>
+            <td><code>all_rows</code> + <code>full_plan</code></td>
+            <td>回填完整 60 月排期 → 分批 INSERT → 递归聚合汇总节点</td>
+            <td><code>prcp_sim_result</code> 3,420 行</td></tr>
+        <tr><td><b>呈现</b></td>
+            <td><code>prcp_sim_result</code></td>
+            <td>前端按 category 过滤、按 date_offset 切片、按 is_aggregated 区分末级/汇总</td>
+            <td>驾驶舱 + 趋势 + 明细</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>2.4 关键业务规则</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">规则</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>增量守恒</b></td>
+            <td>12 个月的分摊投放合计 = 当年目标增量（Σ权重 = 100%）</td></tr>
+        <tr><td><b>占比守恒</b></td>
+            <td>期限占比合计必须 = 100%（应用层校验）</td></tr>
+        <tr><td><b>期限定位</b></td>
+            <td>第 M 月投放期限 v 的业务 → 落到第 <code>M+v</code> 月到期（绝对到期月口径）</td></tr>
+        <tr><td><b>目标类回补</b></td>
+            <td>growth_type ∈ {1, 2}（名称含「目标」）时，到期部分需重新投放，保证余额净增长达标</td></tr>
+        <tr><td><b>非目标类不回补</b></td>
+            <td>growth_type ∈ {3, 4} 时，到期自然出表，不回补</td></tr>
+        <tr><td><b>汇总节点不参与计算</b></td>
+            <td><code>is_aggregated = 1</code> 的节点由引擎递归聚合产生，不可手工配置</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     3 产品功能设计
+============================================================ -->
+<div class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>产品功能设计</h2></div>
+  <div class="sec-b">
+
+    <h3>3.1 功能清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:56px">编号</th><th style="width:130px">功能模块</th><th style="width:170px">功能点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>F01</td><td rowspan="5"><b>方案管理</b></td>
+            <td>方案列表</td><td>展示全部模拟方案的编码、名称、基准日、配置节点数、状态；支持筛选与搜索</td></tr>
+        <tr><td>F02</td><td>创建方案</td><td>选定账户册方案 + 基准日 + 方案名称/编码</td></tr>
+        <tr><td>F03</td><td>编辑方案</td><td>修改名称、描述、基准日</td></tr>
+        <tr><td>F04</td><td>启用/停用</td><td>状态切换（ACTIVE / INACTIVE），停用后不可运行</td></tr>
+        <tr><td>F05</td><td>删除方案</td><td>软删除（<code>is_deleted = 1</code>），级联清除配置与结果</td></tr>
+
+        <tr><td>F06</td><td rowspan="4"><b>节点配置</b></td>
+            <td>账户册节点树</td><td>展示层级树，标注每个节点的配置状态（已配置/未配置/汇总节点）</td></tr>
+        <tr><td>F07</td><td>参与方式开关</td><td><code>is_model_calc</code>：1=参与测算 / 2=存量保持</td></tr>
+        <tr><td>F08</td><td>节点信息查询</td><td>展示基准日余额、平均余额、加权利率、当前余额</td></tr>
+        <tr><td>F09</td><td>删除节点配置</td><td>解除该节点的配置（恢复未配置状态）</td></tr>
+
+        <tr><td>F10</td><td rowspan="3"><b>增长配置</b></td>
+            <td>选择增长方式</td><td>4 选 1：目标增长百分比 / 目标增长绝对值 / 增长百分比 / 增长值</td></tr>
+        <tr><td>F11</td><td>5 年增长参数</td><td>录入 year1~year5 的参数值（百分比或金额）+ 单位</td></tr>
+        <tr><td>F12</td><td>参数校验</td><td>百分比类限 0~100；金额类需指定单位（万元/亿元）</td></tr>
+
+        <tr><td>F13</td><td rowspan="3"><b>节奏配置</b></td>
+            <td>节奏类型</td><td>1=线性（12 月均匀）/ 2=自定义</td></tr>
+        <tr><td>F14</td><td>12 月权重编辑</td><td>可逐月调整投放权重，实时校验合计 = 100%</td></tr>
+        <tr><td>F15</td><td>一键线性</td><td>重置为 12 × 8.3333% 的均匀分布</td></tr>
+
+        <tr><td>F16</td><td rowspan="3"><b>期限配置</b></td>
+            <td>期限档位维护</td><td>增删期限行（期限月数 + 占比 + 利率）</td></tr>
+        <tr><td>F17</td><td>占比校验</td><td>合计必须 = 100%，否则拒绝保存</td></tr>
+        <tr><td>F18</td><td>利率录入</td><td>按百分数录入（3.2 表示 3.2%）</td></tr>
+
+        <tr><td>F19</td><td rowspan="3"><b>引擎执行</b></td>
+            <td>运行引擎</td><td>指定预测月数（≤60），异步执行并返回 run_id</td></tr>
+        <tr><td>F20</td><td>执行记录</td><td>展示历史 run：状态、耗时、节点数、错误信息</td></tr>
+        <tr><td>F21</td><td>进度追踪</td><td>按月更新 progress 百分比</td></tr>
+
+        <tr><td>F22</td><td rowspan="4"><b>结果查看</b></td>
+            <td>全局驾驶舱</td><td>按资产/负债/权益分组的余额、平均余额、加权平均利率、当月利息（单位亿元）</td></tr>
+        <tr><td>F23</td><td>趋势分析</td><td>余额/利率/利息的 60 月走势 + 投放节奏分解（分摊投放 vs 到期释放）</td></tr>
+        <tr><td>F24</td><td>节点明细</td><td>账户册树 → 单节点的度量指标 + 128 个期限桶</td></tr>
+        <tr><td>F25</td><td>到期排期追溯</td><td>每行展示完整的 61 格到期排期，可定位到具体投放来源</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>3.2 状态机</h3>
+    <h4>方案状态</h4>
+    <div class="flow">
+      <div class="fl g"><div class="fn">初始</div><div class="ft">ACTIVE</div><div class="fd">可配置 / 可运行</div></div>
+      <div class="fa">⇄</div>
+      <div class="fl o"><div class="fn">切换</div><div class="ft">INACTIVE</div><div class="fd">不可运行</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">删除</div><div class="ft">软删除</div><div class="fd">is_deleted=1</div></div>
+    </div>
+
+    <h4>执行状态</h4>
+    <div class="flow">
+      <div class="fl"><div class="fn">创建</div><div class="ft">PENDING</div><div class="fd">progress=0</div></div>
+      <div class="fa">→</div>
+      <div class="fl o"><div class="fn">执行中</div><div class="ft">RUNNING</div><div class="fd">progress 递增</div></div>
+      <div class="fa">→</div>
+      <div class="fl g"><div class="fn">完成</div><div class="ft">SUCCESS</div><div class="fd">写入结果</div></div>
+      <div class="fa">/</div>
+      <div class="fl" style="background:var(--red-bg);border-color:#ffb3b3">
+        <div class="fn" style="color:var(--red)">异常</div>
+        <div class="ft" style="color:var(--red)">FAILED</div>
+        <div class="fd" style="color:#a8071a">记录 error_message</div></div>
+    </div>
+
+    <h3>3.3 接口清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">编号</th><th style="width:80px">方法</th><th style="width:230px">路径</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td colspan="4" style="background:var(--blue-bg);color:var(--blue);font-weight:600">参数配置类（/api/sim）</td></tr>
+        <tr><td>A1</td><td>GET</td><td><code>/coa-schemes</code></td><td>账户册方案下拉列表</td></tr>
+        <tr><td>A2</td><td>GET</td><td><code>/coa-tree</code></td><td>账户册节点树（带配置状态标注）</td></tr>
+        <tr><td>A3</td><td>GET</td><td><code>/node-info/{id}</code></td><td>节点基础信息 + 当前余额</td></tr>
+        <tr><td>A4</td><td>GET/POST/PUT/DELETE</td><td><code>/schemes</code>, <code>/schemes/{sid}</code></td><td>方案 CRUD</td></tr>
+        <tr><td>A5</td><td>PATCH</td><td><code>/schemes/{sid}/status</code></td><td>启用/停用方案</td></tr>
+        <tr><td>A6</td><td>GET/POST/DELETE</td><td><code>/node-config</code>, <code>/node-config/{cfg_id}</code></td><td>节点配置</td></tr>
+        <tr><td>A7</td><td>GET/PUT/DELETE</td><td><code>/growth/{cfg_id}</code></td><td>增长方式与 5 年参数</td></tr>
+        <tr><td>A8</td><td>GET/PUT</td><td><code>/rhythm/{cfg_id}</code></td><td>12 月节奏权重</td></tr>
+        <tr><td>A9</td><td>POST</td><td><code>/rhythm/{cfg_id}/reset-linear</code></td><td>重置为线性节奏</td></tr>
+        <tr><td colspan="4" style="background:var(--green-bg);color:var(--green);font-weight:600">引擎执行类（/api/sim）</td></tr>
+        <tr><td>B1</td><td>POST</td><td><code>/engines/new_business/schemes/{sid}/run?month_count=60</code></td><td>运行引擎</td></tr>
+        <tr><td>B2</td><td>GET</td><td><code>/engines/new_business/runs/{run_id}</code></td><td>执行详情</td></tr>
+        <tr><td>B3</td><td>GET</td><td><code>/engines/new_business/runs</code></td><td>执行记录列表</td></tr>
+        <tr><td>B4</td><td>GET</td><td><code>/engines/new_business/results?run_id=&category=&date_offset=</code></td><td>快照结果（支持 with_buckets / limit）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note note-b">
+      共 <b>20 个接口</b>（参数配置 16 + 引擎执行 4）。
+      所有接口统一前缀 <code>/prcp/api</code>，需 JWT 认证（<code>Authorization: Bearer &lt;token&gt;</code>）。
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     4 前端原型设计
+============================================================ -->
+<div class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>产品前端原型设计</h2></div>
+  <div class="sec-b">
+
+    <h3>4.1 页面结构</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">页面</th><th style="width:120px">路由</th><th>核心组件</th><th style="width:150px">对应功能</th></tr></thead>
+      <tbody>
+        <tr><td><b>方案列表</b></td><td><code>/sim/list</code></td>
+            <td>方案卡片列表 + 筛选栏 + 新建弹窗</td><td>F01~F05</td></tr>
+        <tr><td><b>参数配置</b></td><td><code>/sim/config/:id</code></td>
+            <td>左账户册树 + 右配置表单（增长/节奏/期限三个 Tab）</td><td>F06~F18</td></tr>
+        <tr><td><b>结果驾驶舱</b></td><td><code>/sim/results/:code</code></td>
+            <td>Run 状态卡 + KPI 卡 + 趋势区 + 投放节奏区</td><td>F19~F23</td></tr>
+        <tr><td><b>节点明细</b></td><td><code>/sim/results/:code</code>（内嵌）</td>
+            <td>账户册树 + 选中节点指标卡 + 128 桶表格</td><td>F24~F25</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>4.2 原型线框</h3>
+
+    <h4>① 方案列表页</h4>
+    <div class="wire">
+      <div class="wire-t">/sim/list</div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:3;text-align:left">🔍 搜索方案名称 / 编码</div>
+        <div class="wire-box" style="flex:1">状态筛选 ▾</div>
+        <div class="wire-box" style="flex:1">账户册筛选 ▾</div>
+        <div class="wire-box hl-b" style="flex:1">+ 新建方案</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box tall" style="text-align:left;padding:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--txt)">BUDGET_2026_5Y</div>
+          <div style="font-size:10.5px;margin-top:3px">中信银行 2026-2030 五年业务预算方案</div>
+          <div style="margin-top:9px">
+            <span class="tag tag-b" style="font-size:10px">ACTIVE</span>
+            <span class="tag tag-y" style="font-size:10px">37 节点</span>
+            <span class="tag tag-y" style="font-size:10px">60 月</span>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--txt3)">基准日 2025-12-31</div>
+          <div style="margin-top:10px;font-size:10px">
+            <span style="color:var(--blue)">配置 ›</span>
+            <span style="color:var(--purple);margin-left:8px">运行 ›</span>
+            <span style="color:var(--green);margin-left:8px">结果 ›</span>
+          </div>
+        </div>
+        <div class="wire-box tall" style="text-align:left;padding:16px">
+          <div style="font-size:12px;font-weight:600;color:var(--txt)">SIM_LOAN_PERSONAL</div>
+          <div style="font-size:10.5px;margin-top:3px">个人贷款新业务模拟</div>
+          <div style="margin-top:9px">
+            <span class="tag tag-g" style="font-size:10px">ACTIVE</span>
+            <span class="tag tag-y" style="font-size:10px">1 节点</span>
+          </div>
+          <div style="margin-top:10px;font-size:10px;color:var(--txt3)">基准日 2025-12-31</div>
+        </div>
+        <div class="wire-box tall" style="text-align:left;padding:16px;opacity:.5">
+          <div style="font-size:12px;font-weight:600;color:var(--txt)">+ 空方案占位</div>
+          <div style="font-size:10.5px;margin-top:3px">点击卡片进入配置</div>
+        </div>
+      </div>
+    </div>
+
+    <h4>② 参数配置页</h4>
+    <div class="wire">
+      <div class="wire-t">/sim/config/:id　—— 左树右表</div>
+      <div class="wire-r" style="align-items:stretch">
+        <div style="flex:1.1;border:1.5px solid #c9cdd4;border-radius:8px;background:#fff;padding:11px">
+          <div class="wire-lbl">账户册节点树（可搜索/勾选）</div>
+          <div style="font-size:11px;font-family:var(--mono);line-height:2.1;color:var(--txt2)">
+            ▾ 📁 <b>A 资产</b><br>
+            &nbsp;&nbsp;▾ 📁 1. 贷款<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├ ⚡ 1.1 对公一般贷款 <span style="color:var(--green)">●</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;├ ⚡ 1.2 个人贷款 <span style="color:var(--green)">●</span><br>
+            &nbsp;&nbsp;&nbsp;&nbsp;└ ○ 1.5 非银贷款<br>
+            &nbsp;&nbsp;▸ 📁 2. 债券投资<br>
+            &nbsp;&nbsp;▸ 📁 L 负债<br>
+            &nbsp;&nbsp;▸ 📊 汇总节点 <span style="color:var(--txt3)">20</span>
+          </div>
+          <div style="margin-top:9px;font-size:10px;color:var(--txt3);font-family:var(--mono)">
+            ⚡=已配置 ○=未配置 📊=汇总（不可配置）
+          </div>
+        </div>
+        <div style="flex:2;border:1.5px solid #c9cdd4;border-radius:8px;background:#fff;padding:11px">
+          <div class="wire-lbl">右侧配置面板 —— 三个 Tab</div>
+          <div class="wire-r" style="margin-bottom:9px">
+            <div class="wire-box hl-b" style="flex:1">① 增长方式</div>
+            <div class="wire-box" style="flex:1">② 投放节奏</div>
+            <div class="wire-box" style="flex:1">③ 期限占比</div>
+          </div>
+          <div style="border:1px dashed var(--line);border-radius:7px;padding:11px;font-size:11px;
+                    font-family:var(--mono);color:var(--txt2);line-height:2">
+            <b style="color:var(--txt)">Tab① 增长方式</b><br>
+            参与方式　[参与测算 ▾]　　节点编码 S010101010000<br>
+            基准日余额　29,452.72 亿元　　加权利率　4.5000%<br>
+            增长方式　<span class="hl-b">目标增长百分比 ▾</span>　（名称含「目标」→ 到期回补）<br>
+            ┌─ 5 年增长参数 ─────────────────────<br>
+            │ 2026 <input> 5.00 %  2027 <input> 5.00 %<br>
+            │ 2028 <input> 4.80 %  2029 <input> 4.80 %<br>
+            │ 2030 <input> 5.00 %<br>
+            └──────────────────────────────────────<br>
+            <span style="display:inline-block;background:var(--blue-bg);color:var(--blue);
+                  padding:4px 14px;border-radius:5px;margin-top:6px">💾 保存</span>
+          </div>
+        </div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-o" style="flex:1">② 节奏 Tab：12 月权重表 + 线性重置按钮</div>
+        <div class="wire-box hl-p" style="flex:1">③ 期限 Tab：期限/占比/利率 三列可增删</div>
+      </div>
+    </div>
+
+    <h4>③ 结果驾驶舱页</h4>
+    <div class="wire">
+      <div class="wire-t">/sim/results/:code　—— 自上而下四段式</div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:1">Run #20</div>
+        <div class="wire-box hl-g" style="flex:1">SUCCESS</div>
+        <div class="wire-box" style="flex:1">57 节点</div>
+        <div class="wire-box" style="flex:1">⚡36 已配</div>
+        <div class="wire-box" style="flex:1">🔄1 滚动</div>
+        <div class="wire-box" style="flex:1">📊20 汇总</div>
+        <div class="wire-box" style="flex:1">60 月</div>
+        <div class="wire-box" style="flex:1">6,000 ms</div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box hl-b" style="flex:2.4;text-align:left;padding:12px">
+          <div class="wire-lbl">段② 全局汇总（按当前选中月份截面，仅统计末级节点，单位亿元）</div>
+          <div style="margin-top:5px">
+            <span class="tag tag-b">资产</span> 21 节点　余额 95,251.08 ｜ 均值 95,018.67 ｜ 利率 3.7221% ｜ 利息 294.72<br>
+            <span class="tag tag-o">负债</span> 15 节点　余额 92,018.44 ｜ 均值 91,798.30 ｜ 利率 1.6188% ｜ 利息 123.84<br>
+            <span class="tag tag-p">权益</span> 1 节点　　余额 7,894.93 ｜ 均值 7,878.55 ｜ 利息 0.00<br>
+            ⚠️ 差额提示条：资产 − 负债 − 权益 = −4,662.29 亿元（基础数据口径）
+          </div>
+        </div>
+      </div>
+      <div class="wire-r">
+        <div class="wire-box" style="flex:1;padding:22px">段③ 趋势图区<br>
+          <span style="font-size:10px;color:var(--txt3)">余额 60 月走势 ｜ 加权利率走势 ｜ 利息走势<br>
+          投放节奏分解：分摊投放 vs 到期释放</span></div>
+        <div class="wire-box" style="flex:1;padding:22px">段④ 节点明细区<br>
+          <span style="font-size:10px;color:var(--txt3)">左：账户册树<br>
+          右：选中节点指标 + 128 桶表格<br>
+          列组切换：度量 / 原始期限 / 剩余期限</span></div>
+      </div>
+    </div>
+
+    <h3>4.3 交互设计要点</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">设计点</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>树与表联动</b></td><td>选中树节点 → 右侧配置面板切换到该节点；已配置节点打「⚡」标</td></tr>
+        <tr><td><b>汇总节点禁用</b></td><td>汇总节点（📊）置灰不可点，鼠标悬浮提示「由末级节点自动聚合」</td></tr>
+        <tr><td><b>占比实时校验</b></td><td>期限占比合计 ≠ 100% 时保存按钮禁用，行内显示当前合计</td></tr>
+        <tr><td><b>增长方式联动提示</b></td><td>选择「目标增长百分比/绝对值」时显示蓝色提示「到期部分将回补投放」</td></tr>
+        <tr><td><b>月份切换</b></td><td>结果页提供 M1~M60 月份选择器，KPI 与明细随之切换</td></tr>
+        <tr><td><b>列组切换</b></td><td>128 桶表格支持「度量 / 原始期限 / 剩余期限 / 全部」四组切换，避免横向拥挤</td></tr>
+        <tr><td><b>截断提示</b></td><td>结果量超限时弹 warning「汇总统计可能不完整，请按月查看或调大 limit」</td></tr>
+        <tr><td><b>单位统一</b></td><td>KPI 与表格统一「亿元」，保留 2 位小数；利率保留 4 位并加 %</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     5 表设计
+============================================================ -->
+<div class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>后台存储表设计</h2></div>
+  <div class="sec-b">
+
+    <h3>5.1 表关系图</h3>
+    <div class="fx" style="line-height:2.2;background:#fbfcfd;border:1px solid var(--line);border-radius:8px;
+                          padding:16px;font-size:12.5px">
+<span class="hl-b">prcp_sim_scheme</span> 方案主表（1）<br>
+　　│ 1 : N<br>
+　　├─→ <span class="hl-p">prcp_sim_node_config</span> 节点配置（1:N）<br>
+　　│　　　│ 1 : 1<br>
+　　│　　　├─→ <span class="hl-p">prcp_sim_growth_config</span> 增长配置（增长方式 + 5 年参数）<br>
+　　│　　　├─→ <span class="hl-p">prcp_sim_rhythm</span> 节奏配置（12 个月权重）<br>
+　　│　　　└─→ <span class="hl-p">prcp_sim_term_ratio</span> 期限占比（期限 / 占比 / 利率）<br>
+　　│<br>
+　　│ 1 : N<br>
+　　├─→ <span class="hl-o">prcp_sim_run</span> 执行记录（每次运行一条）<br>
+　　│　　　│ 1 : N<br>
+　　│　　　└─→ <span class="hl-g">prcp_sim_result</span> 快照结果（57 节点 × 60 月 = 3,420 行）<br>
+　　│<br>
+　　└─ N : 1 → 外部依赖<br>
+　　　　　　<code>prcp_coa_node</code> 账户册节点（节点定义）<br>
+　　　　　　<code>prcp_data_basic</code> 基础数据（基准日余额 + 64 个期限桶）
+    </div>
+
+    <h3>5.2 配置表</h3>
+
+    <h4>5.2.1 prcp_sim_scheme —— 方案主表</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">字段</th><th style="width:110px">类型</th><th style="width:80px">约束</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">id</code></td><td>bigint</td><td>PK, AI</td><td>主键</td></tr>
+        <tr><td><code class="t">scheme_code</code></td><td>varchar(32)</td><td>NOT NULL, IDX</td><td>方案编码，如 <code>BUDGET_2026_5Y</code></td></tr>
+        <tr><td><code class="t">scheme_name</code></td><td>varchar(64)</td><td>NOT NULL</td><td>方案名称</td></tr>
+        <tr><td><code class="t">coa_scheme_id</code></td><td>bigint</td><td>NOT NULL</td><td>关联账户册方案</td></tr>
+        <tr><td><code class="t">data_date</code></td><td>date</td><td>NOT NULL, IDX</td><td>基准日（取基础数据的哪一天）</td></tr>
+        <tr><td><code class="t">description</code></td><td>text</td><td>—</td><td>方案说明</td></tr>
+        <tr><td><code class="t">config_node_count</code></td><td>int</td><td>default 0</td><td>已配置节点数（冗余计数）</td></tr>
+        <tr><td><code class="t">status</code></td><td>varchar(16)</td><td>IDX, default ACTIVE</td><td>ACTIVE / INACTIVE</td></tr>
+        <tr><td><code class="t">is_deleted</code></td><td>tinyint(1)</td><td>default 0</td><td>软删除标记</td></tr>
+        <tr><td><code class="t">created_by / updated_by</code></td><td>bigint</td><td>—</td><td>操作人</td></tr>
+        <tr><td><code class="t">created_at / updated_at</code></td><td>datetime</td><td>自动</td><td>时间戳</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.2 prcp_sim_node_config —— 节点配置</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">字段</th><th style="width:100px">类型</th><th style="width:90px">约束</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">id</code></td><td>bigint</td><td>PK, AI</td><td>主键（后续三张子表用 config_id 关联）</td></tr>
+        <tr><td><code class="t">scheme_id</code></td><td>bigint</td><td>NOT NULL</td><td>所属方案</td></tr>
+        <tr><td><code class="t">coa_node_id</code></td><td>bigint</td><td>NOT NULL</td><td>账户册节点 ID</td></tr>
+        <tr><td><code class="t">coa_node_code</code></td><td>varchar(32)</td><td>—</td><td>节点编码（冗余，便于查询）</td></tr>
+        <tr><td><code class="t">is_model_calc</code></td><td>tinyint(1)</td><td>NOT NULL, default 2</td>
+            <td><b>1 = 参与测算</b>（配置增长）；<b>2 = 存量保持</b>（余额利率不变）</td></tr>
+        <tr><td><code class="t">rhythm_type</code></td><td>tinyint(1)</td><td>NOT NULL, default 1</td>
+            <td><b>1 = 线性</b>（12 月均匀）；<b>2 = 自定义</b></td></tr>
+        <tr><td><code class="t">annual_growth_rate</code></td><td>decimal(8,4)</td><td>default 0</td>
+            <td>年增速（legacy 字段，实际以 growth_config 为准）</td></tr>
+        <tr><td><code class="t">term_unit</code></td><td>varchar(8)</td><td>default MONTH</td><td>期限单位</td></tr>
+        <tr><td><code class="t">term_count</code></td><td>int</td><td>default 0</td><td>期限档位数（冗余）</td></tr>
+        <tr><td><code class="t">remark</code></td><td>text</td><td>—</td><td>备注</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.3 prcp_sim_growth_config —— 增长配置</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">字段</th><th style="width:110px">类型</th><th style="width:90px">约束</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">config_id</code></td><td>bigint</td><td>UNIQUE, NOT NULL</td><td>与 node_config 一对一</td></tr>
+        <tr><td><code class="t">growth_type</code></td><td>tinyint(1)</td><td>NOT NULL, IDX</td>
+            <td><b>1</b> 目标增长百分比 ｜ <b>2</b> 目标增长绝对值 ｜ <b>3</b> 增长百分比 ｜ <b>4</b> 增长值</td></tr>
+        <tr><td><code class="t">year1_value ~ year5_value</code></td><td>decimal(20,4)</td><td>NOT NULL</td>
+            <td>5 年分期参数。type 1/3 为增速 %；type 2/4 为金额</td></tr>
+        <tr><td><code class="t">unit</code></td><td>varchar(16)</td><td>default '%'</td><td>参数单位（% / ABS）</td></tr>
+        <tr><td><code class="t">amount_unit</code></td><td>varchar(16)</td><td>—</td><td>金额单位（WAN 万元 / YI 亿元）</td></tr>
+        <tr><td><code class="t">coa_node_name</code></td><td>varchar(128)</td><td>—</td><td>节点名称（冗余快照）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note note-b">
+      <b>4 种 growth_type 语义对照</b>
+      <div class="tbl" style="margin:9px 0 0">
+      <table>
+        <thead><tr><th style="width:60px">type</th><th style="width:120px">名称</th><th style="width:80px">是否回补</th>
+          <th style="width:150px">参数语义</th><th>业务场景</th></tr></thead>
+        <tbody>
+          <tr><td><b>1</b></td><td>目标增长百分比</td><td><span class="tag tag-g">回补</span></td>
+              <td>yearN = 增速 %</td><td>贷款类（按规模目标考核）</td></tr>
+          <tr><td><b>2</b></td><td>目标增长绝对值</td><td><span class="tag tag-g">回补</span></td>
+              <td>yearN = 金额</td><td>同业负债（受监管额度约束）</td></tr>
+          <tr><td><b>3</b></td><td>增长百分比</td><td><span class="tag tag-o">不回补</span></td>
+              <td>yearN = 增速 %</td><td>债券投资（自然到期出表）</td></tr>
+          <tr><td><b>4</b></td><td>增长值</td><td><span class="tag tag-o">不回补</span></td>
+              <td>yearN = 年末目标余额</td><td>存款 / 权益（余额锚定，可缩表）</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <h4>5.2.4 prcp_sim_rhythm —— 节奏配置</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">字段</th><th style="width:110px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">config_id</code></td><td>bigint</td><td>关联 node_config</td></tr>
+        <tr><td><code class="t">month_no</code></td><td>int</td><td>月份序号 1~12</td></tr>
+        <tr><td><code class="t">month_label</code></td><td>varchar(16)</td><td>月份标签（如「1月」）</td></tr>
+        <tr><td><code class="t">weight</code></td><td>decimal(8,4)</td><td><b>投放权重（%）</b>，12 行合计必须 = 100</td></tr>
+        <tr><td><code class="t">sort_order</code></td><td>int</td><td>排序（= month_no）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.2.5 prcp_sim_term_ratio —— 期限占比</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">字段</th><th style="width:110px">类型</th><th style="width:90px">约束</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">config_id</code></td><td>bigint</td><td>NOT NULL</td><td>关联 node_config</td></tr>
+        <tr><td><code class="t">term_value</code></td><td>int</td><td>NOT NULL, IDX</td>
+            <td><b>期限月数</b>（如 12 / 24 / 36 / 60）</td></tr>
+        <tr><td><code class="t">business_ratio</code></td><td>decimal(8,4)</td><td>NOT NULL</td>
+            <td><b>业务占比（%）</b>，同 config_id 下合计必须 = 100</td></tr>
+        <tr><td><code class="t">interest_rate</code></td><td>decimal(8,4)</td><td>NOT NULL, default 0</td>
+            <td><b>⚠️ 新业务利率（百分数）</b>：存 3.2000 表示 3.2%</td></tr>
+        <tr><td><code class="t">sort_order</code></td><td>int</td><td>default 0</td><td>行序</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note warn">
+      <b>⚠️ 利率单位陷阱（曾导致利息虚高 100 倍）</b><br>
+      <code>prcp_data_basic.weighted_rate</code> 存<strong>小数</strong>（0.045 = 4.5%），
+      而 <code>prcp_sim_term_ratio.interest_rate</code> 存<strong>百分数</strong>（3.2000 = 3.2%）。
+      引擎加权求和时必须统一 <code>÷100</code> 换算成小数，否则新投放利率被放大 100 倍。
+    </div>
+
+    <h3>5.3 执行与结果表</h3>
+
+    <h4>5.3.1 prcp_sim_run —— 执行记录</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">字段</th><th style="width:110px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">id</code></td><td>bigint PK</td><td>run_id</td></tr>
+        <tr><td><code class="t">sim_scheme_id / sim_scheme_code</code></td><td>bigint / varchar</td><td>所属方案</td></tr>
+        <tr><td><code class="t">base_data_date / target_data_date</code></td><td>date</td><td>基准日 / 目标月日</td></tr>
+        <tr><td><code class="t">month_count</code></td><td>int</td><td>预测月数（default 24，上限 60）</td></tr>
+        <tr><td><code class="t">status</code></td><td>varchar(16) IDX</td><td>PENDING / RUNNING / SUCCESS / FAILED</td></tr>
+        <tr><td><code class="t">progress</code></td><td>int</td><td>进度百分比（0~100）</td></tr>
+        <tr><td><code class="t">total_nodes</code></td><td>int</td><td>总节点数 = 叶子 + 汇总</td></tr>
+        <tr><td><code class="t">configured_node_count</code></td><td>int</td><td>参与测算的节点数</td></tr>
+        <tr><td><code class="t">rolled_node_count</code></td><td>int</td><td>存量保持的节点数</td></tr>
+        <tr><td><code class="t">aggregated_node_count</code></td><td>int</td><td>汇总节点数</td></tr>
+        <tr><td><code class="t">duration_ms</code></td><td>bigint</td><td>耗时（毫秒）</td></tr>
+        <tr><td><code class="t">error_message</code></td><td>text</td><td>失败原因</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>5.3.2 prcp_sim_result —— 快照结果（宽表）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:190px">字段组</th><th style="width:120px">字段数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>标识维度</td><td>13</td>
+            <td><code>sim_scheme_code</code> <code>run_id</code> <code>data_date</code> <code>date_offset</code>
+                <code>coa_node_id</code> <code>node_code</code> <code>node_level</code> <code>category</code>
+                <code>is_configured</code> <code>is_aggregated</code> 等</td></tr>
+        <tr><td>度量指标</td><td>4</td>
+            <td><code>current_balance</code> <code>avg_balance</code> <code>weighted_rate</code>
+                <code>interest_amount</code></td></tr>
+        <tr><td>投放追溯 <span class="tag tag-o">v2.3+</span></td><td>6</td>
+            <td><code>growth_type</code> <code>year_target</code> <code>rhythm_weight</code>
+                <code>month_add</code> <code>month_release</code> <code>planned_due</code> <code>cum_planned</code></td></tr>
+        <tr><td>原始期限桶</td><td>64</td>
+            <td><code>orig_m1 ~ orig_m60</code> + <code>orig_y10/y15/y20/y30</code><br>
+                <span style="color:var(--txt3);font-size:11.5px">只进不出，记录投放时的原始期限</span></td></tr>
+        <tr><td>到期排期桶 <span class="tag tag-p">v2.4</span></td><td>64</td>
+            <td><code>rem_m1 ~ rem_m60</code> + <code>rem_y10/y15/y20/y30</code><br>
+                <span style="color:var(--txt3);font-size:11.5px">绝对到期月口径，<b>每行都写入完整 60 月排期</b></span></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note warn">
+      <b>⚠️ 查询性能注意</b><br>
+      60 月 × 57 节点 × 150 列 = 3,420 行 / 行很宽（每行约 3KB）。<br>
+      接口 <code>list_results</code> 默认 <code>limit = 20000</code> 并做<b>截断检测</b>，
+      超出时返回 <code>truncated: true</code>，前端弹 warning 提示「汇总统计可能不完整」。
+      建议按月或按节点分页查询。
+    </div>
+
+    <h3>5.4 数据量参考（run#20 实测）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">表名</th><th style="width:100px">行数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">prcp_sim_scheme</code></td><td>4</td><td>方案主表</td></tr>
+        <tr><td><code class="t">prcp_sim_node_config</code></td><td>38</td><td>节点配置（37 测算 + 1 存量保持）</td></tr>
+        <tr><td><code class="t">prcp_sim_growth_config</code></td><td>37</td><td>增长配置</td></tr>
+        <tr><td><code class="t">prcp_sim_rhythm</code></td><td>444</td><td>节奏配置（37 × 12）</td></tr>
+        <tr><td><code class="t">prcp_sim_term_ratio</code></td><td>128</td><td>期限占比（约 3.5 档/节点）</td></tr>
+        <tr><td><code class="t">prcp_sim_run</code></td><td>15</td><td>执行记录</td></tr>
+        <tr><td><code class="t">prcp_sim_result</code></td><td><b>3,420+</b></td>
+            <td>结果宽表（每次运行新增 3,420 行）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     6 计量逻辑
+============================================================ -->
+<div class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>计量逻辑设计</h2>
+    <span class="tag tag-p">引擎 v2.4</span></div>
+  <div class="sec-b">
+
+    <h3>6.1 计量流程（6 步）</h3>
+    <div class="flow">
+      <div class="fl"><div class="fn">①</div><div class="ft">年目标增量</div><div class="fd">compute_<br>year_target</div></div>
+      <div class="fa">→</div>
+      <div class="fl"><div class="fn">②</div><div class="ft">节奏分摊</div><div class="fd">× rhythm_<br>weight</div></div>
+      <div class="fa">→</div>
+      <div class="fl g"><div class="fn">③</div><div class="ft">取当月到期</div><div class="fd">peek_due<br>take_due</div></div>
+      <div class="fa">→</div>
+      <div class="fl p"><div class="fn">④</div><div class="ft">期限拆分落桶</div><div class="fd">rem_m{M+v}<br>+ full_plan</div></div>
+      <div class="fa">→</div>
+      <div class="fl g"><div class="fn">⑤</div><div class="ft">指标重算</div><div class="fd">balance / rate<br>/ interest</div></div>
+      <div class="fa">→</div>
+      <div class="fl p"><div class="fn">⑥</div><div class="ft">排期回填</div><div class="fd">apply_<br>final_plan</div></div>
+    </div>
+
+    <h3>6.2 桶语义（核心设计）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">桶</th><th style="width:230px">语义</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td><code class="t">orig_mv</code></td>
+            <td>原始期限为 v 个月的<strong>累计投放额</strong></td>
+            <td><b>只进不出</b>，不随月份变化 → 用于计算加权平均利率</td></tr>
+        <tr><td><code class="t">rem_mk</code></td>
+            <td><strong>距基准日第 k 个月到期</strong>的金额（绝对到期月）</td>
+            <td>第 M 月投放期限 v → 直落 <code>rem_m{M+v}</code>；到期时按 M 取走；<b>每格只到期一次</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note ok">
+      <b>为什么用「绝对到期月」而不是「剩余期限 + 每月前移」</b>
+      <ul style="margin:8px 0 0">
+        <li><b>等价性</b>：两条路径算出的余额轨迹完全一致（M1 29,575.44 亿 / M60 37,648.09 亿）</li>
+        <li><b>可追溯</b>：投放时一次定位到最终到期月，审计时能直接查「这笔钱什么时候还」</li>
+        <li><b>零迁移成本</b>：基准日时「剩余期限」=「距基准日到期月数」，存量数据无需转换</li>
+      </ul>
+    </div>
+
+    <h3>6.3 步骤拆解（以 M1 为例，S010101010000）</h3>
+
+    <h4>步骤 1 · 算当年净增目标</h4>
+    <div class="fx">
+year_target = <span class="hl-b">base_balance</span> × <span class="hl">year_value</span> ÷ 100　　　<span style="color:#8f959e">// type 1/3</span><br>
+　　　　　 = 29,452.7204 × <span class="hl">5.0000</span> ÷ 100<br>
+　　　　　 = <span class="hl-g">1,472.6360 亿元</span>
+    </div>
+    <ul>
+      <li><code>type 1/3</code>：<code>base_balance × 增速%</code></li>
+      <li><code>type 2</code>：<code>year_param × unit_scale</code>（固定新增额）</li>
+      <li><code>type 4</code>：<code>year_param × unit_scale − 年初余额</code>（年末余额锚定，年初锚定一次）</li>
+    </ul>
+
+    <h4>步骤 2 · 按节奏分摊到月</h4>
+    <div class="fx">
+add = <span class="hl-b">year_target</span> × <span class="hl">rhythm_weight</span> ÷ 100<br>
+　　= <span class="hl-b">1,472.6360</span> × <span class="hl">8.3333</span> ÷ 100 = <span class="hl-g">122.7192 亿元</span><br><br>
+<span style="color:#0a7">Σ(add over 12 months) = year_target × Σw/100 = year_target</span>　<span style="color:#8f959e">// 增量守恒</span>
+    </div>
+
+    <h4>步骤 3 · 按增长类型判断是否回补到期</h4>
+    <div class="fx">
+planned_due = <span class="hl-o">peek_due(state, M)</span> = rem_m{M} = <span class="hl">874.8342</span>　<span style="color:#8f959e">// 不清零，供结果留痕</span><br>
+release　　= <span class="hl-o">take_due(state, M)</span> = <span class="hl">874.8342</span>　<span style="color:#8f959e">// 取走并清零</span><br><br>
+<span style="color:#165dff">if growth_type in TARGET_GROWTH_TYPES:  <span style="color:#8f959e"># {1, 2} 名称含「目标」</span></span><br>
+<span class="hl-b">　　month_new = release + add</span>　　<span style="color:#0a7"># 到期回补，保证净增长达标</span><br>
+<span style="color:#165dff">else:</span>　<span style="color:#8f959e"># {3, 4}</span><br>
+<span class="hl-b">　　month_new = add</span>　　　　　　<span style="color:#0a7"># 到期自然出表</span>
+    </div>
+
+    <div class="note note-b">
+      <b>关键区分：month_add ≠ month_new</b>
+      <div class="tbl" style="margin:9px 0 0">
+      <table>
+        <thead><tr><th style="width:120px">字段</th><th style="width:110px">M1 值（亿）</th><th>含义</th></tr></thead>
+        <tbody>
+          <tr><td><code class="t">month_add</code></td><td>122.7192</td><td>当月<strong>分摊的净新增</strong>（年目标 × 节奏权重）</td></tr>
+          <tr><td><code class="t">month_release</code></td><td>874.8342</td><td>当月从 m1 桶<strong>取走的到期额</strong></td></tr>
+          <tr><td><code class="t">month_new</code></td><td><b>997.5533</b></td>
+              <td><strong>实际投放总额</strong> = add + release（目标类回补）<br>
+                  <b>落桶用 month_new</b>，到期部分被重新投放出去 → 余额才能净增长 5%</td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <h4>步骤 4 · 按期限占比拆分 + 落到绝对到期月</h4>
+    <div class="fx">
+amount_v = <span class="hl-b">month_new</span> × <span class="hl">business_ratio</span> ÷ 100<br>
+落桶　　= <span class="hl-p">rem_m{M + v}</span>　　　　　　<span style="color:#8f959e">// 绝对到期月</span><br>
+记账　　= <span class="hl-p">orig_m{v} += amount_v</span>　　<span style="color:#8f959e">// 原始期限，只进不出</span><br>
+累加　　= <span class="hl-p">full_plan[M + v] += amount_v</span>　<span style="color:#8f959e">// 完整排期（见步骤 6）</span>
+    </div>
+    <div class="tbl">
+    <table>
+      <thead><tr><th>期限</th><th class="num">占比</th><th class="num">投放额（亿）</th>
+        <th class="num">落地格</th><th class="num">到期月</th><th class="num">新利率</th></tr></thead>
+      <tbody>
+        <tr><td>12 月</td><td class="num">20%</td><td class="num">199.5107</td>
+            <td class="num"><code>rem_m13</code></td><td class="num">M13</td><td class="num">3.20%</td></tr>
+        <tr><td>24 月</td><td class="num">30%</td><td class="num">299.2660</td>
+            <td class="num"><code>rem_m25</code></td><td class="num">M25</td><td class="num">3.35%</td></tr>
+        <tr><td>36 月</td><td class="num">25%</td><td class="num">249.3884</td>
+            <td class="num"><code>rem_m37</code></td><td class="num">M37</td><td class="num">3.50%</td></tr>
+        <tr><td>60 月</td><td class="num">25%</td><td class="num">249.3884</td>
+            <td class="num"><code>rem_y10</code></td><td class="num">M61+</td><td class="num">3.70%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p><code>M + v &gt; 60</code> 时按超出月数归档到 <code>y10 / y15 / y20 / y30</code>（10Y / 15Y / 20Y / 30Y）。</p>
+
+    <h4>步骤 5 · 主表指标重算</h4>
+    <div class="fx">
+new_cb = base_balance + add<br>
+　　　 = 29,452.7204 + 122.7192 = <span class="hl-g">29,575.4396 亿</span><br><br>
+new_ab = avg_balance + add ÷ 2<br>
+　　　 = 29,452.7204 + 61.3596 = <span class="hl-g">29,514.0800 亿</span><br><br>
+weighted_amount = Σ(amount_v × rate ÷ 100)　　　　　<span style="color:#8f959e">// 利率单位换算</span><br>
+　　　　　　　 = 199.5107×0.032 + 299.2660×0.0335 + 249.3884×0.035 + 249.3884×0.037<br>
+　　　　　　　 = 34.3657 亿<br><br>
+new_wr = (avg × wr + weighted_amount) ÷ (avg + month_new)<br>
+　　　 = (1,328.1336 + 34.3657) ÷ 30,511.6334 = <span class="hl-g">4.4654%</span><br><br>
+new_ia = new_ab × new_wr ÷ 12<br>
+　　　 = 29,514.0800 × 0.044654 ÷ 12 = <span class="hl-g">109.8277 亿</span>
+    </div>
+    <div class="note warn">
+      <b>利率单位必须对齐</b>：<code>weighted_rate</code> 是小数、<code>interest_rate</code> 是百分数，
+      加权求和前必须 <code>÷100</code>，否则月利息虚高 100 倍。
+    </div>
+
+    <h4>步骤 6 · 完整 60 月排期回填（v2.4）</h4>
+    <div class="fx">
+<span style="color:#8f959e">// 初始化：装入基准日存量</span><br>
+full_plan = {}<br>
+<span class="hl-p">accumulate_plan</span>(full_plan, state₀, 60)<br><br>
+<span style="color:#8f959e">// 每月投放时（apply_term_split 内）累加</span><br>
+full_plan[M + v] += amount_v<br><br>
+<span style="color:#8f959e">// 60 月跑完后回填每一行</span><br>
+<span class="hl-p">apply_final_plan</span>(row, full_plan)<br>
+　for tgt, amt in full_plan.items(): row[rem_{tgt}] = amt
+    </div>
+    <div class="note note-b">
+      <b>配套改动：延后 INSERT</b><br>
+      每月循环内用 <code>all_rows.extend(rows_k)</code> 暂存（不立即落库），
+      60 月全部跑完 → 回填完整排期 → 分批（500 行/批）批量 INSERT。
+      这样才能让 <b>M1 行也看到「未来 5 年每个月都有到期」的完整时间轴</b>。<br>
+      <b>顺序要求</b>：SUMMARY 聚合必须在批量 INSERT <em>之后</em>执行（它用 INSERT...SELECT 聚合）。
+    </div>
+
+    <h3>6.4 核心公式汇总</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">环节</th><th>公式</th></tr></thead>
+      <tbody>
+        <tr><td>年目标</td><td><code>year_target = f(balance, year_value, growth_type)</code></td></tr>
+        <tr><td>节奏分摊</td><td><code>add = year_target × rhythm_weight ÷ 100</code></td></tr>
+        <tr><td>到期释放</td><td><code>release = take_due(state, M)</code>　<span style="color:var(--txt3)">// = rem_m{M}</span></td></tr>
+        <tr><td>投放总额</td><td><code>month_new = (release + add) if gt∈{1,2} else add</code></td></tr>
+        <tr><td>期限落桶</td><td><code>amount_v = month_new × business_ratio ÷ 100</code> → <code>rem_m{M+v}</code></td></tr>
+        <tr><td>余额</td><td><code>new_cb = base_cb + add</code>　<code>new_ab = avg_ab + add ÷ 2</code></td></tr>
+        <tr><td>加权利率</td><td><code>new_wr = (avg×wr + Σ amount_v×rate÷100) ÷ (avg + month_new)</code></td></tr>
+        <tr><td>利息</td><td><code>new_ia = new_ab × new_wr ÷ 12</code></td></tr>
+        <tr><td>汇总聚合</td><td><code>SUMMARY[k] = Σ(所有后代叶子[k])</code>（递归 CTE）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>6.5 不变式（校验点）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">不变式</th><th style="width:230px">公式</th><th>实测</th></tr></thead>
+      <tbody>
+        <tr><td>节奏分摊守恒</td><td><code>Σ add = year_target</code></td><td>12 × 122.7192 = 1,472.63 ✓</td></tr>
+        <tr><td>期限占比守恒</td><td><code>Σ amount_v = month_new</code></td><td>997.55 ✓</td></tr>
+        <tr><td>到期定位</td><td><code>M + v = 到期格</code></td><td>M1 + 12 = M13 ✓</td></tr>
+        <tr><td>余额恒等式</td><td><code>new_cb = base_cb + add</code></td><td>60 月最大偏差 0.0006 元 ✓</td></tr>
+        <tr><td>排期守恒</td><td><code>存量到期 + 投放到期 = 累计投放</code></td><td>53,888.90 + 8,195.37 = 62,084.26 ✓</td></tr>
+        <tr><td>隐含年化</td><td><code>interest ÷ avg × 12 = weighted_rate</code></td><td>4.4654% ✓</td></tr>
+        <tr><td>排期覆盖</td><td><code>rem_* 60 格均有值</code></td><td>61 格全有值 ✓</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     7 计量案例
+============================================================ -->
+<div class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>计量案例</h2>
+    <span class="tag tag-g">run#20 实测</span></div>
+  <div class="sec-b">
+
+    <h3>7.1 案例背景</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">项目</th><th>配置</th></tr></thead>
+      <tbody>
+        <tr><td>节点</td><td><code>S010101010000</code> · 1.1.对公一般贷款 · A 类资产 · 第 4 层末级节点</td></tr>
+        <tr><td>基准日</td><td>2025-12-31</td></tr>
+        <tr><td>基准日余额</td><td>29,452.72 亿元</td></tr>
+        <tr><td>基准日加权利率</td><td>4.5000%</td></tr>
+        <tr><td>增长方式</td><td><b>类型 1 · 目标增长百分比</b>（到期回补）</td></tr>
+        <tr><td>5 年增速</td><td>5.0% / 5.0% / 4.8% / 4.8% / 5.0%</td></tr>
+        <tr><td>投放节奏</td><td>线性（12 × 8.3333%）</td></tr>
+        <tr><td>期限结构</td><td>12 月 20% @3.20% ｜ 24 月 30% @3.35% ｜ 36 月 25% @3.50% ｜ 60 月 25% @3.70%</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>7.2 M1 全流程代入</h3>
+    <div class="fx">
+<span style="color:#165dff">① 年目标</span>　29,452.7204 × 5.0000% = <span class="hl-g">1,472.6360 亿</span><br><br>
+<span style="color:#165dff">② 节奏分摊</span>　1,472.6360 × 8.3333% = <span class="hl-g">122.7192 亿</span><br><br>
+<span style="color:#00a870">③ 到期释放</span>　peek/take rem_m1 = <span class="hl">874.8342 亿</span><br>
+　　　　　　month_new = 874.8342 + 122.7192 = <span class="hl-g">997.5534 亿</span><br><br>
+<span style="color:#7d3ff5">④ 期限拆分</span>　997.5534 × 20% = 199.5107 → rem_m13（M13 到期，@3.20%）<br>
+　　　　　　　997.5534 × 30% = 299.2660 → rem_m25（M25 到期，@3.35%）<br>
+　　　　　　　997.5534 × 25% = 249.3884 → rem_m37（M37 到期，@3.50%）<br>
+　　　　　　　997.5534 × 25% = 249.3884 → rem_y10（M61+ 到期，@3.70%）<br>
+　　　　　　　<span style="color:#0a7">Σ = 997.5534 = month_new ✓</span><br><br>
+<span style="color:#00a870">⑤ 指标重算</span>　new_cb = 29,452.7204 + 122.7192 = <span class="hl-g">29,575.4396 亿</span><br>
+　　　　　　　new_wr = (1,328.1336 + 34.3657) ÷ 30,511.6334 = <span class="hl-g">4.4654%</span><br>
+　　　　　　　new_ia = 29,514.0800 × 4.4654% ÷ 12 = <span class="hl-g">109.8277 亿</span><br><br>
+<span style="color:#7d3ff5">⑥ 排期</span>　　full_plan 累加 60 个月所有落点 → 回填到本行 rem_*
+    </div>
+
+    <h3>7.3 5 年结果</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th>年度</th><th class="num">目标增速</th><th class="num">Σ分摊新增</th>
+        <th class="num">Σ到期释放</th><th class="num">年末余额</th><th class="num">余额同比</th></tr></thead>
+      <tbody>
+        <tr><td>第 1 年 2026</td><td class="num">5.00%</td><td class="num">1,506.85</td>
+            <td class="num">15,163.73</td><td class="num"><b>30,959.57</b></td><td class="num">—</td></tr>
+        <tr><td>第 2 年 2027</td><td class="num">5.00%</td><td class="num">1,583.94</td>
+            <td class="num">7,125.06</td><td class="num"><b>32,543.52</b></td>
+            <td class="num" style="color:var(--green)">+5.12%</td></tr>
+        <tr><td>第 3 年 2028</td><td class="num">4.80%</td><td class="num">1,596.91</td>
+            <td class="num">10,242.31</td><td class="num"><b>34,140.43</b></td>
+            <td class="num" style="color:var(--green)">+4.91%</td></tr>
+        <tr><td>第 4 年 2029</td><td class="num">4.80%</td><td class="num">1,675.27</td>
+            <td class="num">10,314.64</td><td class="num"><b>35,815.70</b></td>
+            <td class="num" style="color:var(--green)">+4.91%</td></tr>
+        <tr><td>第 5 年 2030</td><td class="num">5.00%</td><td class="num">1,832.39</td>
+            <td class="num">11,043.14</td><td class="num"><b>37,648.09</b></td>
+            <td class="num" style="color:var(--green)">+5.12%</td></tr>
+        <tr style="font-weight:600;background:#f7f8fa">
+            <td>5 年累计</td><td class="num">—</td><td class="num">8,195.37</td>
+            <td class="num">53,888.90</td><td class="num" style="color:var(--blue)">37,648.09</td>
+            <td class="num" style="color:var(--blue)">+27.81%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok">
+      <b>余额同比与目标增速一致</b>（+5.12% vs 5.00%、+4.91% vs 4.80%），
+      证明「目标类回补到期」机制正确生效。
+    </div>
+
+    <h3>7.4 完整 60 月到期排期（M1 行实测）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th>到期月</th><th class="num">亿</th><th>到期月</th><th class="num">亿</th>
+        <th>到期月</th><th class="num">亿</th></tr></thead>
+      <tbody>
+        <tr><td>M1</td><td class="num">874.83</td><td>M22</td><td class="num">317.09</td><td>M43</td><td class="num">615.22</td></tr>
+        <tr><td>M2</td><td class="num">874.83</td><td>M23</td><td class="num">317.20</td><td>M44</td><td class="num">670.83</td></tr>
+        <tr><td>M3</td><td class="num">1,020.63</td><td>M24</td><td class="num">3,000.13</td><td>M45</td><td class="num">671.32</td></tr>
+        <tr><td>M4</td><td class="num">1,020.63</td><td>M25</td><td class="num">364.97</td><td>M46</td><td class="num">671.82</td></tr>
+        <tr><td>M5</td><td class="num">1,166.45</td><td>M26</td><td class="num">365.25</td><td>M47</td><td class="num">672.32</td></tr>
+        <tr><td>M6</td><td class="num">1,312.24</td><td>M27</td><td class="num">415.10</td><td>M48</td><td class="num">3,308.40</td></tr>
+        <tr><td>M7</td><td class="num">1,312.24</td><td>M28</td><td class="num">415.38</td><td>M49</td><td class="num">347.38</td></tr>
+        <tr><td>M8</td><td class="num">1,458.06</td><td>M29</td><td class="num">465.25</td><td>M50</td><td class="num">347.98</td></tr>
+        <tr><td>M9</td><td class="num">1,458.06</td><td>M30</td><td class="num">1,914.84</td><td>M51</td><td class="num">381.77</td></tr>
+        <tr><td>M10</td><td class="num">1,458.06</td><td>M31</td><td class="num">515.39</td><td>M52</td><td class="num">382.38</td></tr>
+        <tr><td>M11</td><td class="num">1,458.06</td><td>M32</td><td class="num">565.26</td><td>M53</td><td class="num">416.18</td></tr>
+        <tr><td>M12</td><td class="num">1,749.67</td><td>M33</td><td class="num">565.55</td><td>M54</td><td class="num">1,287.49</td></tr>
+        <tr><td>M13</td><td class="num">199.51</td><td>M34</td><td class="num">565.84</td><td>M55</td><td class="num">450.60</td></tr>
+        <tr><td>M14</td><td class="num">199.61</td><td>M35</td><td class="num">566.13</td><td>M56</td><td class="num">484.41</td></tr>
+        <tr><td>M15</td><td class="num">228.87</td><td>M36</td><td class="num">3,523.36</td><td>M57</td><td class="num">485.03</td></tr>
+        <tr><td>M16</td><td class="num">228.98</td><td>M37</td><td class="num">446.97</td><td>M58</td><td class="num">485.66</td></tr>
+        <tr><td>M17</td><td class="num">258.24</td><td>M38</td><td class="num">447.45</td><td>M59</td><td class="num">486.29</td></tr>
+        <tr><td>M18</td><td class="num">1,453.95</td><td>M39</td><td class="num">503.04</td><td>M60</td><td class="num">5,487.97</td></tr>
+        <tr><td>M19</td><td class="num">287.61</td><td>M40</td><td class="num">503.52</td>
+            <td><b>M61+</b></td><td class="num"><b>3,165.50</b></td></tr>
+        <tr><td>M20</td><td class="num">316.88</td><td>M41</td><td class="num">559.13</td><td></td><td class="num"></td></tr>
+        <tr><td>M21</td><td class="num">316.99</td><td>M42</td><td class="num">1,244.61</td><td></td><td class="num"></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b">
+      <b>排期形态解读</b>
+      <div class="tbl" style="margin:9px 0 0">
+      <table>
+        <thead><tr><th style="width:180px">形态</th><th style="width:200px">位置</th><th>成因</th></tr></thead>
+        <tbody>
+          <tr><td>高峰 800~5,500</td><td>M1~M12 / M24 / M36 / M48 / M60</td>
+              <td>基准日存量档位（m1~m12/m18/m24/m30/m36/m48/m60/y10）+ M1 投放 24 月期的落点</td></tr>
+          <tr><td>中峰 1,200~3,500</td><td>M18 / M42 / M54</td><td>存量 m18/m30/m48 档 + 相邻档叠加</td></tr>
+          <tr><td>常青谷 200~700</td><td>M13~M23 / M25~M35 / M37~M47 / M49~M59</td>
+              <td>各月新增投放的 12/24/36 月期<strong>错峰到期</strong></td></tr>
+        </tbody>
+      </table>
+      </div>
+    </div>
+
+    <h3>7.5 逐笔追溯示例</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:100px">到期月</th><th class="num">到期额（亿）</th><th>来源拆解</th></tr></thead>
+      <tbody>
+        <tr><td><b>M13</b></td><td class="num">199.5107</td>
+            <td>199.5107 ÷ 20% = <b>997.5533</b> = M1 投放总额 　✓ 完全吻合</td></tr>
+        <tr><td><b>M25</b></td><td class="num">364.9677</td>
+            <td>M1 × 30%（24 月期）= 299.2660<br>
+                + M13 × 20%（12 月期）= 65.7017　= <b>364.9677</b> ✓ 分毫不差</td></tr>
+        <tr><td><b>M14</b></td><td class="num">199.6129</td>
+            <td>199.6129 ÷ 20% = 998.0645 = M2 投放总额</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p>
+      注：存量的 <code>orig_m24</code> = 2,624.50 亿，但其 m24 桶在 <b>M24</b> 到期（不是 M25），
+      所以 M25 不含存量部分。
+    </p>
+
+    <h3>7.6 全部 37 节点 5 年汇总</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th class="num">增长方式</th><th class="num">节点数</th>
+        <th class="num">M1 余额（亿）</th><th class="num">M60 余额（亿）</th><th class="num">5 年增幅</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1 目标增长百分比</td><td class="num">12</td>
+            <td class="num">69,587.9</td><td class="num">88,427.8</td>
+            <td class="num" style="color:var(--green)">+27.07%</td></tr>
+        <tr><td class="num">2 目标增长绝对值</td><td class="num">9</td>
+            <td class="num">25,428.5</td><td class="num">32,362.7</td>
+            <td class="num" style="color:var(--green)">+27.27%</td></tr>
+        <tr><td class="num">3 增长百分比</td><td class="num">8</td>
+            <td class="num">25,563.1</td><td class="num">32,943.2</td>
+            <td class="num" style="color:var(--green)">+28.87%</td></tr>
+        <tr><td class="num">4 增长值</td><td class="num">7</td>
+            <td class="num">74,484.9</td><td class="num">94,974.7</td>
+            <td class="num" style="color:var(--green)">+27.51%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok">
+      4 种增长方式的 5 年增幅均在 27~29%，与「约 5%/年 → 5 年 ≈ 27.6%」的预期吻合，
+      说明引擎对不同增长方式的口径处理一致。
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     8 配置说明
+============================================================ -->
+<div class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n">8</div><h2>配置说明与案例</h2></div>
+  <div class="sec-b">
+
+    <h3>8.1 配置总览</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:90px">层次</th><th style="width:130px">配置项</th>
+        <th style="width:90px">必填</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="3"><b>方案级</b></td><td>账户册方案</td><td>是</td><td>决定可配置的节点范围</td></tr>
+        <tr><td>基准日 data_date</td><td>是</td><td>取基础数据的哪一天，须与 <code>prcp_data_basic.data_date</code> 对齐</td></tr>
+        <tr><td>方案编码/名称</td><td>是</td><td>编码唯一</td></tr>
+
+        <tr><td rowspan="3"><b>节点级</b></td><td>is_model_calc</td><td>是</td>
+            <td><b>1 = 参与测算</b>（需配置增长/节奏/期限）<br>
+                <b>2 = 存量保持</b>（余额与利率不变，仅记录到期释放）</td></tr>
+        <tr><td>rhythm_type</td><td>是</td><td><b>1 = 线性</b>（自动生成 12×8.3333%）；<b>2 = 自定义</b></td></tr>
+        <tr><td>节点范围</td><td>—</td><td>仅<b>末级节点</b>（<code>is_leaf=1</code>）可配置，汇总节点由引擎聚合</td></tr>
+
+        <tr><td rowspan="4"><b>参数级</b></td><td>growth_type</td><td>是</td><td>4 选 1，决定 year_value 的语义</td></tr>
+        <tr><td>year1~year5</td><td>是</td><td>5 年参数，百分比类填 %（0~100），金额类填数值并指定单位</td></tr>
+        <tr><td>rhythm weight</td><td>是</td><td>12 个月权重，合计必须 = 100%（容差 0.01%）</td></tr>
+        <tr><td>term_ratio</td><td>是</td><td>期限 / 占比 / 利率；占比合计必须 = 100%</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.2 4 种增长方式配置对照</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:60px">type</th><th style="width:120px">名称</th>
+        <th style="width:90px">是否回补</th><th style="width:170px">year_value 语义</th>
+        <th style="width:100px">推荐节点</th><th>业务理由</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>1</b></td><td>目标增长百分比</td><td><span class="tag tag-g">回补</span></td>
+            <td>增速 %<br><code>0~100</code></td><td>贷款类<br><span style="font-size:11px;color:var(--txt3)">12 节点</span></td>
+            <td>信贷投放按规模目标考核，增速是核心 KPI；到期回补保证余额净增长达标</td></tr>
+        <tr><td><b>2</b></td><td>目标增长绝对值</td><td><span class="tag tag-g">回补</span></td>
+            <td>金额<br><code>WAN / YI</code></td><td>同业负债<br><span style="font-size:11px;color:var(--txt3)">9 节点</span></td>
+            <td>受流动性监管额度约束，用绝对新增额管控比增速更合理</td></tr>
+        <tr><td><b>3</b></td><td>增长百分比</td><td><span class="tag tag-o">不回补</span></td>
+            <td>增速 %<br><code>0~100</code></td><td>债券投资<br><span style="font-size:11px;color:var(--txt3)">8 节点</span></td>
+            <td>按到期自然滚动出表，不强制回补，符合债券投资特性</td></tr>
+        <tr><td><b>4</b></td><td>增长值</td><td><span class="tag tag-o">不回补</span></td>
+            <td>年末余额<br><code>WAN / YI</code></td><td>存款 + 权益<br><span style="font-size:11px;color:var(--txt3)">7 节点</span></td>
+            <td>存款按规模余额考核；可为负值表示缩表</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note warn">
+      <b>判断口径：名称是否含「目标」</b><br>
+      代码常量 <code>TARGET_GROWTH_TYPES = {1, 2}</code> —— 类型 1「目标增长百分比」与
+      类型 2「目标增长绝对值」名称含「目标」，到期需回补；类型 3/4 不含「目标」，不回补。<br>
+      <b>易错点</b>：不要用 <code>gt != 3</code> 这类硬编码，改用常量表，新增类型时不易出错。
+    </div>
+
+    <h3>8.3 4 种投放节奏模板</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">节奏</th><th style="width:80px">类型</th>
+        <th style="width:280px">12 月权重（%）</th><th>适用业务</th></tr></thead>
+      <tbody>
+        <tr><td><b>均衡</b></td><td>1 线性</td>
+            <td>8.3333 × 12</td><td>大盘贷款、对公存款、MLF 等平稳投放类</td></tr>
+        <tr><td><b>开门红</b></td><td>2 自定义</td>
+            <td>18, 14, 10, 8, 7, 10, 6, 6, 8, 6, 5, 2</td>
+            <td>零售贷款、信用卡、零售存款（年初冲量、年末收尾）</td></tr>
+        <tr><td><b>季末冲量</b></td><td>2 自定义</td>
+            <td>5, 5, <b>15</b>, 5, 5, <b>15</b>, 5, 5, <b>15</b>, 5, 5, <b>15</b></td>
+            <td>债券投资、同业负债（考核时点驱动）</td></tr>
+        <tr><td><b>前低后高</b></td><td>2 自定义</td>
+            <td>6, 6, 8, 8, 10, 10, 10, 10, 10, 10, 6, 6</td>
+            <td>非银贷款、对公定期（年中发力）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.4 6 套期限结构模板</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">模板</th><th style="width:120px">适用节点</th>
+        <th>期限分布</th></tr></thead>
+      <tbody>
+        <tr><td><b>loan</b><br><span style="font-size:11px;color:var(--txt3)">贷款类</span></td>
+            <td>对公/零售/信用卡/票据/非银/外币贷款<br><span style="font-size:11px;color:var(--txt3)">10 节点</span></td>
+            <td style="font-family:var(--mono);font-size:11.5px">
+              m1 3% · m2 3% · m3 3.5% · m4 3.5% · m5 4% · m6 4.5% · m7 4.5% · m8 5% · m9 5% ·
+              m10 5% · m11 5% · m12 6% · m18 4% · m24 9% · m30 4% · m36 8% · m48 4% · m60 10% · y10 10%</td></tr>
+        <tr><td><b>bond</b><br><span style="font-size:11px;color:var(--txt3)">债券投资</span></td>
+            <td>AC/FVOCI/FVTPL · FVTPL 类资产<br><span style="font-size:11px;color:var(--txt3)">8 节点</span></td>
+            <td style="font-family:var(--mono);font-size:11.5px">
+              m1 2.5% · m2 2.5% · m3 3% · m4 3.5% · m5 3.5% · m6 4% · m7 4% · m8 4.5% · m9 4.5% ·
+              m10 5% · m11 5% · m12 5.5% · m18 4% · m24 10% · m30 4% · m36 7.5% · m48 3% ·
+              m60 8% · y10 11% · y15 5%</td></tr>
+        <tr><td><b>deposit</b><br><span style="font-size:11px;color:var(--txt3)">存款类</span></td>
+            <td>对公/零售活期定期 · 外币存款<br><span style="font-size:11px;color:var(--txt3)">6 节点</span></td>
+            <td style="font-family:var(--mono);font-size:11.5px">
+              m1 4.5% · m2 4.5% · m3 5% · m4 5% · m5 5% · m6 5.5% · m7 5.5% · m8 5.5% · m9 5.5% ·
+              m10 5.5% · m11 5.5% · m12 6.5% · m18 3.5% · m24 11% · m30 3% · m36 8.5% · m60 8.5%</td></tr>
+        <tr><td><b>interbank</b><br><span style="font-size:11px;color:var(--txt3)">同业类</span></td>
+            <td>NCD / 同业存款 / 回购 / MLF<br><span style="font-size:11px;color:var(--txt3)">11 节点</span></td>
+            <td style="font-family:var(--mono);font-size:11.5px">
+              m1 10% · m2 9% · m3 10% · m4 8% · m5 7.5% · m6 9% · m7 7% · m8 6.5% ·
+              m9 6% · m10 5.5% · m11 5% · m12 6% · m18 3% · m24 6%</td></tr>
+        <tr><td><b>short</b><br><span style="font-size:11px;color:var(--txt3)">非生息</span></td>
+            <td>存款准备金 / 现金 / 其它<br><span style="font-size:11px;color:var(--txt3)">4 节点</span></td>
+            <td style="font-family:var(--mono);font-size:11.5px">
+              m1 15% · m2 14% · m3 14% · m4 13% · m5 12% · m6 12% · m7 7% · m8 5.5% ·
+              m9 3.5% · m10 2% · m11 1% · m12 1%</td></tr>
+        <tr><td><b>perpetual</b><br><span style="font-size:11px;color:var(--txt3)">永续</span></td>
+            <td>所有者权益<br><span style="font-size:11px;color:var(--txt3)">1 节点</span></td>
+            <td style="font-family:var(--mono);font-size:11.5px">m60 100%</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok">
+      <b>设计要点</b>：短端（1~12 月）<strong>逐月铺开</strong>，避免「每格都有值」的表格出现大量空格；
+      长端按 m18/m24/m30/m36/m48/m60 + 年份桶分层。所有模板权重经
+      <code>_normalize()</code> 自动归一化到精确 100%。
+    </div>
+
+    <h3>8.5 配置案例：BUDGET_2026_5Y</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:120px">节点</th><th style="width:60px">type</th>
+        <th style="width:170px">5 年参数</th><th style="width:80px">节奏</th><th>期限占比（利率）</th></tr></thead>
+      <tbody>
+        <tr><td>1.1 对公一般贷款</td><td>1</td><td>5.0/5.0/4.8/4.8/5.0 %</td>
+            <td>均衡</td><td>12M 20%@3.2 ｜ 24M 30%@3.35 ｜ 36M 25%@3.5 ｜ 60M 25%@3.7</td></tr>
+        <tr><td>1.2 个人贷款</td><td>1</td><td>5.2/5.2/5.0/5.0/5.2 %</td>
+            <td>开门红</td><td>同 loan 模板</td></tr>
+        <tr><td>1.3 信用卡贷款</td><td>1</td><td>6.0/6.0/5.8/5.8/6.0 %</td>
+            <td>开门红</td><td>短期限：6M 30%@7.0 ｜ 12M 40%@7.2 ｜ 24M 20%@7.6 ｜ 36M 10%@7.9</td></tr>
+        <tr><td>2.1.1.1 AC（债券）</td><td>3</td><td>5.5/5.5/5.3/5.3/5.5 %</td>
+            <td>季末冲量</td><td>12M 20%@2.6 ｜ 24M 30%@2.6 ｜ 36M 25%@2.6 ｜ 60M 25%@2.6</td></tr>
+        <tr><td>2.2.1.3 同业存单 NCD</td><td>2</td><td>466.1 / 489.4 / 513.9 / 566.6 亿</td>
+            <td>季末冲量</td><td>3M 40%@2.0 ｜ 6M 30%@2.05 ｜ 12M 30%@2.1</td></tr>
+        <tr><td>1.1.1 对公活期存款</td><td>4</td><td>26,105 / 27,410 / … / 31,731 亿</td>
+            <td>均衡</td><td>12M 40%@0.85 ｜ 24M 35%@1.0 ｜ 36M 25%@1.15</td></tr>
+        <tr><td>所有者权益</td><td>4</td><td>8,255 / 8,668 / … / 10,034 亿</td>
+            <td>均衡</td><td>60M 100%</td></tr>
+        <tr><td>3.外币非生息资产</td><td>—</td><td><span class="tag tag-y">is_model_calc = 2 存量保持</span></td>
+            <td>—</td><td>不配置（演示存量保持分支）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b">
+      <b>配置分布</b>：type1 = 12 个（贷款类）｜ type2 = 9 个（同业负债）｜
+      type3 = 8 个（债券投资）｜ type4 = 7 个（存款 + 权益）｜ 存量保持 1 个<br>
+      节奏：线性 17 个 / 自定义 20 个　｜　全部 4 种增长方式均有覆盖
+    </div>
+
+    <h3>8.6 配置检查清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:40px">☐</th><th>检查项</th><th style="width:220px">判定标准</th></tr></thead>
+      <tbody>
+        <tr><td>☐</td><td>基准日与基础数据对齐</td><td><code>scheme.data_date</code> 在 <code>prcp_data_basic.data_date</code> 中存在</td></tr>
+        <tr><td>☐</td><td>增长方式与业务性质匹配</td><td>信贷用 1/2，债券用 3，存款/权益用 4</td></tr>
+        <tr><td>☐</td><td>5 年参数单位正确</td><td>type1/3 填 %；type2/4 填金额并选 WAN/YI</td></tr>
+        <tr><td>☐</td><td>节奏权重合计 = 100%</td><td>容差 0.01%（线性 12×8.3333=99.9996 属正常）</td></tr>
+        <tr><td>☐</td><td>期限占比合计 = 100%</td><td>必须严格等于 100，否则保存被拒</td></tr>
+        <tr><td>☐</td><td>期限利率按百分数录入</td><td>3.2 表示 3.2%（不是 0.032）</td></tr>
+        <tr><td>☐</td><td>期限 ≤ 60 个月</td><td>超出会归入 y10/y15/y20/y30 长端桶</td></tr>
+        <tr><td>☐</td><td>末级节点覆盖完整</td><td>37 个末级节点，36 参与测算 + 1 存量保持</td></tr>
+        <tr><td>☐</td><td>汇总节点未被误配</td><td><code>is_aggregated=1</code> 的节点不可配置</td></tr>
+        <tr><td>☐</td><td>预测月数 ≤ 60</td><td>接口参数 <code>month_count</code> 上限 60</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.7 常见问题排查</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:220px">现象</th><th>原因与解决</th></tr></thead>
+      <tbody>
+        <tr><td>结果金额是真实值的 100 倍</td>
+            <td>期限利率录成了小数（如 0.032），应为百分数（3.2）</td></tr>
+        <tr><td>到期释放远大于分摊投放</td>
+            <td>正常现象 —— 差额来自基准日存量到期，不是计算误差</td></tr>
+        <tr><td>余额同比远低于目标增速</td>
+            <td>检查 growth_type：若用 3/4（不回补），到期会净减少余额</td></tr>
+        <tr><td>部分月份到期额为 0</td>
+            <td>检查：① 底数期限桶是否回填；② 期限占比是否配了离散档位（如只配 m12/m24）</td></tr>
+        <tr><td>汇总节点数值为 0</td>
+            <td>汇总在批量 INSERT 之后执行；若为 0 检查叶子节点是否配置成功</td></tr>
+        <tr><td>「仅滚动」显示负数</td>
+            <td>前端公式错误（<code>rolled − aggregated</code>），应为 <code>rolled_node_count</code> 直接取值</td></tr>
+        <tr><td>汇总余额是节点数倍</td>
+            <td>汇总累加了汇总节点（<code>is_aggregated</code> 未过滤）</td></tr>
+        <tr><td>接口提示结果不完整</td>
+            <td>数据量超 limit（默认 20000），按月查询或调大 limit</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<div class="foot">
+  新业务模拟方案 · 需求设计文档 v1.0<br>
+  技术栈：FastAPI + SQLAlchemy 2 + MySQL 8 ｜ Vue3 + Ant Design + ECharts<br>
+  引擎版本 v2.4 ｜ 参考实现 run#20 ｜ 生成时间 2026-10-22
+</div>
+
+</div>
+</div>
+
+<script>
+// 目录高亮
+const secs=[...document.querySelectorAll('.sec')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('on'));
+      const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id);
+      if(a)a.classList.add('on');
+    }
+  });
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>

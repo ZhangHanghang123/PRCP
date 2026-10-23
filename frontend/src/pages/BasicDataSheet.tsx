@@ -14,15 +14,12 @@ import { basicApi, coaApi } from '../api'
 import { BUCKETS } from '../constants/buckets'
 import { DictSelect, DictTag } from '../components'
 
-// 额外度量列
+// 额外度量列（只保留 4 个核心度量：当前余额/平均余额/加权利率/利息收支）
 const EXTRAS = [
-  { key: 'asf_rsf',         name: 'ASF/RSF',   width: 70,  isPercent: false, precision: 0 },
-  { key: 'hqla_factor',     name: 'HQLA折算',  width: 75,  isPercent: true,  precision: 4 },
-  { key: 'current_balance', name: '当前余额',  width: 95,  isPercent: false, precision: 2 },
-  { key: 'avg_balance',     name: '平均余额',  width: 95,  isPercent: false, precision: 2 },
-  { key: 'weighted_rate',   name: '加权利率',  width: 70,  isPercent: true,  precision: 4 },
-  { key: 'interest_amount', name: '利息收支',  width: 80,  isPercent: false, precision: 2 },
-  { key: 'risk_weight',     name: '风险权重',  width: 80,  isPercent: true,  precision: 4 },
+  { key: 'current_balance', name: '当前余额',  width: 130, isPercent: false, precision: 2 },
+  { key: 'avg_balance',     name: '平均余额',  width: 130, isPercent: false, precision: 2 },
+  { key: 'weighted_rate',   name: '加权利率',  width: 90,  isPercent: true,  precision: 4 },
+  { key: 'interest_amount', name: '利息收支',  width: 110, isPercent: false, precision: 2 },
 ]
 
 const { DirectoryTree } = AntTree
@@ -36,7 +33,7 @@ const BasicDataSheet: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<any>(null)
-  const [dataDate, setDataDate] = useState<Dayjs>(dayjs('2027-01-01'))
+  const [dataDate, setDataDate] = useState<Dayjs>(dayjs('2025-12-31'))
   const [dateOffset, setDateOffset] = useState<number>(0)
   const [offsetUnit, setOffsetUnit] = useState<string>('D')
   const [availableDates, setAvailableDates] = useState<string[]>([])
@@ -47,10 +44,11 @@ const BasicDataSheet: React.FC = () => {
     const r = await coaApi.listSchemes()
     setSchemes(r.items || [])
     if (!activeScheme && r.items?.length) {
-      // 默认账户册方案：ZXCOA_V1 > COA_V6 > 第一个
+      // 默认账户册方案：ZX_CITIC_2026 > ZXCOA_V1 > COA_V6 > 第一个
+      const citic = r.items.find((s: any) => s.scheme_code === 'ZX_CITIC_2026')
       const zx = r.items.find((s: any) => s.scheme_code === 'ZXCOA_V1')
       const v6 = r.items.find((s: any) => s.scheme_code === 'COA_V6')
-      setActiveScheme((zx || v6 || r.items[0]).id)
+      setActiveScheme((citic || zx || v6 || r.items[0]).id)
     }
   }
   useEffect(() => { loadSchemes() }, [])
@@ -184,9 +182,9 @@ const BasicDataSheet: React.FC = () => {
     } catch (e: any) { message.error(e?.response?.data?.detail || '保存失败') }
   }
 
-  // 树形行：L1 → L2 → L3
+  // 树形行：L1 → L2 → L3 → L4 → L5 → L6（全部节点）
   const accountRows = useMemo(() => {
-    const nodes = matrixNodes.filter((n) => n.node_level >= 1 && n.node_level <= 3)
+    const nodes = matrixNodes.filter((n) => n.node_level >= 1 && n.node_level <= 6)
     const byParent: Record<number, any[]> = {}
     nodes.forEach((n) => {
       const key = n.parent_id || 0
@@ -201,25 +199,26 @@ const BasicDataSheet: React.FC = () => {
       const children = byParent[parentId || 0] || []
       children.forEach((c) => {
         flat.push(c)
-        if (c.node_level < 3) walk(c.coa_node_id)
+        // 递归展开全部子节点（直到 L6），保证 57 节点全展示
+        if (c.node_level < 6) walk(c.coa_node_id)
       })
     }
     walk(null)
     return flat
   }, [matrixNodes])
 
-  const indent = (level: number) => ({ paddingLeft: (level - 1) * 20 })
+  const indent = (level: number) => ({ paddingLeft: (level - 1) * 14 })
 
   // 固定列
   const baseCols: ColumnsType<any> = [
-    { title: '账户册编码', dataIndex: 'node_code', width: 60, fixed: 'left' as const,
+    { title: <span style={{ whiteSpace: 'nowrap' }}>账户册编码</span>, dataIndex: 'node_code', width: 180, fixed: 'left' as const,
       render: (c, r) => (
-        <span style={{ ...indent(r.node_level) }}>
+        <span style={{ ...indent(r.node_level), whiteSpace: 'nowrap', display: 'inline-block' }}>
           <code style={{ color: r.node_level === 3 ? '#1d39c4' : '#999', fontSize: 12, fontWeight: r.node_level < 3 ? 600 : 400 }}>{c}</code>
         </span>
       ),
     },
-    { title: '账户册名称', dataIndex: 'node_name', width: 200, fixed: 'left' as const,
+    { title: <span style={{ whiteSpace: 'nowrap' }}>账户册名称</span>, dataIndex: 'node_name', width: 260, fixed: 'left' as const,
       render: (n, r) => {
         const fontSize = r.node_level === 1 ? 15 : r.node_level === 2 ? 14 : 13
         const fontWeight = r.node_level < 3 ? 700 : 500
@@ -236,7 +235,7 @@ const BasicDataSheet: React.FC = () => {
               ...indent(r.node_level),
               fontSize, fontWeight, color,
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-              display: 'inline-block', maxWidth: 185,
+              display: 'inline-block', maxWidth: 240,
             }}>
               {r.node_level && <Tag style={{ marginRight: 6 }}><DictTag dictType="PRCP_NODE_LEVEL" value={String(r.node_level)} /></Tag>}
               {n}
@@ -245,7 +244,7 @@ const BasicDataSheet: React.FC = () => {
         )
       },
     },
-    { title: '大类', dataIndex: 'category', width: 60, fixed: 'left' as const,
+    { title: <span style={{ whiteSpace: 'nowrap' }}>大类</span>, dataIndex: 'category', width: 80, fixed: 'left' as const,
       render: (v) => <DictTag dictType="PRCP_COA_CATEGORY" value={v} />,
     },
   ]
@@ -255,11 +254,11 @@ const BasicDataSheet: React.FC = () => {
     (_v: any, r: any) => {
       const cell = matrix[String(r.coa_node_id)] || {}
       const v = cell[colKey]
-      if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
+      if (v === undefined || v === null) return <span style={{ color: '#ccc', whiteSpace: 'nowrap' }}>-</span>
       return (
         <Tooltip title={`点击编辑 ${colKey}`}>
           <span onClick={() => onEdit(r.coa_node_id)}
-            style={{ cursor: 'pointer', color, fontFamily: 'monospace' }}>
+            style={{ cursor: 'pointer', color, fontFamily: 'monospace', whiteSpace: 'nowrap', display: 'inline-block' }}>
             {(v as number).toLocaleString(undefined, { maximumFractionDigits: precision })}
           </span>
         </Tooltip>
@@ -268,9 +267,9 @@ const BasicDataSheet: React.FC = () => {
 
   // 二级表头
   const origGroup = {
-    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>原始期限（金额）</span>,
+    title: <span style={{ fontWeight: 600, color: '#1d39c4', whiteSpace: 'nowrap' }}>原始期限（金额）</span>,
     children: BUCKETS.map((b) => ({
-      title: <span style={{ fontSize: 12, color: '#13c2c2' }}>{b.name}</span>,
+      title: <span style={{ fontSize: 12, color: '#13c2c2', whiteSpace: 'nowrap' }}>{b.name}</span>,
       dataIndex: `orig_${b.key}`,
       width: b.width, align: 'right' as const,
       onHeaderCell: () => ({ style: { background: '#fafafa' } }),
@@ -278,9 +277,9 @@ const BasicDataSheet: React.FC = () => {
     })),
   }
   const remGroup = {
-    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>剩余期限（金额）</span>,
+    title: <span style={{ fontWeight: 600, color: '#1d39c4', whiteSpace: 'nowrap' }}>剩余期限（金额）</span>,
     children: BUCKETS.map((b) => ({
-      title: <span style={{ fontSize: 12, color: '#722ed1' }}>{b.name}</span>,
+      title: <span style={{ fontSize: 12, color: '#722ed1', whiteSpace: 'nowrap' }}>{b.name}</span>,
       dataIndex: `rem_${b.key}`,
       width: b.width, align: 'right' as const,
       onHeaderCell: () => ({ style: { background: '#fafafa' } }),
@@ -288,32 +287,28 @@ const BasicDataSheet: React.FC = () => {
     })),
   }
   const extraGroup = {
-    title: <span style={{ fontWeight: 600, color: '#1d39c4' }}>度量</span>,
+    title: <span style={{ fontWeight: 600, color: '#1d39c4', whiteSpace: 'nowrap' }}>度量</span>,
     children: EXTRAS.map((m) => ({
-      title: <span style={{ fontSize: 12, color: '#eb2f96' }}>{m.name}</span>,
+      title: <span style={{ fontSize: 12, color: '#eb2f96', whiteSpace: 'nowrap' }}>{m.name}</span>,
       dataIndex: m.key,
       width: m.width, align: 'right' as const,
+      fixed: 'left' as const,
       onHeaderCell: () => ({ style: { background: '#fafafa' } }),
       render: (_v: any, r: any) => {
         const cell = matrix[String(r.coa_node_id)] || {}
         const v = cell[m.key]
-        if (v === undefined || v === null) return <span style={{ color: '#ccc' }}>-</span>
-        if (m.key === 'asf_rsf') {
-          return (
-            <Tooltip title="点击编辑 ASF/RSF">
-              <span onClick={() => onEdit(r.coa_node_id)} style={{ cursor: 'pointer', color: '#eb2f96' }}>
-                {v || '-'}
-              </span>
-            </Tooltip>
-          )
-        }
+        if (v === undefined || v === null) return <span style={{ color: '#ccc', whiteSpace: 'nowrap' }}>-</span>
         const formatted = m.isPercent
           ? (v as number).toFixed(m.precision) + '%'
           : (v as number).toLocaleString(undefined, { maximumFractionDigits: m.precision })
         return (
           <Tooltip title={`点击编辑 ${m.name}`}>
             <span onClick={() => onEdit(r.coa_node_id)}
-              style={{ cursor: 'pointer', color: '#eb2f96', fontFamily: m.isPercent ? 'monospace' : undefined }}>
+              style={{
+                cursor: 'pointer', color: '#eb2f96',
+                whiteSpace: 'nowrap', display: 'inline-block',
+                fontFamily: m.isPercent ? 'monospace' : undefined,
+              }}>
               {formatted}
             </span>
           </Tooltip>
@@ -323,7 +318,7 @@ const BasicDataSheet: React.FC = () => {
   }
 
   const actionCol: ColumnsType<any>[number] = {
-    title: '操作', width: 80, fixed: 'right' as const,
+    title: <span style={{ whiteSpace: 'nowrap' }}>操作</span>, width: 80, fixed: 'right' as const,
     render: (_, r) => (
       <Button size="small" type="link" icon={<EditOutlined />}
         onClick={() => onEdit(r.coa_node_id)}>
@@ -332,7 +327,8 @@ const BasicDataSheet: React.FC = () => {
     ),
   }
 
-  const allCols: ColumnsType<any> = [...baseCols, origGroup, remGroup, extraGroup, actionCol]
+  // 度量组（extraGroup）放在 baseCols 之后、orig/rem 之前，靠近账户册展示
+  const allCols: ColumnsType<any> = [...baseCols, extraGroup, origGroup, remGroup, actionCol]
 
   // 大类汇总（码值国际化后）
   const categoryNameOrder = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
@@ -509,7 +505,8 @@ const BasicDataSheet: React.FC = () => {
                   rowKey="coa_node_id"
                   dataSource={accountRows}
                   columns={allCols as any}
-                  scroll={{ x: 60 + 200 + 50 + 26 * 70 + 80 + 7 * 80, y: 'calc(100vh - 380px)' }}
+                  // baseCols (180+260+80) + extraGroup 4列 (130+130+90+110) + orig 26列×70 + rem 26列×70 + action 80
+scroll={{ x: 180 + 260 + 80 + (130 + 130 + 90 + 110) + 26 * 70 + 26 * 70 + 80, y: 'calc(100vh - 380px)' }}
                   pagination={false}
                   bordered
                   locale={{ emptyText: <Empty description="该数据日期+偏移量下无账户册数据" /> }}

@@ -267,7 +267,7 @@ const SimSchemeList: React.FC = () => {
               onClick={() => goConfig(r)}
             >参数配置</Button>
           </Tooltip>
-          <Tooltip title="触发引擎按月滚动生成 24 月快照">
+          <Tooltip title="触发引擎按月滚动生成 60 月快照">
             <Button
               type="primary" size="small" icon={<RocketOutlined />}
               onClick={() => openRun(r)}
@@ -493,7 +493,7 @@ const SimSchemeList: React.FC = () => {
         title={
           <Space>
             <RocketOutlined style={{ color: '#722ed1' }} />
-            <span>引擎计量 — 按月滚动生成 24 月快照</span>
+            <span>引擎计量 — 按月滚动生成 60 月快照</span>
           </Space>
         }
         open={runModalOpen}
@@ -523,7 +523,7 @@ const SimSchemeList: React.FC = () => {
             {!runResult && !running && (
               <Form
                 layout="inline"
-                initialValues={{ month_count: 24 }}
+                initialValues={{ month_count: 60 }}
                 onFinish={(v) => startRun(v.month_count)}
               >
                 <Form.Item label="生成月份数" name="month_count" rules={[{ required: true }]}>
