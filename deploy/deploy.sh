@@ -4,9 +4,10 @@
 #
 # 用法：
 #   bash deploy.sh              # 拉取代码 + 重启后端 + 构建部署前端
+#   bash deploy.sh --pull       # 仅拉取代码
+#   bash deploy.sh --apply      # 仅部署（代码已拉取，配合 release.sh 避免自更新竞态）
 #   bash deploy.sh --backend    # 仅重启后端
 #   bash deploy.sh --frontend   # 仅构建部署前端
-#   bash deploy.sh --pull       # 仅拉取代码
 #
 # 前提：服务器已配置 GitHub SSH 认证（本机已配置 ZhangHanghang123）
 #
@@ -126,6 +127,7 @@ case "$MODE" in
   --pull)     do_pull ;;
   --backend)  do_backend ;;
   --frontend) do_frontend ;;
+  --apply)    do_migrate; do_backend; do_frontend; log "部署完成（代码已拉取）" ;;
   all)
     do_pull
     do_migrate
@@ -136,5 +138,5 @@ case "$MODE" in
     echo "  前端： $FRONT_DIR"
     echo "  日志： journalctl -u $SERVICE -f"
     ;;
-  *) echo "用法: bash deploy.sh [--pull|--backend|--frontend]"; exit 1 ;;
+  *) echo "用法: bash deploy.sh [--pull|--apply|--backend|--frontend]"; exit 1 ;;
 esac

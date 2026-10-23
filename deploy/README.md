@@ -40,11 +40,15 @@ bash deploy/release.sh --amend -m "feat(sim): 新增分期限占比配置"
 ssh almd@43.143.253.186
 cd /home/almd/prcp
 
-bash deploy/deploy.sh                # 完整部署
+bash deploy/deploy.sh                # 完整部署（拉代码 + 部署）
 bash deploy/deploy.sh --pull         # 只拉代码
+bash deploy/deploy.sh --apply        # 只部署（代码已拉取）
 bash deploy/deploy.sh --backend      # 只重启后端
 bash deploy/deploy.sh --frontend     # 只构建前端
 ```
+
+> `release.sh` 会拆成两次 SSH 调用（先 `--pull` 再 `--apply`），
+> 这样即使本次推送改了 `deploy.sh` 本身，新脚本也能生效（bash 不会重新读取已运行的脚本）。
 
 ### 排查
 

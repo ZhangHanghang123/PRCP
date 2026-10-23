@@ -68,8 +68,18 @@ echo "本地 HEAD：$(git rev-parse --short HEAD)"
 
 # ---------- 3. 服务器部署 ----------
 log "3/3 触发服务器部署"
-echo "→ $SERVER:$APP_DIR/deploy/deploy.sh"
-ssh "$SERVER" "cd $APP_DIR && bash deploy/deploy.sh" || die "服务器部署失败"
+
+# 分两次 SSH 调用，避免竞态：
+#   若本次推送改了 deploy.sh 本身，bash 已把旧脚本读进内存，
+#   第一次调用（--pull）更新文件，第二次调用才用新脚本执行部署。
+echo "→ 步骤 1/2 拉取代码（deploy.sh 若有更新会在这里生效）"
+ssh "$SERVER" "cd $APP_DIR && bash deploy/deploy.sh --pull" \
+  || die "服务器拉取失败"
+
+echo
+echo "→ 步骤 2/2 执行部署"
+ssh "$SERVER" "cd $APP_DIR && bash deploy/deploy.sh --apply" \
+  || die "服务器部署失败"
 
 log "发布完成"
 cat <<EOF
