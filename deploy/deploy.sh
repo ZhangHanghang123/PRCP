@@ -82,13 +82,14 @@ do_backend() {
     die "后端启动失败"
   fi
 
-  # 健康检查
+  # 健康检查：GET /openapi.json 返回 200 说明服务正常
   sleep 2
-  CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8006/prcp/api/auth/login || echo 000)
-  if [ "$CODE" = "200" ] || [ "$CODE" = "422" ]; then
-    echo "健康检查通过（HTTP $CODE）"
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8006/openapi.json || echo 000)
+  if [ "$CODE" = "200" ]; then
+    echo "健康检查通过（/openapi.json HTTP 200）"
   else
-    warn "健康检查异常（HTTP $CODE），请查看 journalctl -u $SERVICE"
+    echo "后端状态：$(systemctl status $SERVICE --no-pager | head -8)"
+    die "健康检查失败（HTTP $CODE），部署已中止，请排查 journalctl -u $SERVICE"
   fi
 }
 
