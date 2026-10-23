@@ -82,14 +82,16 @@ do_backend() {
     die "后端启动失败"
   fi
 
-  # 健康检查：GET /openapi.json 返回 200 说明服务正常
+  # 健康检查：请求一个需要认证的接口，返回 401 说明「路由通 + 中间件在跑 + DB 可连」
+  # （该应用禁用了 openapi/docs，/ 与 /docs 都返回 404，不可作为探针）
   sleep 2
-  CODE=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8006/openapi.json || echo 000)
-  if [ "$CODE" = "200" ]; then
-    echo "健康检查通过（/openapi.json HTTP 200）"
+  CODE=$(curl -s -o /dev/null -w '%{http_code}' \
+         http://127.0.0.1:8006/prcp/api/kpi/schemes || echo 000)
+  if [ "$CODE" = "401" ] || [ "$CODE" = "200" ]; then
+    echo "健康检查通过（/prcp/api/kpi/schemes HTTP $CODE）"
   else
     echo "后端状态：$(systemctl status $SERVICE --no-pager | head -8)"
-    die "健康检查失败（HTTP $CODE），部署已中止，请排查 journalctl -u $SERVICE"
+    die "健康检查失败（HTTP $CODE，期望 401/200），部署已中止，请排查 journalctl -u $SERVICE"
   fi
 }
 
