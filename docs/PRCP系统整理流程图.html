@@ -1,0 +1,1401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRCP 组算平台 · 系统整理流程图</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg); color:var(--txt); line-height:1.6; font-size:14px; padding:0 0 60px;
+}
+.wrap{display:flex;max-width:1500px;margin:0 auto}
+.nav{width:230px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px;letter-spacing:.5px}
+.nav a{display:block;padding:7px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;
+  font-size:13px;margin-bottom:1px;transition:.15s}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+
+.hd{background:var(--card);border-radius:12px;padding:26px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:22px;font-weight:600;margin-bottom:10px}
+.hd .meta{display:flex;gap:22px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);
+  padding-top:13px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;
+  font-family:var(--mono);vertical-align:middle}
+.tag-b{background:var(--blue-bg);color:var(--blue)}
+.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}
+.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}
+.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:15px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-h h2{font-size:16px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:22px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:16px 0 8px;color:var(--txt)}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);
+  border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tbl{overflow-x:auto}
+code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:nowrap}
+
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);
+  border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+
+.kpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:10px;margin:14px 0}
+.kpi div{background:#fafbfc;border:1px solid var(--line);border-radius:9px;padding:12px 14px}
+.kpi .k{font-size:11px;color:var(--txt3);margin-bottom:4px}
+.kpi .v{font-size:18px;font-weight:600;font-family:var(--mono);letter-spacing:-.3px}
+
+.toc{background:var(--card);border-radius:12px;padding:18px 26px;margin-bottom:18px;border:1px solid var(--line)}
+.toc h4{font-size:13px;font-weight:600;margin-bottom:11px;color:var(--txt3)}
+.toc-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:7px}
+.toc a{display:block;padding:8px 12px;background:#f7f8fa;border-radius:7px;text-decoration:none;
+  color:var(--txt2);font-size:12.5px;border:1px solid var(--line)}
+.toc a:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.toc a b{color:var(--blue);font-family:var(--mono);margin-right:5px}
+
+/* ========== 分层架构图 ========== */
+.arch{background:#fbfcfd;border:1px solid var(--line);border-radius:10px;padding:20px;margin:14px 0}
+.layer{border:1.5px solid var(--line);border-radius:9px;padding:13px 15px;margin-bottom:11px;background:#fff}
+.layer-t{font-size:11px;font-weight:600;font-family:var(--mono);margin-bottom:9px;
+  display:flex;align-items:center;gap:8px}
+.lt-d{font-size:10px;color:var(--txt3);font-weight:400}
+.row{display:flex;gap:9px;flex-wrap:wrap}
+.node{flex:1;min-width:112px;border:1.5px solid #d0d4da;border-radius:8px;padding:9px 10px;
+  text-align:center;background:#fff}
+.node .nt{font-size:12px;font-weight:600;margin-bottom:2px}
+.node .ns{font-size:10px;color:var(--txt3);font-family:var(--mono)}
+.node.b{border-color:var(--blue);background:var(--blue-bg)}.node.b .nt{color:var(--blue)}
+.node.g{border-color:var(--green);background:var(--green-bg)}.node.g .nt{color:var(--green)}
+.node.o{border-color:var(--orange);background:var(--orange-bg)}.node.o .nt{color:var(--orange)}
+.node.p{border-color:var(--purple);background:var(--purple-bg)}.node.p .nt{color:var(--purple)}
+.node.c{border-color:var(--cyan);background:var(--cyan-bg)}.node.c .nt{color:#0aa39e}
+.node.r{border-color:var(--red);background:var(--red-bg)}.node.r .nt{color:var(--red)}
+.arrow{text-align:center;color:var(--txt3);font-size:15px;margin:3px 0}
+
+/* ========== 模块依赖矩阵 ========== */
+.dep{width:100%;font-size:11.5px;border-collapse:collapse}
+.dep th,.dep td{border:1px solid var(--line);padding:5px 7px;text-align:center}
+.dep th{background:#f7f8fa;font-weight:500;white-space:nowrap;font-size:11px}
+.dep td:first-child,.dep th:first-child{text-align:left;white-space:nowrap;font-weight:500;
+  background:#fafbfc;position:sticky;left:0;z-index:1}
+.dep .y{background:var(--green-bg);color:var(--green);font-weight:600}
+.dep .n{background:#fafbfc;color:var(--txt3)}
+.dep .m{background:var(--orange-bg);color:var(--orange);font-weight:600}
+
+/* ========== 流程链 ========== */
+.chain{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap;margin:12px 0}
+.cn{flex:1;min-width:96px;border:1.5px solid #d0d4da;border-radius:8px;padding:10px 8px;
+  text-align:center;background:#fff}
+.cn .cs{font-size:10px;font-family:var(--mono);color:var(--blue);font-weight:600}
+.cn .ct{font-size:12px;font-weight:600;margin:2px 0}
+.cn .cd{font-size:10px;color:var(--txt3);line-height:1.5}
+.cn.b{border-color:var(--blue);background:var(--blue-bg)}
+.cn.g{border-color:var(--green);background:var(--green-bg)}
+.cn.o{border-color:var(--orange);background:var(--orange-bg)}
+.cn.p{border-color:var(--purple);background:var(--purple-bg)}
+.cn.c{border-color:var(--cyan);background:var(--cyan-bg)}
+.ca{align-self:center;color:var(--txt3);font-size:14px;flex:none}
+
+/* ========== 模块卡 ========== */
+.mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:12px;margin:14px 0}
+.mod{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fff;
+  border-left:3px solid var(--blue)}
+.mod.g{border-left-color:var(--green)}.mod.o{border-left-color:var(--orange)}
+.mod.p{border-left-color:var(--purple)}.mod.c{border-left-color:var(--cyan)}
+.mod.r{border-left-color:var(--red)}
+.mod-h{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.mod-h .mn{font-size:13.5px;font-weight:600}
+.mod-h .mc{font-size:10.5px;color:var(--txt3);font-family:var(--mono);margin-left:auto}
+.mod .mr{font-size:11.5px;color:var(--txt2);margin-bottom:7px;line-height:1.55}
+.mod .mt{font-size:10.5px;font-family:var(--mono);color:var(--txt3);margin-bottom:3px}
+.mod .mt b{color:var(--txt2);font-weight:500}
+.mod .ms{display:flex;gap:4px;flex-wrap:wrap;margin-top:7px}
+
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+
+/* ========== 整体流程：泳道图 ========== */
+.lane{border:1px solid var(--line);border-radius:10px;margin-bottom:11px;overflow:hidden;background:#fff}
+.lane-h{font-size:11px;font-weight:600;font-family:var(--mono);padding:8px 14px;
+  border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.lane-h .lt{font-size:10px;color:var(--txt3);font-weight:400;margin-left:auto}
+.lane-b{padding:12px 14px;display:flex;align-items:stretch;gap:8px;flex-wrap:wrap}
+.lane-b .step{flex:1;min-width:112px;border:1.5px solid #d0d4da;border-radius:8px;padding:9px 10px;
+  background:#fff;text-align:center}
+.lane-b .step .st{font-size:11.5px;font-weight:600;margin-bottom:2px}
+.lane-b .step .sd{font-size:9.5px;color:var(--txt3);line-height:1.5;font-family:var(--mono)}
+.lane-b .step .badge{display:inline-block;margin-top:3px;font-size:9px;padding:1px 5px;
+  border-radius:3px;font-family:var(--mono)}
+.lane-b .step.b{border-color:var(--blue);background:var(--blue-bg)}
+.lane-b .step.b .st{color:var(--blue)}
+.lane-b .step.c{border-color:var(--cyan);background:var(--cyan-bg)}
+.lane-b .step.c .st{color:#0aa39e}
+.lane-b .step.o{border-color:var(--orange);background:var(--orange-bg)}
+.lane-b .step.o .st{color:var(--orange)}
+.lane-b .step.p{border-color:var(--purple);background:var(--purple-bg)}
+.lane-b .step.p .st{color:var(--purple)}
+.lane-b .step.g{border-color:var(--green);background:var(--green-bg)}
+.lane-b .step.g .st{color:var(--green)}
+.lane-b .step.r{border-color:var(--red);background:var(--red-bg)}
+.lane-b .step.r .st{color:var(--red)}
+.lane-b .arr{align-self:center;color:var(--txt3);font-size:14px;flex:none}
+.badge-done{background:var(--green-bg);color:var(--green)}
+.badge-plan{background:var(--gray-bg);color:var(--txt3)}
+.badge-part{background:var(--orange-bg);color:var(--orange)}
+
+/* 任务包字段表 */
+.pkg{border:1.5px solid var(--purple);border-radius:10px;background:var(--purple-bg);
+  padding:13px 16px;margin:14px 0}
+.pkg-h{font-size:12px;font-weight:600;color:var(--purple);margin-bottom:9px;
+  display:flex;align-items:center;gap:7px}
+.pkg-row{display:flex;gap:10px;padding:5px 0;border-bottom:1px dashed rgba(125,63,245,.22);font-size:12px}
+.pkg-row:last-child{border-bottom:none}
+.pkg-row .pk{flex:none;width:132px;font-weight:600;color:var(--txt)}
+.pkg-row .pv{flex:1;color:var(--txt2);font-family:var(--mono);font-size:11.5px}
+.pkg-row .ps{flex:none;font-size:10px;font-family:var(--mono);color:var(--txt3)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s0" class="on">0 整体系统逻辑流程</a>
+  <a href="#s1">1 系统总览</a>
+  <a href="#s2">2 分层架构</a>
+  <a href="#s3">3 模块关系矩阵</a>
+  <a href="#s4">4 模块内部管理</a>
+  <a href="#s5">5 算法引用链</a>
+  <a href="#s6">6 核心数据流</a>
+  <a href="#s7">7 数据表全景</a>
+  <a href="#s8">8 部署与运维</a>
+</div>
+
+<div class="main">
+
+<div class="hd">
+  <h1>PRCP 组算平台 · 系统整理流程图</h1>
+  <div style="margin-top:10px">
+    <span class="tag tag-b">21 路由模块</span>
+    <span class="tag tag-g">55 张表</span>
+    <span class="tag tag-o">5 大算法引擎</span>
+    <span class="tag tag-p">12 指标函数脚本</span>
+    <span class="tag tag-c">8 数据域</span>
+  </div>
+  <div class="meta">
+    <div>技术栈 <b>FastAPI + SQLAlchemy 2 + MySQL 8</b></div>
+    <div>前端 <b>Vue3 + Ant Design 5 + ECharts + Vite</b></div>
+    <div>数据域 <b>账户册 / 指标 / 报表 / 模拟 / 反算 / ESG / 参数 / 系统</b></div>
+    <div>版本 <b>v1.0</b></div>
+    <div>日期 <b>2026-10-26</b></div>
+  </div>
+</div>
+
+<div class="toc">
+  <h4>文档结构</h4>
+  <div class="toc-g">
+    <a href="#s0"><b>00</b>整体系统逻辑流程</a>
+    <a href="#s1"><b>01</b>系统总览</a>
+    <a href="#s2"><b>02</b>分层架构</a>
+    <a href="#s3"><b>03</b>模块关系矩阵</a>
+    <a href="#s4"><b>04</b>模块内部管理</a>
+    <a href="#s5"><b>05</b>算法引用链</a>
+    <a href="#s6"><b>06</b>核心数据流</a>
+    <a href="#s7"><b>07</b>数据表全景</a>
+    <a href="#s8"><b>08</b>部署与运维</a>
+  </div>
+</div>
+
+<!-- ================================================================
+     0 整体系统逻辑流程
+============================================================ -->
+<div class="sec" id="s0">
+  <div class="sec-h"><div class="sec-n" style="background:var(--purple)">0</div><h2>整体系统逻辑流程</h2>
+    <span class="tag tag-p">组合反算为主线</span>
+    <span class="tag tag-o">业务人员视角</span></div>
+  <div class="sec-b">
+
+    <h3>0.1 主线一句话</h3>
+    <p>
+      业务人员在<b>组合反算</b>创建反算方案并选定<b>计量模型（算法）</b>、<b>账户册方案</b>、<b>数据日期</b>；
+      系统据此定位底层测算数据，把账户册拆成<b>非模型训练节点</b>（先走新业务模拟）与<b>模型训练节点</b>（后走计量模型），
+      两者合并成完整业务表，再按指标计量逻辑算指标值、做指标评分，最终输出反算结果。
+    </p>
+
+    <h3>0.2 泳道总图</h3>
+
+    <div class="lane">
+      <div class="lane-h" style="background:var(--blue-bg);color:var(--blue)">
+        ① 业务人员操作 <span class="lt">前端 · 组合反算模块</span></div>
+      <div class="lane-b">
+        <div class="step b"><div class="st">点击组合反算</div><div class="sd">进入反算方案页</div></div>
+        <div class="arr">→</div>
+        <div class="step b"><div class="st">创建反算方案</div><div class="sd">scheme_code / name<br>scheme_type</div></div>
+        <div class="arr">→</div>
+        <div class="step b"><div class="st">选择计量模型</div><div class="sd">algorithm + model_id<br>三类算法（见 0.5）</div></div>
+        <div class="arr">→</div>
+        <div class="step b"><div class="st">选账户册方案</div><div class="sd">coa_scheme_id</div></div>
+        <div class="arr">→</div>
+        <div class="step b"><div class="st">选数据日期</div><div class="sd">data_date</div></div>
+        <div class="arr">→</div>
+        <div class="step b"><div class="st">配置目标约束</div><div class="sd">prcp_reverse_target<br>目标值 / 约束类型 / 权重</div></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--txt3);font-size:14px;margin:2px 0 8px">▼　账户册方案 + 数据日期 → 定位底层测算数据</div>
+
+    <div class="lane">
+      <div class="lane-h" style="background:var(--gray-bg);color:var(--txt2)">
+        ② 底层数据准备 <span class="lt">prcp_coa_node × prcp_data_basic</span></div>
+      <div class="lane-b">
+        <div class="step"><div class="st">展开账户册树</div><div class="sd">coa_node 全量节点<br>层级 node_level</div></div>
+        <div class="arr">→</div>
+        <div class="step"><div class="st">载入基准日数据</div><div class="sd">data_basic<br>余额 + 加权利率 + 128 期限桶</div></div>
+        <div class="arr">→</div>
+        <div class="step o"><div class="st">按节点分流</div><div class="sd">is_model_calc<br><b>1</b>=模型训练节点 <b>2</b>=非模型训练节点</div></div>
+        <div class="arr">→</div>
+        <div class="step p"><div class="st">非模型训练节点</div><div class="sd">先走新业务模拟 → 泳道 ③</div></div>
+        <div class="arr">+</div>
+        <div class="step c"><div class="st">模型训练节点</div><div class="sd">后走计量模型 → 泳道 ④</div></div>
+      </div>
+    </div>
+
+    <div class="lane">
+      <div class="lane-h" style="background:var(--orange-bg);color:var(--orange)">
+        ③ 非模型训练节点 · 新业务模拟 <span class="lt">/sim 模块</span></div>
+      <div class="lane-b">
+        <div class="step o"><div class="st">匹配模拟方案</div><div class="sd">sim_scheme<br>按 coa_scheme 关联</div></div>
+        <div class="arr">→</div>
+        <div class="step o"><div class="st">新业务增长配置</div><div class="sd">sim_growth_config<br>4 种增长方式 · 5 年参数</div></div>
+        <div class="arr">→</div>
+        <div class="step o"><div class="st">新业务节奏配置</div><div class="sd">sim_rhythm<br>12 月投放权重</div></div>
+        <div class="arr">→</div>
+        <div class="step o"><div class="st">新业务期限占比</div><div class="sd">sim_term_ratio<br>期限 / 占比 / 利率</div></div>
+        <div class="arr">→</div>
+        <div class="step o"><div class="st">运行模拟</div><div class="sd">NewBusinessEngine<br>60 月按月推演</div></div>
+        <div class="arr">→</div>
+        <div class="step g"><div class="st">产出模拟结果</div><div class="sd">sim_result<br>余额 / 利率 / 利息 / 期限桶</div></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--txt3);font-size:14px;margin:2px 0 8px">▼　模拟结果 + 方案打包 → 发送给组合反算</div>
+
+    <div class="pkg">
+      <div class="pkg-h">📦 计量引擎接收的反算任务包（7 类信息）</div>
+      <div class="pkg-row"><div class="pk">调用信息</div><div class="pv">scheme_code · run_id · coa_scheme_id · data_date · horizon_months · algorithm</div><div class="ps">prcp_reverse_scheme/run</div></div>
+      <div class="pkg-row"><div class="pk">测算指标模版</div><div class="pv">目标指标清单 + 约束类型（GE/LE/EQ）+ 权重 + 期限</div><div class="ps">prcp_reverse_target</div></div>
+      <div class="pkg-row"><div class="pk">新业务模拟结果</div><div class="pv">非模型训练节点的 60 月预测余额 / 加权利率 / 到期排期</div><div class="ps">sim_result</div></div>
+      <div class="pkg-row"><div class="pk">计量模型</div><div class="pv">三类算法标识 + 引擎入口 + 超参数集</div><div class="ps">prcp_model / prcp_model_param</div></div>
+      <div class="pkg-row"><div class="pk">模型对应指标方案</div><div class="pv">kpi_scheme_id → 指标定义集合（公式 / 脚本）</div><div class="ps">prcp_kpi_scheme/definition</div></div>
+      <div class="pkg-row"><div class="pk">指标计量参数</div><div class="pv">LCR/NSFR/CET1/EVE/NIM/ROE 折算系数与运算符</div><div class="ps">prcp_*_param</div></div>
+      <div class="pkg-row"><div class="pk">ESG 曲线计划</div><div class="pv">Svensson 6 参数 · 情景路径（DNN 训练用）</div><div class="ps">prcp_esg_curve_point</div></div>
+    </div>
+
+    <div class="lane">
+      <div class="lane-h" style="background:var(--cyan-bg);color:#0aa39e">
+        ④ 模型训练节点 · 计量模型反算 <span class="lt">三类算法</span></div>
+      <div class="lane-b">
+        <div class="step c"><div class="st">非线性方程求解</div><div class="sd">NONLINEAR_SOLVER<br>Newton / Trust Region / SLSQP<br>隐含波动率 · 期权定价</div></div>
+        <div class="arr">‖</div>
+        <div class="step c"><div class="st">蚁群组合优化</div><div class="sd">ANT_COLONY<br>群体智能寻优<br>组合优化 · 路径规划</div></div>
+        <div class="arr">‖</div>
+        <div class="step c"><div class="st">DNN 神经网络回归</div><div class="sd">DNN_NEURAL_NETWORK<br>高维特征非线性回归<br>奖励函数 = 指标方案评分</div></div>
+        <div class="arr">→</div>
+        <div class="step g"><div class="st">剩余账户册未来业务量</div><div class="sd">模型训练节点的<br>24 月预测值</div></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--txt3);font-size:14px;margin:2px 0 8px">▼　模拟结果 + 模型结果 合并</div>
+
+    <div class="lane">
+      <div class="lane-h" style="background:var(--green-bg);color:var(--green)">
+        ⑤ 合并成完整业务表 <span class="lt">全量账户册 × 24 月</span></div>
+      <div class="lane-b">
+        <div class="step g"><div class="st">并集合并</div><div class="sd">非模型节点（模拟）<br>+ 模型节点（模型）</div></div>
+        <div class="arr">→</div>
+        <div class="step g"><div class="st">完整业务表</div><div class="sd">全账户册 24 期完整预测<br>current / adjusted / delta</div></div>
+        <div class="arr">→</div>
+        <div class="step p"><div class="st">指标值计量</div><div class="sd">公式引擎 / 函数执行器<br>按指标定义逐项求值</div></div>
+        <div class="arr">→</div>
+        <div class="step p"><div class="st">指标评分</div><div class="sd">分段插值 / 线性锚点<br>DNN 训练时作奖励函数</div></div>
+      </div>
+    </div>
+
+    <div style="text-align:center;color:var(--txt3);font-size:14px;margin:2px 0 8px">▼　目标可达性校验与结果输出</div>
+
+    <div class="lane">
+      <div class="lane-h" style="background:var(--red-bg);color:var(--red)">
+        ⑥ 结果整理与展示 <span class="lt">反算驾驶舱</span></div>
+      <div class="lane-b">
+        <div class="step r"><div class="st">约束校验</div><div class="sd">目标是否达成<br>偏差 / 可达性</div></div>
+        <div class="arr">→</div>
+        <div class="step r"><div class="st">写结果表</div><div class="sd">reverse_result<br>data_reverse（64 桶）</div></div>
+        <div class="arr">→</div>
+        <div class="step r"><div class="st">结果对比</div><div class="sd">current vs adjusted<br>delta 变化</div></div>
+        <div class="arr">→</div>
+        <div class="step r"><div class="st">驾驶舱展示</div><div class="sd">KPI 卡 + 趋势 + 目标达成<br>+ 方案对比</div></div>
+      </div>
+    </div>
+
+    <h3>0.3 关键分流：模型训练节点 vs 非模型训练节点</h3>
+    <p>
+      分流开关就在 <code>prcp_sim_node_config.is_model_calc</code>（<b>1 = 模型测算，2 = 非模型测算</b>）：
+    </p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:150px">节点类别</th><th style="width:120px">is_model_calc</th>
+        <th style="width:170px">未来业务量来源</th><th>特点</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>非模型训练节点</b></td><td><code>2</code></td>
+            <td><b>新业务模拟</b>（sim_result）</td>
+            <td>有明确业务规则（增长/节奏/期限），用配置推演即可，无需机器学习</td></tr>
+        <tr><td><b>模型训练节点</b></td><td><code>1</code></td>
+            <td><b>计量模型</b>（三类算法）</td>
+            <td>业务量受多因子影响、难以用规则表达，需要算法学习历史规律</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b">
+      <b>为什么要分两批处理</b>：非模型节点<b>先算</b>，是因为它的模拟结果要作为模型节点的
+      <b>边界条件与约束输入</b>（模型节点不能反推出已经由业务规则确定的部分）；
+      两批结果最后才合并成完整业务表。
+    </div>
+
+    <h3>0.4 完整业务表 → 指标计量 → 指标评分</h3>
+    <div class="fx" style="line-height:2.05">
+<span style="color:#165dff">①</span> 完整业务表　　全账户册 × 24 月 × (current_value, adjusted_value, delta_value)<br>
+<span style="color:#8f959e">    来源：非模型节点（模拟结果）∪ 模型节点（算法结果）</span><br><br>
+<span style="color:#ff8f1f">②</span> 指标值计量　　按模型关联的指标方案逐项求值<br>
+<span style="color:#8f959e">    type=1 → 公式引擎 evaluate(formula, ctx)</span><br>
+<span style="color:#8f959e">    type=2 → 函数执行器 run_function_kpi(...)</span><br>
+<span style="color:#8f959e">    ctx 注入同方案其他指标的该期值</span><br><br>
+<span style="color:#7d3ff5">③</span> 指标评分　　　区间命中 → 段内插值 → score<br>
+<span style="color:#8f959e">    PIECEWISE：score_min + (x−min)/(max−min) × (score−score_min)</span><br>
+<span style="color:#8f959e">    LINEAR　：锚点间线性插值 + 端点 clamp</span><br><br>
+<span style="color:#00a870">④</span> 目标达成校验　按 prcp_reverse_target 的约束类型（GE/LE/EQ）逐条比对<br>
+<span style="color:#8f959e">    不达成的目标 → 提示需调整模型或放宽约束</span>
+    </div>
+
+    <h3>0.5 三类计量模型</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:170px">模型</th><th style="width:150px">算法编码</th>
+        <th style="width:170px">求解方式</th><th>适用与说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>非线性方程求解模型</b></td><td><code>NONLINEAR_SOLVER</code></td>
+            <td>scipy.optimize<br>Newton / Trust Region / SLSQP</td>
+            <td>解非线性方程组或非线性优化；隐含波动率、期权定价类问题</td></tr>
+        <tr><td><b>蚁群算法组合优化模型</b></td><td><code>ANT_COLONY</code></td>
+            <td>群体智能寻优</td>
+            <td>模拟蚂蚁觅食；组合优化、路径规划，适合离散决策问题</td></tr>
+        <tr><td><b>DNN 神经网络回归模型</b></td><td><code>DNN_NEURAL_NETWORK</code></td>
+            <td>PyTorch 前馈网络</td>
+            <td>高维特征非线性回归；<b>训练时以指标方案评分为奖励函数</b>，并需 ESG 曲线计划作为训练输入</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>DNN 的双外部依赖</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:170px">依赖</th><th style="width:200px">数据来源</th>
+        <th style="width:200px">在训练中的作用</th><th>对应参数模板</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>指标方案评分</b><br><span style="font-size:11px;color:var(--txt3)">奖励函数</span></td>
+            <td><code>prcp_kpi_score_rule</code><br><code>prcp_kpi_score_segment</code></td>
+            <td>把「指标偏离目标的程度」转成损失项，驱动网络朝合规方向收敛</td>
+            <td><code>LOSS_SIGMA</code>（各子指标惩罚系数 σ_i）<br>
+                <code>LOSS_MU</code>（目标分布均值）<br>
+                <code>LOSS_LAMBDA</code>（约束/正则权重）</td></tr>
+        <tr><td><b>ESG 曲线计划</b><br><span style="font-size:11px;color:var(--txt3)">训练输入</span></td>
+            <td><code>prcp_esg_curve_point</code><br>（Svensson 6 参数）</td>
+            <td>提供利率/宏观情景路径，作为网络的特征维度，训练「情景条件下的业务量」</td>
+            <td><code>YIELD_CURVE_MODEL</code>（HJM-PCA / VASICEK / NSS…）<br>
+                <code>PCA_NUM_COMPONENTS</code> · <code>PCA_POLY_DEGREE</code><br>
+                <code>PCA_HISTORY_WINDOW</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note">
+      <b>奖励函数设计</b>：<code>LOSS_SIGMA</code> 的默认值
+      <code>[1.0, 0.2, 1.0, 2.5, 2.0, 0.002]</code> 依次对应
+      <b>LCR / NSFR / CMR / E·RWA / IRS / EYR</b> 六个子指标的违约惩罚系数 ——
+      即「偏离监管红线的惩罚力度」，这正是把指标评分体系接入神经网络训练的接口。
+    </div>
+
+    <h3>0.6 环节-模块-数据表对照</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:56px">环节</th><th style="width:150px">承载模块</th>
+        <th style="width:130px">接口</th><th style="width:210px">数据表</th><th>产出</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>①</b></td><td>组合反算</td><td><code>/reverse/schemes</code></td>
+            <td><code>prcp_reverse_scheme</code> · <code>_target</code></td><td>反算方案（算法/账户册/日期/目标）</td></tr>
+        <tr><td><b>②</b></td><td>账户册 + 基础数据</td><td><code>/coa/tree</code> · <code>/basic/...</code></td>
+            <td><code>prcp_coa_node</code> · <code>prcp_data_basic</code></td><td>基准日余额 + 期限桶 + 节点分流</td></tr>
+        <tr><td><b>③</b></td><td>新业务模拟</td><td><code>/sim/schemes/{id}/run</code></td>
+            <td><code>sim_growth_config</code> · <code>sim_rhythm</code> · <code>sim_term_ratio</code> · <code>sim_result</code></td>
+            <td>非模型节点 60 月预测</td></tr>
+        <tr><td><b>④</b></td><td>模型管理 + 反算引擎</td><td><code>/model/trains/{id}/start</code></td>
+            <td><code>prcp_model</code> · <code>_param</code> · <code>_train_result</code> · <code>prcp_esg_curve_point</code></td>
+            <td>模型节点 24 月预测</td></tr>
+        <tr><td><b>⑤</b></td><td>指标管理</td><td><code>/kpi/score-calc</code></td>
+            <td><code>prcp_kpi_value</code> · <code>_score_rule</code> · <code>_score_segment</code></td>
+            <td>指标值 + 指标评分</td></tr>
+        <tr><td><b>⑥</b></td><td>反算驾驶舱</td><td><code>/reverse-dashboard/*</code></td>
+            <td><code>prcp_reverse_result</code> · <code>prcp_data_reverse</code></td>
+            <td>结果对比与展示</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>0.7 实现状态对照</h3>
+    <p>上图的<b>数据通道已全部打通</b>，但三类计量模型本身仍待实现。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:56px">环节</th><th style="width:190px">能力</th>
+        <th style="width:100px">状态</th><th>说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>①</b></td><td>反算方案含算法/账户册/日期/目标</td>
+            <td><span class="tag tag-done">已就绪</span></td>
+            <td><code>prcp_reverse_scheme</code> 已有 <code>algorithm</code>、<code>model_id</code>、<code>coa_scheme_id</code>、<code>data_date</code> 字段</td></tr>
+        <tr><td><b>②</b></td><td>节点按模型/非模型分流</td>
+            <td><span class="tag tag-done">已就绪</span></td>
+            <td><code>prcp_sim_node_config.is_model_calc</code> 1=模型测算 / 2=非模型测算</td></tr>
+        <tr><td><b>③</b></td><td>新业务模拟产出预测</td>
+            <td><span class="tag tag-done">已就绪</span></td>
+            <td>NewBusinessEngine v2.4，60 月推演 + 完整到期排期</td></tr>
+        <tr><td><b>④</b></td><td>三类算法引擎</td>
+            <td><span class="tag tag-plan">待实现</span></td>
+            <td><code>ant_colony_engine</code> / DNN / 非线性求解引擎<b>均不存在</b>；
+                现有 <code>ALGO_REGISTRY</code> 只有线性回归 / 逻辑斯蒂 / 蒙特卡洛 / 线性规划</td></tr>
+        <tr><td><b>④</b></td><td>模型结果与模拟结果合并</td>
+            <td><span class="tag tag-part">部分</span></td>
+            <td>反算引擎当前只加载 <code>prcp_data_balance</code>，<b>未消费 <code>sim_result</code></b></td></tr>
+        <tr><td><b>④</b></td><td>DNN 奖励函数接评分</td>
+            <td><span class="tag tag-part">部分</span></td>
+            <td>参数模板已备（<code>LOSS_SIGMA</code>/<code>LOSS_MU</code>/<code>LOSS_LAMBDA</code>），<b>训练引擎未实现</b></td></tr>
+        <tr><td><b>④</b></td><td>DNN 训练接 ESG 曲线</td>
+            <td><span class="tag tag-part">部分</span></td>
+            <td>ESG 曲线已产出（<code>prcp_esg_curve_point</code>），<b>模型训练未读取</b></td></tr>
+        <tr><td><b>⑤</b></td><td>指标值计量 + 评分</td>
+            <td><span class="tag tag-done">已就绪</span></td>
+            <td>公式引擎 / 函数执行器 / 分段插值评分均可用</td></tr>
+        <tr><td><b>⑥</b></td><td>结果整理展示</td>
+            <td><span class="tag tag-done">已就绪</span></td>
+            <td><code>prcp_reverse_result</code> + <code>prcp_data_reverse</code> + 反算驾驶舱</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note warn">
+      <b>打通链路的三个关键改造点</b>
+      <ul style="margin:8px 0 0">
+        <li><b>反算引擎装载模拟结果</b>：<code>_load_balance</code> 需同时读 <code>prcp_data_balance</code>
+            （存量底数）与 <code>prcp_sim_result</code>（非模型节点预测），按 <code>is_model_calc</code> 合并</li>
+        <li><b>新增三类算法引擎</b>：实现 <code>services/ant_colony_engine</code>、DNN 引擎、非线性求解引擎，
+            并注册进 <code>ALGO_REGISTRY</code></li>
+        <li><b>模型与 ESG/评分联动</b>：训练引擎扩展 <code>_load_balance_data</code>，
+            注入 <code>prcp_esg_curve_point</code> 曲线序列作为特征，
+            并在损失函数中调用 <code>/kpi/score-calc</code> 逻辑算奖励</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     1 系统总览
+============================================================ -->
+<div class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>系统总览</h2>
+    <span class="tag tag-b">一张图看懂 PRCP</span></div>
+  <div class="sec-b">
+
+    <h3>1.1 平台定位</h3>
+    <p>
+      PRCP（Portfolio Resource Coordination Platform）是面向银行<b>资产负债管理（ALM）</b>与
+      <b>价值管理（VM）</b>的一体化计量决策平台。核心能力：
+    </p>
+    <ul>
+      <li><b>建账</b> —— 账户册（CoA）定义资产负债科目树与基准日余额</li>
+      <li><b>算指标</b> —— 公式/函数双引擎计算监管与经营指标，并打分</li>
+      <li><b>做预测</b> —— 新业务模拟推演未来 5 年余额与期限结构</li>
+      <li><b>反推解</b> —— 组合反算求解满足 KPI 约束的最优资产负债路径</li>
+      <li><b>做情景</b> —— ESG 场景工厂生成经济情景与收益率曲线</li>
+    </ul>
+
+    <div class="kpi">
+      <div><div class="k">路由模块</div><div class="v">21</div></div>
+      <div><div class="k">后端端点</div><div class="v">245</div></div>
+      <div><div class="k">数据表</div><div class="v">55</div></div>
+      <div><div class="k">前端路由</div><div class="v">27</div></div>
+      <div><div class="k">算法引擎</div><div class="v">5</div></div>
+      <div><div class="k">指标函数</div><div class="v">12</div></div>
+    </div>
+
+    <h3>1.2 能力全景</h3>
+    <div class="arch">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--blue)">L1 · 展现层 <span class="lt-d">Vue3 + Ant Design + ECharts（27 路由）</span></div>
+        <div class="row">
+          <div class="node b"><div class="nt">驾驶舱</div><div class="ns">dashboard</div></div>
+          <div class="node b"><div class="nt">账户册</div><div class="ns">coa</div></div>
+          <div class="node b"><div class="nt">报表管理</div><div class="ns">reports</div></div>
+          <div class="node b"><div class="nt">指标管理</div><div class="ns">kpi</div></div>
+          <div class="node b"><div class="nt">数据维护</div><div class="ns">data-maint</div></div>
+          <div class="node b"><div class="nt">模型管理</div><div class="ns">model</div></div>
+          <div class="node b"><div class="nt">组合反算</div><div class="ns">reverse</div></div>
+          <div class="node b"><div class="nt">利率管理</div><div class="ns">rate</div></div>
+          <div class="node b"><div class="nt">新业务模拟</div><div class="ns">sim</div></div>
+          <div class="node b"><div class="nt">ESG 工厂</div><div class="ns">esg</div></div>
+          <div class="node b"><div class="nt">指标参数</div><div class="ns">*-param</div></div>
+          <div class="node b"><div class="nt">系统管理</div><div class="ns">system</div></div>
+        </div>
+      </div>
+
+      <div class="arrow">▼</div>
+
+      <div class="layer">
+        <div class="layer-t" style="color:var(--purple)">L2 · 应用层 <span class="lt-d">FastAPI Router（21 模块 / 245 端点）</span></div>
+        <div class="row">
+          <div class="node p"><div class="nt">配置域</div><div class="ns">coa·reports·kpi·rate·model</div></div>
+          <div class="node p"><div class="nt">计算域</div><div class="ns">engines·reverse·esg</div></div>
+          <div class="node p"><div class="nt">数据域</div><div class="ns">basic·data_maint·data_reverse</div></div>
+          <div class="node p"><div class="nt">参数域</div><div class="ns">lcr/nsfr/cet1/eve/nim/roe·coefficient</div></div>
+          <div class="node p"><div class="nt">系统域</div><div class="ns">auth·admin·dict</div></div>
+        </div>
+      </div>
+
+      <div class="arrow">▼</div>
+
+      <div class="layer">
+        <div class="layer-t" style="color:var(--orange)">L3 · 算法层 <span class="lt-d">services/ · 可插拔引擎</span></div>
+        <div class="row">
+          <div class="node o"><div class="nt">新业务引擎</div><div class="ns">new_business</div></div>
+          <div class="node o"><div class="nt">反算引擎</div><div class="ns">QP·LP·Heuristic</div></div>
+          <div class="node o"><div class="nt">模型训练</div><div class="ns">LR·MC·LP</div></div>
+          <div class="node o"><div class="nt">公式引擎</div><div class="ns">formula_engine</div></div>
+          <div class="node o"><div class="nt">函数执行器</div><div class="ns">kpi_function_runner</div></div>
+          <div class="node o"><div class="nt">ESG 算法</div><div class="ns">Svensson·PCA·MC</div></div>
+        </div>
+      </div>
+
+      <div class="arrow">▼</div>
+
+      <div class="layer">
+        <div class="layer-t" style="color:var(--green)">L4 · 数据层 <span class="lt-d">MySQL 8 · prcp_db（55 表 / 8 数据域）</span></div>
+        <div class="row">
+          <div class="node g"><div class="nt">账户册域</div><div class="ns">coa_node·data_basic</div></div>
+          <div class="node g"><div class="nt">指标域</div><div class="ns">kpi_*（5 表）</div></div>
+          <div class="node g"><div class="nt">报表域</div><div class="ns">rpt_*（3 表）</div></div>
+          <div class="node g"><div class="nt">模拟域</div><div class="ns">sim_*（7 表）</div></div>
+          <div class="node g"><div class="nt">反算域</div><div class="ns">reverse_*（6 表）</div></div>
+          <div class="node g"><div class="nt">ESG 域</div><div class="ns">esg_*（4 表）</div></div>
+          <div class="node g"><div class="nt">参数域</div><div class="ns">*_param·metric_*</div></div>
+          <div class="node g"><div class="nt">系统域</div><div class="ns">sys_*（6 表）</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note note-b">
+      <b>核心主线</b>：账户册（科目 + 余额 + 期限桶）是唯一的<b>数据源头</b>，
+      指标、模拟、反算、ESG 四个计算域都从它派生；
+      而<b>参数域</b>（LCR/NSFR/CET1/EVE/NIM/ROE 折算系数）为指标域提供计算口径。
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     2 分层架构
+============================================================ -->
+<div class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>分层架构</h2></div>
+  <div class="sec-b">
+
+    <h3>2.1 请求处理链路</h3>
+    <div class="chain">
+      <div class="cn b"><div class="cs">1</div><div class="ct">浏览器</div><div class="cd">Vue3 SPA<br>HashRouter</div></div>
+      <div class="ca">→</div>
+      <div class="cn b"><div class="cs">2</div><div class="ct">Nginx</div><div class="cd">/prcp/api → 8006<br>/prcp/ → 静态</div></div>
+      <div class="ca">→</div>
+      <div class="cn c"><div class="cs">3</div><div class="ct">中间件</div><div class="cd">CORS·JWT<br>异常处理</div></div>
+      <div class="ca">→</div>
+      <div class="cn p"><div class="cs">4</div><div class="ct">Router</div><div class="cd">21 模块<br>按 prefix 分发</div></div>
+      <div class="ca">→</div>
+      <div class="cn o"><div class="cs">5</div><div class="ct">Service</div><div class="cd">业务编排<br>引擎调用</div></div>
+      <div class="ca">→</div>
+      <div class="cn g"><div class="cs">6</div><div class="ct">SQLAlchemy</div><div class="cd">Session<br>事务</div></div>
+      <div class="ca">→</div>
+      <div class="cn g"><div class="cs">7</div><div class="ct">MySQL 8</div><div class="cd">prcp_db<br>55 表</div></div>
+    </div>
+
+    <h3>2.2 认证与统一约定</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">约定</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>API 前缀</b></td><td>全部 <code>/prcp/api/{module-prefix}</code>，在 <code>main.py</code> 统一 include_router</td></tr>
+        <tr><td><b>认证</b></td><td>除 <code>/auth/login</code> 外均需 <code>Authorization: Bearer &lt;token&gt;</code></td></tr>
+        <tr><td><b>登录格式</b></td><td><code>OAuth2PasswordRequestForm</code>（form-data），<b>不能发 JSON</b>（会 422）</td></tr>
+        <tr><td><b>密码算法</b></td><td>SHA-256 扩展兼容，密钥 <code>prcp-secret-key-2026</code></td></tr>
+        <tr><td><b>响应包装</b></td><td>前端 <code>request.js</code> 拦截器已解包 <code>res.data</code>，业务代码直接取 <code>res.items</code></td></tr>
+        <tr><td><b>软删除</b></td><td>全表统一 <code>is_deleted</code> 标记 + <code>created_by/updated_by/created_at/updated_at</code> 审计四件套</td></tr>
+        <tr><td><b>字典</b></td><td><code>sys_dict</code> + <code>sys_dict_item</code>，前端 <code>DictTag</code> 组件渲染</td></tr>
+        <tr><td><b>引擎协议</b></td><td>所有引擎实现 <code>EngineBase</code>，统一暴露 run / getRun / listRuns / listResults</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>2.3 引擎抽象层</h3>
+    <div class="arch">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--purple)">EngineBase 抽象基类 <span class="lt-d">services/calculate_engine/base.py</span></div>
+        <div class="row">
+          <div class="node p"><div class="nt">run()</div><div class="ns">执行 → run_id</div></div>
+          <div class="node p"><div class="nt">getRun()</div><div class="ns">状态 + 进度</div></div>
+          <div class="node p"><div class="nt">listRuns()</div><div class="ns">历史执行</div></div>
+          <div class="node p"><div class="nt">listResults()</div><div class="ns">结果快照</div></div>
+        </div>
+        <div style="margin-top:11px;font-size:11.5px;color:var(--txt2);font-family:var(--mono)">
+          engine_type · engine_name · run_table_name · result_table_name
+        </div>
+      </div>
+      <div class="arrow">▼ 注册到 EngineRegistry（线程安全单例）</div>
+      <div class="layer">
+        <div class="row">
+          <div class="node o"><div class="nt">NewBusinessEngine</div><div class="ns">new_business</div></div>
+          <div class="node c"><div class="nt">（预留）ESG 引擎</div><div class="ns">esg</div></div>
+          <div class="node c"><div class="nt">（预留）反算引擎</div><div class="ns">reverse</div></div>
+        </div>
+        <div style="margin-top:9px;font-size:11px;color:var(--txt3)">
+          新业务模拟走统一协议；反算与 ESG 引擎为独立实现，接口形态已对齐但未纳入注册表
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     3 模块关系矩阵
+============================================================ -->
+<div class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>模块关系矩阵</h2>
+    <span class="tag tag-o">谁依赖谁</span></div>
+  <div class="sec-b">
+
+    <h3>3.1 数据依赖矩阵</h3>
+    <p>行 = 消费方模块，列 = 被引用的数据源。绿 = 直接读写，黄 = 经中间层间接引用。</p>
+    <div class="tbl">
+    <table class="dep">
+      <thead><tr>
+        <th>消费方 ↓ / 数据源 →</th>
+        <th>coa</th><th>basic</th><th>kpi</th><th>rpt</th><th>sim</th>
+        <th>reverse</th><th>esg</th><th>param</th><th>rate</th><th>model</th><th>dict</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>账户册 coa</td>
+          <td class="y">主表</td><td class="y">写入</td><td class="n">—</td><td class="m">报表项引用</td>
+          <td class="n">—</td><td class="m">反算引用</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>基础数据 basic</td>
+          <td class="y">读取</td><td class="y">主表</td><td class="n">—</td><td class="n">—</td>
+          <td class="m">模拟取数</td><td class="m">反算取数</td><td class="n">—</td>
+          <td class="m">参数取数</td><td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>指标 kpi</td>
+          <td class="m">报表挂靠</td><td class="y">函数取数</td><td class="y">主表</td><td class="y">读取表项</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td>
+          <td class="y">函数取数</td><td class="n">—</td><td class="n">—</td><td class="y">单位/类型</td></tr>
+        <tr><td>报表 reports</td>
+          <td class="m">科目来源</td><td class="y">取值</td><td class="y">指标挂靠</td><td class="y">主表</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="y">单位</td></tr>
+        <tr><td>新业务模拟 sim</td>
+          <td class="y">读取节点</td><td class="y">读取余额+桶</td><td class="n">—</td><td class="n">—</td>
+          <td class="y">主表</td><td class="n">—</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>组合反算 reverse</td>
+          <td class="y">读取节点</td><td class="y">读取余额</td><td class="y">读取指标</td><td class="n">—</td>
+          <td class="n">—</td><td class="y">主表</td><td class="n">—</td><td class="y">读取参数</td>
+          <td class="m">利率假设</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>ESG esg</td>
+          <td class="m">节点映射</td><td class="m">敞口映射</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="y">主表</td><td class="n">—</td>
+          <td class="y">曲线</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>模型 model</td>
+          <td class="m">节点</td><td class="y">训练取数</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="y">主表</td><td class="n">—</td></tr>
+        <tr><td>参数 param</td>
+          <td class="y">节点级</td><td class="y">余额取数</td><td class="m">指标关联</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="y">主表</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td></tr>
+        <tr><td>数据维护 maint</td>
+          <td class="y">节点</td><td class="y">写入</td><td class="n">—</td><td class="y">报表值</td>
+          <td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td>
+          <td class="n">—</td><td class="n">—</td><td class="y">码值</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>3.2 依赖要点</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">依赖</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>basic ← 所有计算域</b></td>
+            <td>基础数据表（余额 + 128 个期限桶）是<b>唯一数据源头</b>，模拟/反算/模型/指标函数都从它取数</td></tr>
+        <tr><td><b>param → kpi</b></td>
+            <td>LCR/NSFR/CET1/EVE/NIM/ROE 六个参数表存放<b>折算系数与运算符</b>，被指标函数脚本读取</td></tr>
+        <tr><td><b>kpi → reverse</b></td>
+            <td>反算的约束目标取自 <code>prcp_kpi_value</code>（指标当前值/目标值）</td></tr>
+        <tr><td><b>rate → esg / reverse</b></td>
+            <td>收益率曲线作为 ESG 情景生成与反算利率假设的输入</td></tr>
+        <tr><td><b>dict → 全局</b></td>
+            <td>字典提供单位、指标类型、状态等枚举的显示值</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>3.3 关键数据流：一条业务线</h3>
+    <div class="chain">
+      <div class="cn b"><div class="cs">STEP 1</div><div class="ct">建账户册</div><div class="cd">coa_node 树<br>+ 基准日余额</div></div>
+      <div class="ca">→</div>
+      <div class="cn b"><div class="cs">STEP 2</div><div class="ct">录基础数据</div><div class="cd">data_basic<br>余额 + 期限桶</div></div>
+      <div class="ca">→</div>
+      <div class="cn c"><div class="cs">STEP 3</div><div class="ct">配参数</div><div class="cd">*_param<br>折算系数</div></div>
+      <div class="ca">→</div>
+      <div class="cn p"><div class="cs">STEP 4</div><div class="ct">定指标</div><div class="cd">kpi_definition<br>公式/脚本</div></div>
+      <div class="ca">→</div>
+      <div class="cn o"><div class="cs">STEP 5</div><div class="ct">算指标</div><div class="cd">函数/公式<br>→ kpi_value</div></div>
+      <div class="ca">→</div>
+      <div class="cn o"><div class="cs">STEP 6</div><div class="ct">配评分</div><div class="cd">分段 + 插值<br>→ score</div></div>
+      <div class="ca">→</div>
+      <div class="cn g"><div class="cs">STEP 7</div><div class="ct">报表呈现</div><div class="cd">rpt_value<br>驾驶舱</div></div>
+      <div class="ca">→</div>
+      <div class="cn p"><div class="cs">STEP 8</div><div class="ct">反算/模拟</div><div class="cd">reverse·sim<br>输出预测</div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     4 模块内部管理
+============================================================ -->
+<div class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>模块内部管理</h2>
+    <span class="tag tag-g">8 大模块</span></div>
+  <div class="sec-b">
+
+    <h3>4.1 模块卡片总览</h3>
+    <div class="mods">
+
+      <div class="mod">
+        <div class="mod-h"><span class="mn">① 账户册管理</span><span class="mc">/coa · 9 端点</span></div>
+        <div class="mr">定义资产负债科目树，是全平台的数据骨架。所有计算域的节点都从这里取。</div>
+        <div class="mt"><b>主表</b> prcp_coa_node（树形）· prcp_coa_scheme</div>
+        <div class="mt"><b>管理</b> 方案 CRUD · 节点树 CRUD · 节点排序/层级</div>
+        <div class="ms"><span class="tag tag-b">树形</span><span class="tag tag-y">层级 node_level</span></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mn">② 基础数据</span><span class="mc">/basic · 6 端点</span></div>
+        <div class="mr">导入/维护基准日的余额、加权利率与 128 个期限桶，是引擎计算的唯一底数。</div>
+        <div class="mt"><b>主表</b> prcp_data_basic（152 列）</div>
+        <div class="mt"><b>桶结构</b> orig_m1~m60+y10~y30 · rem_m1~m60+y10~y30</div>
+        <div class="ms"><span class="tag tag-o">128 桶</span><span class="tag tag-y">绝对到期月</span></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mn">③ 指标管理</span><span class="mc">/kpi · 23 端点</span></div>
+        <div class="mr">指标定义、计算、评分、值维护。公式指标与函数指标双引擎，含分段插值评分。</div>
+        <div class="mt"><b>主表</b> kpi_scheme · definition · value · score_rule · score_segment</div>
+        <div class="mt"><b>管理</b> 方案/定义 CRUD · 公式试算 · 评分分段 · 批量试算</div>
+        <div class="ms"><span class="tag tag-p">双引擎</span><span class="tag tag-c">插值评分</span></div>
+      </div>
+
+      <div class="mod">
+        <div class="mod-h"><span class="mn">④ 报表管理</span><span class="mc">/reports · 10 端点</span></div>
+        <div class="mr">6 类报表的定义与表项树，指标挂在表项下；月度值由数据维护或引擎写入。</div>
+        <div class="mt"><b>主表</b> prcp_rpt_report · prcp_rpt_item（树形）· prcp_rpt_value</div>
+        <div class="mt"><b>管理</b> 报表 CRUD · 表项树 · 指标挂靠 · 月度值</div>
+        <div class="ms"><span class="tag tag-b">6 类报表</span><span class="tag tag-y">树形表项</span></div>
+      </div>
+
+      <div class="mod c">
+        <div class="mod-h"><span class="mn">⑤ 新业务模拟</span><span class="mc">/sim · 4 端点</span></div>
+        <div class="mr">配置增长方式/节奏/期限占比，引擎按月推演 60 个月的余额、期限结构、利率与利息。</div>
+        <div class="mt"><b>主表</b> sim_scheme · node_config · growth_config · rhythm · term_ratio · run · result</div>
+        <div class="mt"><b>引擎</b> NewBusinessEngine（5 步算法 · full_plan 完整排期）</div>
+        <div class="ms"><span class="tag tag-c">60 月</span><span class="tag tag-o">4 种增长方式</span></div>
+      </div>
+
+      <div class="mod p">
+        <div class="mod-h"><span class="mn">⑥ 组合反算</span><span class="mc">/reverse · 18 端点</span></div>
+        <div class="mr">给定 KPI 目标，反解满足约束的资产负债最优路径（24 个月预测）。</div>
+        <div class="mt"><b>主表</b> reverse_scheme · target · run · run_log · result</div>
+        <div class="mt"><b>求解</b> 二次规划（主）· 线性规划 · 启发式（兜底）</div>
+        <div class="ms"><span class="tag tag-p">QP 求解</span><span class="tag tag-y">24 月</span></div>
+      </div>
+
+      <div class="mod g">
+        <div class="mod-h"><span class="mn">⑦ ESG 场景工厂</span><span class="mc">/esg · 25 端点</span></div>
+        <div class="mr">构建经济情景（增长/通胀/利率），生成 Svensson 收益率曲线并做因子暴露校验。</div>
+        <div class="mt"><b>主表</b> esg_scheme · scenario · curve_point · run</div>
+        <div class="mt"><b>算法</b> Svensson 6 参数 · 情景生成 · PCA 因子 · 蒙特卡洛</div>
+        <div class="ms"><span class="tag tag-g">Svensson</span><span class="tag tag-c">情景</span></div>
+      </div>
+
+      <div class="mod o">
+        <div class="mod-h"><span class="mn">⑧ 模型管理</span><span class="mc">/model · 26 端点</span></div>
+        <div class="mr">模型定义、参数版本、异步训练与结果管理，支撑情景下的指标预测。</div>
+        <div class="mt"><b>主表</b> model · model_param · model_version · model_train · _log · _result</div>
+        <div class="mt"><b>算法</b> 线性回归 · 逻辑增长 · 蒙特卡洛 · 线性规划</div>
+        <div class="ms"><span class="tag tag-o">异步训练</span><span class="tag tag-y">多版本</span></div>
+      </div>
+
+    </div>
+
+    <h3>4.2 六大指标参数模块</h3>
+    <p>这六个模块结构高度同构，是「指标口径参数化」的统一实现。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:110px">参数模块</th><th style="width:120px">API 前缀</th>
+        <th style="width:140px">主表</th><th>维护内容</th><th style="width:90px">端点</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>LCR</b> 流动性覆盖率</td><td><code>/lcr-param</code></td><td><code>prcp_lcr_param</code></td>
+            <td>HQLA 分子分母、折算系数与运算符（按方案+节点+日期）</td><td class="num">5</td></tr>
+        <tr><td><b>NSFR</b> 净稳定资金比例</td><td><code>/nsfr-param</code></td><td><code>prcp_nsfr_param</code></td>
+            <td>ASF / RSF 折算系数与运算符</td><td class="num">5</td></tr>
+        <tr><td><b>CET1</b> 核心一级资本充足率</td><td><code>/cet1-param</code></td><td><code>prcp_cet1_param</code></td>
+            <td>资本扣减项与风险加权资产口径</td><td class="num">5</td></tr>
+        <tr><td><b>EVE</b> 经济价值变动</td><td><code>/eve-param</code></td><td><code>prcp_eve_param</code></td>
+            <td>利率冲击情景与现金流折现参数</td><td class="num">5</td></tr>
+        <tr><td><b>NIM</b> 净息差</td><td><code>/nim-param</code></td><td><code>prcp_nim_param</code></td>
+            <td>生息资产/计息负债口径与利差</td><td class="num">5</td></tr>
+        <tr><td><b>ROE</b> 净资产收益率</td><td><code>/roe-param</code></td><td><code>prcp_roe_param</code></td>
+            <td>净利润与净资产口径</td><td class="num">5</td></tr>
+        <tr><td><b>计量系数</b></td><td><code>/metric-coefficient</code></td><td><code>prcp_metric_coefficient</code></td>
+            <td>6 类指标项的通用系数维护</td><td class="num">9</td></tr>
+        <tr><td><b>指标项定义</b></td><td>（由 metric 维护）</td><td><code>prcp_metric_item</code></td>
+            <td>6 类指标项元数据</td><td class="num">—</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>4.3 各模块的内部管理动作</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">模块</th><th style="width:230px">核心管理动作</th><th>状态机 / 关键约束</th></tr></thead>
+      <tbody>
+        <tr><td><b>账户册</b></td>
+            <td>方案 CRUD · 节点树增删改 · 节点排序 · 导入导出</td>
+            <td>节点层级唯一；叶子节点才可挂指标/模拟配置</td></tr>
+        <tr><td><b>基础数据</b></td>
+            <td>按 scheme × data_date 维护 152 列 · 批量导入导出 · 桶回填</td>
+            <td>同一 (方案, 日期) 唯一；桶数必须完整（128 桶）</td></tr>
+        <tr><td><b>指标</b></td>
+            <td>方案 → 定义 → 评分规则 → 取值 四层管理</td>
+            <td>方案隔离；公式依赖同方案其他指标；<code>score_min</code> 空 = 阶梯评分</td></tr>
+        <tr><td><b>报表</b></td>
+            <td>报表定义 → 表项树 → 指标挂靠 → 月度值</td>
+            <td>6 类报表固定分类；表项与指标多对多挂靠</td></tr>
+        <tr><td><b>新业务模拟</b></td>
+            <td>方案 → 节点配置 → 增长/节奏/期限 → 运行 → 结果</td>
+            <td>节奏权重合计 = 100%；期限占比合计 = 100%；预测期 ≤ 60 月</td></tr>
+        <tr><td><b>组合反算</b></td>
+            <td>方案 → 目标指标 → 求解 → 结果对比</td>
+            <td>目标可达性预判；QP 失败自动降级 LP → 启发式</td></tr>
+        <tr><td><b>ESG</b></td>
+            <td>方案 → 情景集 → 曲线生成 → 校验 → 结果</td>
+            <td>Svensson 6 参数须单调；因子暴露须在容忍区间</td></tr>
+        <tr><td><b>模型</b></td>
+            <td>模型 → 参数 → 版本 → 异步训练 → 结果</td>
+            <td>训练任务异步执行，带进度与日志；结果按版本留存</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     5 算法引用链
+============================================================ -->
+<div class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>算法引用链</h2>
+    <span class="tag tag-o">5 大引擎</span></div>
+  <div class="sec-b">
+
+    <h3>5.1 算法总览</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:130px">算法</th><th style="width:120px">实现位置</th>
+        <th style="width:150px">触发方式</th><th>核心能力</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>新业务模拟引擎</b></td><td><code>services/calculate_engine/<br>new_business/engine.py</code></td>
+            <td><code>POST /sim/schemes/{id}/run</code></td>
+            <td>60 月按月推演：年目标 → 节奏分摊 → 取到期 → 期限落桶 → 指标重算</td></tr>
+        <tr><td><b>反算引擎</b></td><td><code>services/reverse_calc_engine.py</code></td>
+            <td><code>POST /reverse/...</code></td>
+            <td>QP 二次规划求 24 月最优路径（最小化现金流波动 + 满足 KPI 约束）</td></tr>
+        <tr><td><b>模型训练引擎</b></td><td><code>services/model_train_engine.py</code></td>
+            <td><code>POST /model/train</code></td>
+            <td>线性回归 / 逻辑增长 / 蒙特卡洛 / 线性规划，异步训练</td></tr>
+        <tr><td><b>公式引擎</b></td><td><code>services/formula_engine.py</code></td>
+            <td><code>POST /kpi/formula/eval</code></td>
+            <td>词法分析 → 递归下降求值；支持四则运算与内置函数</td></tr>
+        <tr><td><b>函数执行器</b></td><td><code>services/kpi_function_runner.py</code></td>
+            <td>指标 type=2 自动调用</td>
+            <td>动态加载 Python 脚本模块并执行指定函数</td></tr>
+        <tr><td><b>ESG 算法集</b></td><td><code>services/esg/</code></td>
+            <td><code>POST /esg/...</code></td>
+            <td>Svensson 曲线 · 情景生成 · 因子暴露校验 · 蒙特卡洛</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>5.2 新业务模拟引擎 · 5 步算法</h3>
+    <div class="chain">
+      <div class="cn"><div class="cs">STEP 1</div><div class="ct">年目标增量</div><div class="cd">base_balance<br>× year_value</div></div>
+      <div class="ca">→</div>
+      <div class="cn"><div class="cs">STEP 2</div><div class="ct">节奏分摊</div><div class="cd">× rhythm_weight<br>Σ = 100%</div></div>
+      <div class="ca">→</div>
+      <div class="cn o"><div class="cs">STEP 3</div><div class="ct">取当月到期</div><div class="cd">peek / take_due<br>rem_m{M}</div></div>
+      <div class="ca">→</div>
+      <div class="cn p"><div class="cs">STEP 4</div><div class="ct">期限落桶</div><div class="cd">rem_m{M+v}<br>+ full_plan</div></div>
+      <div class="ca">→</div>
+      <div class="cn g"><div class="cs">STEP 5</div><div class="ct">指标重算</div><div class="cd">balance / rate<br>/ interest</div></div>
+    </div>
+    <div class="note note-b">
+      <b>核心设计 · 绝对到期月口径</b>：第 M 月投放期限 v → 直落 <code>rem_m{M+v}</code>（取消「剩余期限每月前移」）。
+      基准日时「剩余期限」= 「距基准日到期月数」，故存量数据<b>零迁移</b>。<br>
+      <b>full_plan 完整排期</b>：跨越 60 个月累加每一笔投放的落点，得到与「当前是第几月」无关的最终排期，
+      回填到每一行，使 M1 行也能看到未来 5 年每月都有到期。
+    </div>
+
+    <h3>5.3 指标计算：双引擎分派</h3>
+    <div class="arch">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--blue)">指标定义（indicator_type 二选一）</div>
+        <div class="row">
+          <div class="node b"><div class="nt">type = 1 公式指标</div><div class="ns">formula 字段</div></div>
+          <div class="node c"><div class="nt">type = 2 函数指标</div><div class="ns">script_path + script_name</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--orange)">求值</div>
+        <div class="row">
+          <div class="node o"><div class="nt">公式引擎</div><div class="ns">evaluate(formula, ctx)<br>tokenize → _eval_expr</div></div>
+          <div class="node o"><div class="nt">函数执行器</div><div class="ns">run_function_kpi(...)<br>_load_module → 调用</div></div>
+        </div>
+        <div style="margin-top:10px;font-size:11.5px;color:var(--txt2);font-family:var(--mono)">
+          ctx = { kpi_code: 同方案同日期其他指标值 }　（未算出按 0）
+        </div>
+      </div>
+    </div>
+
+    <h3>5.4 指标函数脚本 · 引用链</h3>
+    <p>12 个脚本分两组：<code>reg_*</code>（监管口径）与 <code>pnn_*</code>（内部穿透口径）。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:100px">脚本</th><th style="width:120px">对应指标</th>
+        <th style="width:210px">引用数据源</th><th>算法要点</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>reg_lcr.py</code></td><td>REG_LCR</td>
+            <td><code>prcp_lcr_param</code> JOIN <code>prcp_data_basic</code></td>
+            <td>HQLA 分子按 <code>is_numerator=1</code> 筛选，逐项按折算系数加权</td></tr>
+        <tr><td><code>reg_nsfr.py</code></td><td>REG_NSFR</td>
+            <td><code>prcp_nsfr_param</code> + <code>data_basic</code></td>
+            <td>ASF / RSF 加权，求净稳定资金比例</td></tr>
+        <tr><td><code>reg_cet1.py</code></td><td>REG_CET1</td>
+            <td><code>prcp_cet1_param</code> + <code>data_basic</code></td>
+            <td>核心一级资本净额 / 风险加权资产</td></tr>
+        <tr><td><code>reg_eve.py</code></td><td>REG_EVE</td>
+            <td><code>prcp_eve_param</code> + 利率曲线</td>
+            <td>利率冲击下各期现金流折现，IRR 求经济价值变动</td></tr>
+        <tr><td><code>reg_roe.py</code></td><td>REG_ROE</td>
+            <td><code>prcp_roe_param</code> + <code>data_basic</code></td>
+            <td>净利润 / 净资产</td></tr>
+        <tr><td><code>pnn_lcr.py</code> <code>pnn_nsfr.py</code><br>
+                <code>pnn_cet1.py</code> <code>pnn_roe.py</code><br><code>pnn_deve.py</code></td>
+            <td>内部穿透口径版本</td>
+            <td>同上，但用穿透后口径</td>
+            <td>与 reg_* 同构，参数表口径不同</td></tr>
+        <tr><td><code>demo_nim.py</code> <code>demo_add.py</code></td>
+            <td>演示用</td><td>—</td><td>简单加总示例，供验证执行器链路</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>5.5 评分算法 · 两种模式</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:110px">算法</th><th style="width:140px">段语义</th>
+        <th style="width:220px">计算式</th><th>说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>PIECEWISE</b><br>分段</td><td><code>[min, max)</code> 区间</td>
+            <td><code>score_min + (x−min)/(max−min) × (score−score_min)</code></td>
+            <td><code>score_min</code> 为空 → 阶梯评分（取该段 score）；非空且区间宽 &gt; 0 → 段内插值</td></tr>
+        <tr><td><b>LINEAR</b><br>线性</td><td><code>(x, score)</code> 锚点对</td>
+            <td><code>y1 + (x−x1)/(x2−x1) × (y2−y1)</code></td>
+            <td>锚点按 x 升序插值；超出范围按端点 <b>clamp</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>5.6 反算引擎 · 求解器</h3>
+    <div class="arch">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--purple)">决策变量：x = (24 月 × N 账户册节点)</div>
+        <div class="row">
+          <div class="node p"><div class="nt">约束</div><div class="ns">KPI 目标<br>（来自 kpi_value）</div></div>
+          <div class="node p"><div class="nt">约束</div><div class="ns">资产负债恒等<br>A = L + E</div></div>
+          <div class="node p"><div class="nt">约束</div><div class="ns">节点非负<br>缺口上限</div></div>
+          <div class="node p"><div class="nt">目标</div><div class="ns">min 总现金流波动<br>（二阶差分平滑）</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼ 依次尝试</div>
+      <div class="layer">
+        <div class="row">
+          <div class="node g"><div class="nt">① 二次规划 QP</div><div class="ns">主解法 · 平滑最优</div></div>
+          <div class="node o"><div class="nt">② 线性规划 LP</div><div class="ns">QP 不可行时降级</div></div>
+          <div class="node r"><div class="nt">③ 启发式</div><div class="ns">兜底 · 逐项逼近</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>5.7 模型训练引擎 · 4 种算法</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">算法</th><th style="width:150px">函数</th><th>用途</th></tr></thead>
+      <tbody>
+        <tr><td><b>线性回归</b></td><td><code>_train_linear_regression</code></td><td>指标与规模因子的线性关系，用于趋势外推</td></tr>
+        <tr><td><b>逻辑增长</b></td><td><code>_train_logistic_growth</code></td><td>S 形饱和增长（业务规模天花板）</td></tr>
+        <tr><td><b>蒙特卡洛</b></td><td><code>_train_monte_carlo</code></td><td>含不确定性的分布预测，输出分位数</td></tr>
+        <tr><td><b>线性规划</b></td><td><code>_train_linear_program</code></td><td>带约束的最优参数标定</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note">
+      <b>训练数据来源</b>：<code>_load_balance_data</code> 从 <code>prcp_data_basic</code> 按
+      <code>(coa_scheme_id, date_from, date_to)</code> 区间取余额序列，喂给算法。
+    </div>
+
+    <h3>5.8 ESG 算法集</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:190px">组件</th><th style="width:130px">类/函数</th><th>职责</th></tr></thead>
+      <tbody>
+        <tr><td><b>Svensson 曲线</b></td><td><code>SvenssonYieldCurve</code><br><code>svensson_rates</code></td>
+            <td>6 参数（2 水平 + 2 斜率 + 2 曲率）拟合收益率曲线，输出各期限利率</td></tr>
+        <tr><td><b>情景生成</b></td><td><code>ScenarioSet</code></td>
+            <td>定义增长/通胀/利率等宏观因子的情景组合</td></tr>
+        <tr><td><b>曲线生成器</b></td><td><code>YieldCurveGenerator</code></td>
+            <td>由情景生成完整期限结构，写入 <code>prcp_esg_curve_point</code></td></tr>
+        <tr><td><b>校验器</b></td><td><code>validate_paths</code><br><code>validate_factor_loadings</code></td>
+            <td>校验情景路径单调性与因子暴露是否在容忍区间</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>5.9 引擎与数据源的引用矩阵</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:150px">算法</th>
+        <th style="width:180px">读取的数据表</th>
+        <th style="width:150px">写入的数据表</th><th>外部依赖</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>新业务模拟</b></td>
+            <td><code>data_basic</code> · <code>coa_node</code> · <code>sim_growth_config</code> · <code>sim_rhythm</code> · <code>sim_term_ratio</code></td>
+            <td><code>sim_result</code> · <code>sim_run</code></td><td>无</td></tr>
+        <tr><td><b>反算</b></td>
+            <td><code>data_basic</code> · <code>coa_node</code> · <code>kpi_value</code> · <code>*_param</code></td>
+            <td><code>reverse_result</code> · <code>reverse_run</code> · <code>reverse_run_log</code></td>
+            <td>numpy / scipy（QP·LP 求解）</td></tr>
+        <tr><td><b>模型训练</b></td>
+            <td><code>data_basic</code> · <code>model_param</code> · <code>model_version</code></td>
+            <td><code>model_train_result</code> · <code>model_train_log</code></td>
+            <td>numpy / scikit-learn</td></tr>
+        <tr><td><b>公式引擎</b></td>
+            <td>无（纯计算）</td><td>无</td><td>无（自研词法+递归下降）</td></tr>
+        <tr><td><b>函数执行器</b></td>
+            <td>由脚本自身决定（多为 <code>*_param</code> + <code>data_basic</code>）</td>
+            <td><code>kpi_value</code></td><td>Python 动态 import</td></tr>
+        <tr><td><b>ESG</b></td>
+            <td><code>rate_point</code> · <code>esg_scheme</code> · <code>esg_scenario</code></td>
+            <td><code>esg_curve_point</code> · <code>esg_run</code></td><td>numpy / scipy（PCA）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     6 核心数据流
+============================================================ -->
+<div class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>核心数据流</h2></div>
+  <div class="sec-b">
+
+    <h3>6.1 指标计算全链路</h3>
+    <div class="fx" style="line-height:2.05;font-family:var(--mono);font-size:12.5px;background:#fbfcfd;border:1px solid var(--line);border-radius:8px;padding:16px;margin:12px 0">
+<span style="color:#165dff">①</span> 构造 ctx —— 取同方案同日期其他指标值<br>
+<span style="color:#8f959e">    ctx = { kpi_code: current_value }　　未算出按 0.0</span><br><br>
+<span style="color:#165dff">②</span> 分派引擎<br>
+<span style="color:#8f959e">    type=1 → value = evaluate(formula, ctx)</span><br>
+<span style="color:#8f959e">    type=2 → value = run_function_kpi(script_path, script_name,</span><br>
+<span style="color:#8f959e">                          scheme_id, data_date, kpi_info, rpt_items, ctx)</span><br><br>
+<span style="color:#ff8f1f">③</span> 评分（若有规则）<br>
+<span style="color:#8f959e">    区间命中 → score_min/score_max 插值 → score</span><br><br>
+<span style="color:#7d3ff5">④</span> UPSERT prcp_kpi_value<br>
+<span style="color:#8f959e">    (kpi_id, data_date, version) 唯一</span><br>
+<span style="color:#8f959e">    current_value / prev_value / prev_year_value / score / calc_source</span>
+    </div>
+
+    <h3>6.2 期限桶的语义演进</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">版本</th><th style="width:190px">rem_* 语义</th><th>行为</th><th style="width:100px">等价性</th></tr></thead>
+      <tbody>
+        <tr><td><b>v2.1</b></td><td>剩余期限（每月前移）</td>
+            <td>每月整体前移一格，月末取走 m1</td><td class="num">—</td></tr>
+        <tr><td><b>v2.2+</b></td><td>距基准日第 k 个月到期（绝对到期月）</td>
+            <td>投放直落 rem_m{M+v}，到期按 M 取走；每格只到期一次</td>
+            <td class="num">余额轨迹完全一致</td></tr>
+        <tr><td><b>v2.4</b></td><td>同 v2.2，但每行写入<b>完整 60 月终态排期</b></td>
+            <td>full_plan 跨 60 月累加 → 回填每一行</td>
+            <td class="num">结果数值不变</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>6.3 表的写入方与读取方</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:190px">表</th><th style="width:130px">主写入方</th><th>主要读取方</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>prcp_coa_node</code></td><td>账户册模块</td><td>基础数据 / 指标 / 模拟 / 反算 / 参数 / ESG</td></tr>
+        <tr><td><code>prcp_data_basic</code></td><td>数据维护 · 种子脚本</td><td>指标函数 / 模拟引擎 / 反算引擎 / 模型训练</td></tr>
+        <tr><td><code>prcp_kpi_value</code></td><td>指标引擎（试算）</td><td>反算目标 / 报表呈现 / 驾驶舱</td></tr>
+        <tr><td><code>prcp_sim_result</code></td><td>新业务模拟引擎</td><td>模拟驾驶舱 / 趋势图 / 排期追溯</td></tr>
+        <tr><td><code>prcp_reverse_result</code></td><td>反算引擎</td><td>反算驾驶舱 / 结果对比</td></tr>
+        <tr><td><code>prcp_rpt_value</code></td><td>数据维护 · 引擎回写</td><td>报表页 / 驾驶舱</td></tr>
+        <tr><td><code>prcp_esg_curve_point</code></td><td>ESG 曲线生成器</td><td>ESG 结果页 / 利率模块</td></tr>
+        <tr><td><code>prcp_model_train_result</code></td><td>模型训练引擎</td><td>模型结果页 / 情景预测</td></tr>
+        <tr><td><code>sys_dict_item</code></td><td>字典管理</td><td>全前端（DictTag 组件）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     7 数据表全景
+============================================================ -->
+<div class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>数据表全景</h2>
+    <span class="tag tag-y">55 表 / 8 域</span></div>
+  <div class="sec-b">
+
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:120px">数据域</th><th style="width:70px">表数</th>
+        <th>核心表</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>账户册域</b></td><td class="num">2</td>
+            <td><code>prcp_coa_node</code>（科目树）· <code>prcp_coa_scheme</code>（方案）</td></tr>
+        <tr><td><b>基础数据域</b></td><td class="num">3</td>
+            <td><code>prcp_data_basic</code>（152 列 · 128 桶）· <code>prcp_data_balance</code>（24 月缺口）· <code>prcp_data_maint_value</code></td></tr>
+        <tr><td><b>指标域</b></td><td class="num">6</td>
+            <td><code>prcp_kpi_scheme</code> · <code>prcp_kpi_definition</code> · <code>prcp_kpi_value</code> · <code>prcp_kpi_score_rule</code> · <code>prcp_kpi_score_segment</code> · <code>prcp_kpi_calc_rule</code></td></tr>
+        <tr><td><b>报表域</b></td><td class="num">3</td>
+            <td><code>prcp_rpt_report</code>（6 类）· <code>prcp_rpt_item</code>（树形）· <code>prcp_rpt_value</code>（月度值）</td></tr>
+        <tr><td><b>模拟域</b></td><td class="num">7</td>
+            <td><code>prcp_sim_scheme</code> · <code>node_config</code> · <code>growth_config</code> · <code>rhythm</code> · <code>term_ratio</code> · <code>run</code> · <code>result</code></td></tr>
+        <tr><td><b>反算域</b></td><td class="num">6</td>
+            <td><code>prcp_reverse_scheme</code> · <code>target</code> · <code>run</code> · <code>run_log</code> · <code>result</code> · <code>prcp_data_reverse</code></td></tr>
+        <tr><td><b>ESG 域</b></td><td class="num">4</td>
+            <td><code>prcp_esg_scheme</code> · <code>scenario</code> · <code>curve_point</code> · <code>run</code></td></tr>
+        <tr><td><b>模型域</b></td><td class="num">6</td>
+            <td><code>prcp_model</code> · <code>model_param</code> · <code>model_version</code> · <code>model_train</code> · <code>model_train_log</code> · <code>model_train_result</code></td></tr>
+        <tr><td><b>参数域</b></td><td class="num">9</td>
+            <td><code>prcp_lcr_param</code> · <code>nsfr_param</code> · <code>cet1_param</code> · <code>eve_param</code> · <code>nim_param</code> · <code>roe_param</code> · <code>metric_coefficient</code> · <code>metric_item</code> · <code>prcp_rate_scheme</code></td></tr>
+        <tr><td><b>利率域</b></td><td class="num">1</td><td><code>prcp_rate_point</code>（曲线 × 日期明细）</td></tr>
+        <tr><td><b>系统域</b></td><td class="num">6</td>
+            <td><code>sys_dict</code> · <code>sys_dict_item</code> · <code>sys_user</code> · <code>sys_role</code> · <code>sys_user_role</code> · <code>sys_op_log</code> / <code>sys_login_log</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>7.1 统一表设计约定</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">约定</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>前缀</b></td><td>业务表 <code>prcp_</code>，系统表 <code>sys_</code></td></tr>
+        <tr><td><b>主键</b></td><td><code>id bigint auto_increment</code></td></tr>
+        <tr><td><b>软删除</b></td><td><code>is_deleted tinyint(1) default 0</code>，查询恒带 <code>is_deleted=0</code></td></tr>
+        <tr><td><b>审计四件套</b></td><td><code>created_by</code> · <code>updated_by</code> · <code>created_at</code> · <code>updated_at</code></td></tr>
+        <tr><td><b>状态字段</b></td><td><code>status varchar(16)</code>，取值 <code>ACTIVE</code> / <code>INACTIVE</code></td></tr>
+        <tr><td><b>金额精度</b></td><td>金额 <code>decimal(20,6)</code>，比率 <code>decimal(20,6)</code>，分数 <code>decimal(8,2)</code></td></tr>
+        <tr><td><b>表注释</b></td><td>全部表带 <code>TABLE_COMMENT</code> 说明业务含义</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- ================================================================
+     8 部署与运维
+============================================================ -->
+<div class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n">8</div><h2>部署与运维</h2></div>
+  <div class="sec-b">
+
+    <h3>8.1 部署链路</h3>
+    <div class="chain">
+      <div class="cn b"><div class="cs">1</div><div class="ct">本地改码</div><div class="cd">PRCP/</div></div>
+      <div class="ca">→</div>
+      <div class="cn b"><div class="cs">2</div><div class="ct">release.sh</div><div class="cd">commit + push</div></div>
+      <div class="ca">→</div>
+      <div class="cn c"><div class="cs">3</div><div class="ct">GitHub</div><div class="cd">ZhangHanghang123/PRCP<br>main 分支</div></div>
+      <div class="ca">→</div>
+      <div class="cn o"><div class="cs">4</div><div class="ct">服务器 pull</div><div class="cd">/home/almd/prcp<br>--ff-only</div></div>
+      <div class="ca">→</div>
+      <div class="cn o"><div class="cs">5</div><div class="ct">语法自检</div><div class="cd">compileall<br>vite build</div></div>
+      <div class="ca">→</div>
+      <div class="cn g"><div class="cs">6</div><div class="ct">重启 + 发布</div><div class="cd">systemctl<br>/var/www/prcp</div></div>
+    </div>
+
+    <h3>8.2 环境与运维要点</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">项</th><th>值 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>服务器</b></td><td>43.143.253.186（Ubuntu 24.04）</td></tr>
+        <tr><td><b>应用目录</b></td><td><code>/home/almd/prcp</code></td></tr>
+        <tr><td><b>后端</b></td><td><code>prcp-backend.service</code>（systemd），端口 8006</td></tr>
+        <tr><td><b>前端</b></td><td><code>/var/www/prcp</code>（Nginx 静态）</td></tr>
+        <tr><td><b>数据库</b></td><td><code>prcp_db</code>，用户 <code>prcp</code></td></tr>
+        <tr><td><b>访问</b></td><td><code>https://wxfzhh.online/prcp/</code></td></tr>
+        <tr><td><b>健康探针</b></td><td><code>GET /prcp/api/kpi/schemes</code> 返回 <b>401</b>（openapi/docs 已禁用）</td></tr>
+        <tr><td><b>重启方式</b></td><td><code>echo almd | sudo -S systemctl restart prcp-backend</code>　（<b>nohup 无效</b>）</td></tr>
+        <tr><td><b>看日志</b></td><td><code>sudo journalctl -u prcp-backend --since '5 min ago' --no-pager | grep -A 30 'Exception'</code></td></tr>
+        <tr><td><b>DDL 规范</b></td><td>脚本放 <code>backend/scripts/</code>：<code>add_</code> / <code>upgrade_</code> / <code>backfill_</code> / <code>seed_</code> 四大类</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.3 常见问题速查</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:210px">现象</th><th>处理</th></tr></thead>
+      <tbody>
+        <tr><td>部署脚本报「服务器存在未提交改动」</td><td>服务器有手工改动，先 <code>git checkout --</code> 或 <code>git stash</code></td></tr>
+        <tr><td>改完 deploy.sh 不生效</td><td>bash 不会重读运行中的脚本，必须 <code>--pull</code> + <code>--apply</code> 两次调用</td></tr>
+        <tr><td>登录接口 422</td><td>用 form-data 而非 JSON</td></tr>
+        <tr><td>前端拿不到数据</td><td>拦截器已解包 <code>res.data</code>，应取 <code>res.items</code> 而非 <code>res.data.items</code></td></tr>
+        <tr><td>白屏</td><td>AntD icon 未 import，检查浏览器 console</td></tr>
+        <tr><td>模拟结果金额偏大 100 倍</td><td>利率单位：小数 vs 百分数混用</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+  </div>
+</div>
+
+<div class="foot">
+  PRCP 组算平台 · 系统整理流程图 v1.0<br>
+  21 路由模块 · 245 端点 · 55 数据表 · 5 算法引擎 · 12 指标函数<br>
+  FastAPI + SQLAlchemy 2 + MySQL 8 ｜ Vue3 + Ant Design 5 + ECharts ｜ 生成时间 2026-10-26
+</div>
+
+</div>
+</div>
+
+<script>
+const secs=[...document.querySelectorAll('.sec')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('on'));
+      const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id);
+      if(a)a.classList.add('on');
+    }
+  });
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
