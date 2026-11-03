@@ -167,7 +167,7 @@ const TargetRow: React.FC<{ t: any; m12Date?: string | null }> = ({ t, m12Date }
   )
 }
 
-const ReverseDashboard: React.FC = () => {
+const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSchemeCode }) => {
   const [schemes, setSchemes] = useState<any[]>([])
   const [runs, setRuns] = useState<any[]>([])
   const [dates, setDates] = useState<any[]>([])
@@ -195,14 +195,17 @@ const ReverseDashboard: React.FC = () => {
         const r = await reverseDashboardApi.options()
         setSchemes(r.schemes || [])
         const def = r.default || {}
-        setSchemeCode(def.scheme_code || '')
-        setRunId(def.run_id || undefined)
+        // 外部指定方案优先（组合反算「测算结果」页签传入），否则用后端默认
+        const want = initialSchemeCode || def.scheme_code || ''
+        setSchemeCode(want)
+        // run_id 由「方案变化」effect 自动选取该方案最新 SUCCESS
+        setRunId(undefined)
         setDateOffset(def.date_offset || 1)
       } catch (e) {
         console.error(e)
       }
     })()
-  }, [])
+  }, [initialSchemeCode])
 
   // 方案变化 → 加载 runs
   useEffect(() => {

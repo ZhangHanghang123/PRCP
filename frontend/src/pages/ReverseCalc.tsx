@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Card, Row, Col, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
   Modal, message, Empty, Popconfirm, Progress, Alert, Statistic, Drawer,
-  Descriptions, Tooltip, Tabs,
+  Descriptions, Tooltip, Tabs, Switch,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
@@ -46,6 +46,8 @@ const ReverseCalc: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('schemes')
   const [schemeKeyword, setSchemeKeyword] = useState('')
   const [schemeStatus, setSchemeStatus] = useState<string | undefined>(undefined)
+  // 运行记录是否只看当前选中方案（默认全部，对齐 Java 版）
+  const [onlyCurrentScheme, setOnlyCurrentScheme] = useState(false)
 
   // Modal
   const [schemeModal, setSchemeModal] = useState(false)
@@ -72,7 +74,13 @@ const ReverseCalc: React.FC = () => {
   // ============================================================
   const loadSchemes = async () => {
     const r = await reverseApi.listSchemes()
-    setSchemes(r.items || [])
+    const items = r.items || []
+    setSchemes(items)
+    // 自动选中第一条方案：保证后续页签（目标设置 / 运行记录）默认就有数据
+    setActiveSchemeId(prev => {
+      if (prev && items.some((x: any) => x.id === prev)) return prev
+      return items.length ? items[0].id : null
+    })
   }
   const loadTargets = async (schemeId: number | null) => {
     if (!schemeId) { setTargets([]); return }
@@ -111,10 +119,10 @@ const ReverseCalc: React.FC = () => {
     loadRuns()
   }, [])
 
-  // 当前选中方案变化时，刷新目标、运行、KPI 下拉（按方案的 model_id 联动过滤）
+  // 当前选中方案变化时，刷新目标与 KPI 下拉（按方案的 model_id 联动过滤）
+  // 注意：运行记录始终加载全量，避免自动选中第一条后只剩该方案的运行
   useEffect(() => {
     loadTargets(activeSchemeId)
-    loadRuns(activeSchemeId)
     const s = schemes.find(x => x.id === activeSchemeId)
     loadKpiOpts(s?.model_id || null)
   }, [activeSchemeId, schemes])
@@ -255,7 +263,7 @@ const ReverseCalc: React.FC = () => {
       message.success('反算已启动')
       setLogRun(r)
       setLogDrawer(true)
-      loadRuns(activeSchemeId)
+      loadRuns()
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '启动失败')
     }
@@ -263,7 +271,7 @@ const ReverseCalc: React.FC = () => {
   const onCancelRun = async (r: any) => {
     await reverseApi.cancelRun(r.id)
     message.success('已取消')
-    loadRuns(activeSchemeId)
+    loadRuns()
   }
   const onViewLogs = (r: any) => { setLogRun(r); setLogDrawer(true) }
   const onViewResult = async (r: any) => {
@@ -274,7 +282,7 @@ const ReverseCalc: React.FC = () => {
   const onDeleteRun = async (r: any) => {
     await reverseApi.deleteRun(r.id)
     message.success('已删除')
-    loadRuns(activeSchemeId)
+    loadRuns()
   }
   const onSaveRun = async () => {
     const v = await runForm.validateFields()
@@ -282,7 +290,7 @@ const ReverseCalc: React.FC = () => {
       const r = await reverseApi.createRun(v)
       message.success(`反算任务已创建：${r.run_code}，点击「启动」开始反算`)
       setRunModal(false)
-      loadRuns(activeSchemeId)
+      loadRuns()
     } catch (e: any) {
       message.error(e?.response?.data?.detail || '创建失败')
     }
@@ -434,6 +442,12 @@ const ReverseCalc: React.FC = () => {
       )
     })
   }, [schemes, schemeKeyword, schemeStatus])
+
+  // 运行记录（可只看当前方案）
+  const visibleRuns = useMemo(() => {
+    if (!onlyCurrentScheme || !activeSchemeId) return runs
+    return runs.filter((r: any) => r.scheme_id === activeSchemeId)
+  }, [runs, onlyCurrentScheme, activeSchemeId])
 
   const activeScheme = schemes.find(s => s.id === activeSchemeId)
 
@@ -611,7 +625,7 @@ const ReverseCalc: React.FC = () => {
                 type="info" showIcon style={{ marginBottom: 12 }}
                 message="测算结果复用「结果驾驶舱」：可在其中切换组合方案 / 运行记录 / 预测月份 / 余额口径，查看目标达成、指标对比、余额分布与走势，并导出结果。"
               />
-              {activeTab === 'result' && <ReverseDashboard />}
+              {activeTab === 'result' && <ReverseDashboard initialSchemeCode={activeScheme?.scheme_code} />}
             </div>
           ),
         },
@@ -623,21 +637,23 @@ const ReverseCalc: React.FC = () => {
           children: (
             <div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-                <Button icon={<ReloadOutlined />} onClick={() => loadRuns(activeSchemeId)}>刷新</Button>
+                <Button icon={<ReloadOutlined />} onClick={() => loadRuns()}>刷新</Button>
                 <Button type="primary" icon={<PlusOutlined />} disabled={!activeSchemeId} onClick={onCreateRun}>新建反算</Button>
-                {activeSchemeId && (
-                  <Tag color="blue" closable onClose={() => setActiveSchemeId(null)}>
-                    仅看：{activeScheme?.scheme_code}
-                  </Tag>
+                {activeScheme && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: '#646a73' }}>
+                    <Switch size="small" checked={onlyCurrentScheme} onChange={setOnlyCurrentScheme} />
+                    仅看当前方案
+                    <Tag color="blue">{activeScheme.scheme_code}</Tag>
+                  </span>
                 )}
                 <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8f959e' }}>
-                  共 {runs.length} 条运行记录
+                  共 {visibleRuns.length} / {runs.length} 条运行记录
                 </span>
               </div>
               <Table
                 rowKey="id"
                 columns={runColumns}
-                dataSource={activeSchemeId ? runs.filter(r => r.scheme_id === activeSchemeId) : runs}
+                dataSource={visibleRuns}
                 pagination={{ pageSize: 10, showSizeChanger: true }}
                 size="small"
                 scroll={{ x: 1200 }}
