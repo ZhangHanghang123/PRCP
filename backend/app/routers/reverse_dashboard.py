@@ -245,11 +245,13 @@ async def balance_export(
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
-    """结构导出：按账户册导出测算期每月预测余额（xlsx）
+    """结果导出：按账户册导出测算期每月预测余额（xlsx）
 
-    Sheet1 结构预测余额 —— 全部账户册节点（含层级），列为 M1..M24 月末余额
-    Sheet2 末级节点大类汇总 —— 资产/负债/权益/表外/其他 逐月合计
-    Sheet3 口径说明 —— 方案/Run/基准日/月份区间/数据源
+    Sheet1 账户册结构   —— 树形展示全部账户册节点（名称按层级缩进）
+                           末级节点 = 自身预测余额；父节点 = 子树汇总（roll-up 上卷）
+    Sheet2 按层级汇总   —— L1..Ln 每层节点数 + 逐月汇总 + 末级合计行
+    Sheet3 末级节点大类汇总 —— 资产/负债/权益/表外/其他 逐月合计
+    Sheet4 口径说明     —— 方案/Run/基准日/月份区间/节点数/余额口径/数据源
     """
     # 1. 方案 + Run
     rev = db.execute(text("""
@@ -286,14 +288,19 @@ async def balance_export(
 
     # 3. 节点元数据（账户册结构）
     node_rows = db.execute(text("""
-        SELECT node_code, node_name, node_level, path, id
+        SELECT node_code, node_name, node_level, path, id, parent_id, sort_order
         FROM prcp_coa_node
         WHERE scheme_id = :sid AND is_deleted = 0
-        ORDER BY node_level, node_code
+        ORDER BY node_level, sort_order, node_code
     """), {"sid": coa_scheme_id}).fetchall() if coa_scheme_id else []
     node_paths = {n[0]: n[3] or "" for n in node_rows}
     node_level = {n[0]: (n[2] or 1) for n in node_rows}
     node_name = {n[0]: n[1] or n[0] for n in node_rows}
+    node_parent = {n[0]: n[5] for n in node_rows}          # parent_id
+    node_id_by_code = {n[0]: n[4] for n in node_rows}
+    children_of: Dict[Optional[int], List[str]] = {}
+    for n in node_rows:
+        children_of.setdefault(n[5], []).append(n[0])
 
     # 4. 末级判定
     leaf_map = _leaf_map(db, coa_scheme_id)
@@ -303,7 +310,7 @@ async def balance_export(
             return leaf_map[nc]
         return _is_leaf_by_path(nc, node_paths)
 
-    # 5. 月度余额矩阵
+    # 5. 月度余额矩阵（末级节点自身值）
     val_rows = db.execute(text("""
         SELECT date_offset, node_code, current_balance
         FROM prcp_data_reverse
@@ -317,6 +324,37 @@ async def balance_export(
         if o not in off_idx:
             continue
         vals.setdefault(nc, [0.0] * len(months))[off_idx[o]] = bal
+
+    # 5b. 层级汇总（roll-up）：末级取自身值，父节点取子树之和（自底向上上卷）
+    #     只采信末级节点的自身值 —— 避免父子重复计算
+    rolled: Dict[str, List[float]] = {}
+    for nc in vals:
+        if _is_leaf_of(nc):
+            rolled[nc] = list(vals[nc])
+
+    def _rollup(nc: str, depth: int = 0) -> List[float]:
+        """返回该节点子树内所有末级节点的余额之和"""
+        if nc in rolled:
+            return rolled[nc]
+        if depth > 12:
+            return [0.0] * len(months)
+        kids = children_of.get(node_id_by_code.get(nc), [])
+        if not kids:
+            rolled[nc] = [0.0] * len(months)
+            return rolled[nc]
+        acc = [0.0] * len(months)
+        for k in kids:
+            kv = _rollup(k, depth + 1)
+            for i in range(len(acc)):
+                acc[i] += kv[i]
+        rolled[nc] = acc
+        return acc
+
+    for n in node_rows:
+        _rollup(n[0])
+    for nc in vals:
+        if nc not in rolled:
+            rolled[nc] = list(vals[nc])
 
     # 6. 生成 xlsx
     from io import BytesIO
@@ -341,31 +379,40 @@ async def balance_export(
             cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
             cell.border = BORDER
 
-    # ---- Sheet1：结构预测余额 ----
+    # ---- Sheet1：账户册结构（树形展示 + 层级汇总）----
     ws = wb.active
-    ws.title = "结构预测余额"
+    ws.title = "账户册结构"
     m_headers = [f"M{o}\n{d}" for o, d in months]
     headers = ["节点编码", "节点名称", "层级", "大类", "末级节点"] + m_headers
     _write_header(ws, headers)
     ws.row_dimensions[1].height = 32
 
+    # 树序：按 path 排序，保证父节点紧邻其子节点
     ordered = sorted(
-        vals.keys(),
-        key=lambda nc: (node_level.get(nc, 9), nc))
+        [n[0] for n in node_rows] or list(vals.keys()),
+        key=lambda nc: (node_paths.get(nc, ""), node_level.get(nc, 9), nc))
     r = 2
     for nc in ordered:
         cat = _classify(nc, node_paths.get(nc, ""))
         is_leaf = _is_leaf_of(nc)
-        series = vals[nc]
+        # 末级节点显示自身值；父节点显示子树汇总（roll-up）
+        series = rolled.get(nc) or vals.get(nc) or [0.0] * len(months)
+        lvl = node_level.get(nc, 1)
         ws.cell(row=r, column=1, value=nc).border = BORDER
-        ws.cell(row=r, column=2, value=node_name.get(nc, nc)).border = BORDER
-        ws.cell(row=r, column=3, value=node_level.get(nc, 1)).border = BORDER
+        c = ws.cell(row=r, column=2, value=node_name.get(nc, nc))
+        c.alignment = Alignment(horizontal="left", vertical="center", indent=(lvl - 1) * 2)
+        c.border = BORDER
+        if not is_leaf:
+            c.font = Font(bold=True, size=10)
+        ws.cell(row=r, column=3, value=lvl).border = BORDER
         ws.cell(row=r, column=4, value=_CAT_LABEL.get(cat, cat)).border = BORDER
         ws.cell(row=r, column=5, value="是" if is_leaf else "").border = BORDER
         for i, v in enumerate(series):
             c = ws.cell(row=r, column=6 + i, value=v)
             c.number_format = NUM_FMT
             c.border = BORDER
+            if not is_leaf:
+                c.font = Font(bold=True, size=10)
         if not is_leaf:
             for cc in range(1, 6 + len(months)):
                 ws.cell(row=r, column=cc).fill = SUB_FILL
@@ -373,21 +420,62 @@ async def balance_export(
 
     ws.freeze_panes = "F2"
     ws.column_dimensions["A"].width = 20
-    ws.column_dimensions["B"].width = 34
+    ws.column_dimensions["B"].width = 40
     ws.column_dimensions["C"].width = 6
     ws.column_dimensions["D"].width = 10
     ws.column_dimensions["E"].width = 10
     for i in range(len(months)):
         ws.column_dimensions[_col_letter(6 + i)].width = 16
 
-    # ---- Sheet2：末级节点大类汇总 ----
+    # ---- Sheet2：按层级汇总 ----
+    ws_lv = wb.create_sheet("按层级汇总")
+    _write_header(ws_lv, ["层级", "节点数", "末级节点数"] + m_headers)
+    ws_lv.row_dimensions[1].height = 32
+    levels = sorted(set(node_level.values()))
+    r = 2
+    for lv in levels:
+        lv_nodes = [nc for nc in ordered if node_level.get(nc, 1) == lv]
+        lv_leaf = [nc for nc in lv_nodes if _is_leaf_of(nc)]
+        acc = [0.0] * len(months)
+        for nc in lv_nodes:
+            ser = rolled.get(nc) or [0.0] * len(months)
+            for i in range(len(acc)):
+                acc[i] += ser[i]
+        ws_lv.cell(row=r, column=1, value=f"L{lv}").font = Font(bold=True)
+        ws_lv.cell(row=r, column=2, value=len(lv_nodes))
+        ws_lv.cell(row=r, column=3, value=len(lv_leaf))
+        for i, v in enumerate(acc):
+            c = ws_lv.cell(row=r, column=4 + i, value=v)
+            c.number_format = NUM_FMT
+        r += 1
+    # 末级节点合计行
+    all_leaf = [nc for nc in ordered if _is_leaf_of(nc)]
+    acc = [0.0] * len(months)
+    for nc in all_leaf:
+        ser = rolled.get(nc) or [0.0] * len(months)
+        for i in range(len(acc)):
+            acc[i] += ser[i]
+    ws_lv.cell(row=r, column=1, value="末级合计").font = Font(bold=True)
+    ws_lv.cell(row=r, column=2, value=len(all_leaf)).font = Font(bold=True)
+    for i, v in enumerate(acc):
+        c = ws_lv.cell(row=r, column=4 + i, value=v)
+        c.number_format = NUM_FMT
+        c.font = Font(bold=True)
+    ws_lv.column_dimensions["A"].width = 14
+    ws_lv.column_dimensions["B"].width = 10
+    ws_lv.column_dimensions["C"].width = 12
+    for i in range(len(months)):
+        ws_lv.column_dimensions[_col_letter(4 + i)].width = 16
+
+    # ---- Sheet3：末级节点大类汇总 ----
     ws2 = wb.create_sheet("末级节点大类汇总")
     _write_header(ws2, ["大类"] + m_headers)
     ws2.row_dimensions[1].height = 32
     cat_tot = {k: [0.0] * len(months) for k in _CAT_LABEL}
-    for nc, series in vals.items():
+    for nc in ordered:
         if not _is_leaf_of(nc):
             continue
+        series = rolled.get(nc) or vals.get(nc) or [0.0] * len(months)
         cat = _classify(nc, node_paths.get(nc, ""))
         for i, v in enumerate(series):
             cat_tot[cat][i] += v
@@ -408,7 +496,7 @@ async def balance_export(
     for i in range(len(months)):
         ws2.column_dimensions[_col_letter(2 + i)].width = 16
 
-    # ---- Sheet3：口径说明 ----
+    # ---- Sheet4：口径说明 ----
     ws3 = wb.create_sheet("口径说明")
     _write_header(ws3, ["项目", "内容"])
     meta_rows = [
@@ -418,16 +506,18 @@ async def balance_export(
         ("基准日", str(base_date) if base_date else "-"),
         ("预测期", f"{horizon or len(months)} 个月"),
         ("月份区间", f"M{months[0][0]} ({months[0][1]}) ~ M{months[-1][0]} ({months[-1][1]})"),
-        ("节点总数", f"{len(vals)} 个（含末级 {sum(1 for nc in vals if _is_leaf_of(nc))} 个）"),
+        ("账户册节点数", f"{len(node_rows)} 个（含末级 {sum(1 for nc in ordered if _is_leaf_of(nc))} 个）"),
+        ("有预测值节点数", f"{len(vals)} 个"),
         ("数据来源", "prcp_data_reverse（组合反算结果）+ prcp_coa_node（账户册结构）+ prcp_data_basic（末级判定）"),
         ("导出时间", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
-        ("说明", "余额单位与源表一致（1 = 1 元）；非末级节点为账户册层级行，余额为其自身口径值"),
+        ("余额口径", "末级节点 = 自身预测余额；非末级节点 = 其子树内末级节点余额之和（层级汇总，上卷计算）"),
+        ("单位说明", "与源表一致（1 = 1 元）；各层级互不重叠，末级合计 = 账户册总额"),
     ]
     for i, (k, v) in enumerate(meta_rows, start=2):
         ws3.cell(row=i, column=1, value=k).font = Font(bold=True)
         ws3.cell(row=i, column=2, value=v)
     ws3.column_dimensions["A"].width = 16
-    ws3.column_dimensions["B"].width = 90
+    ws3.column_dimensions["B"].width = 95
 
     buf = BytesIO()
     wb.save(buf)
