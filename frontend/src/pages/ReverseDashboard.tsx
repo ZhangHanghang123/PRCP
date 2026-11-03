@@ -200,7 +200,8 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
         setSchemeCode(want)
         // run_id 由「方案变化」effect 自动选取该方案最新 SUCCESS
         setRunId(undefined)
-        setDateOffset(def.date_offset || 1)
+        // date_offset 由「run 变化 → 加载 dates」effect 按该 Run 实际月份范围决定
+        setDateOffset(1)
       } catch (e) {
         console.error(e)
       }
@@ -227,7 +228,15 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
     if (!schemeCode || !runId) return
     (async () => {
       const r = await reverseDashboardApi.dates(schemeCode, runId)
-      setDates(r.items || [])
+      const items = r.items || []
+      setDates(items)
+      // 各 Run 的月份数不同（如 REV_NLS_REG 仅 12 个月），
+      // 当前月份若超出该 Run 范围，自动落到最后一个可用月份
+      setDateOffset(prev => (
+        items.some((x: any) => x.date_offset === prev)
+          ? prev
+          : (items.length ? items[items.length - 1].date_offset : 1)
+      ))
     })()
   }, [schemeCode, runId])
 
