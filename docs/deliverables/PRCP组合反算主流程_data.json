@@ -1,0 +1,200 @@
+{
+  "flows": [
+    {
+      "title": "PRCP 组合反算主流程",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "方案发起",
+          "items": [
+            {
+              "action": "进入组合反算方案页",
+              "owner": "业务人员",
+              "remark": "prcp_reverse_scheme"
+            },
+            {
+              "action": "创建反算方案，填写编号与类型",
+              "owner": "业务人员",
+              "remark": "scheme_code / name / type"
+            },
+            {
+              "action": "选择计量模型，指定算法与模型 ID",
+              "owner": "业务人员",
+              "remark": "prcp_model"
+            },
+            {
+              "action": "选账户册方案，定位账户册树",
+              "owner": "业务人员",
+              "remark": "coa_scheme_id"
+            },
+            {
+              "action": "选数据日期，定位基准日数据",
+              "owner": "业务人员",
+              "remark": "data_date"
+            },
+            {
+              "action": "配置目标约束，设定目标值与类型",
+              "owner": "业务人员",
+              "remark": "prcp_reverse_target"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "数据准备",
+          "items": [
+            {
+              "action": "展开账户册树，加载全量节点及层级",
+              "owner": "数据准备服务",
+              "remark": "prcp_coa_node"
+            },
+            {
+              "action": "载入基准日余额、加权利率与期限桶",
+              "owner": "数据准备服务",
+              "remark": "prcp_data_basic"
+            },
+            {
+              "action": "按节点分流为模型节点与非模型节点",
+              "owner": "数据准备服务",
+              "remark": "is_model_calc"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "新业务模拟",
+          "items": [
+            {
+              "action": "匹配模拟方案，按账户册方案关联",
+              "owner": "新业务模拟引擎",
+              "remark": "sim_scheme"
+            },
+            {
+              "action": "增长配置，设定 4 种方式与 5 年参数",
+              "owner": "新业务模拟引擎",
+              "remark": "sim_growth_config"
+            },
+            {
+              "action": "节奏配置，设定 12 个月投放权重",
+              "owner": "新业务模拟引擎",
+              "remark": "sim_rhythm"
+            },
+            {
+              "action": "期限占比配置，设定占比与利率",
+              "owner": "新业务模拟引擎",
+              "remark": "sim_term_ratio"
+            },
+            {
+              "action": "运行模拟，按月推演 60 个月",
+              "owner": "新业务模拟引擎",
+              "remark": "NewBusinessEngine"
+            },
+            {
+              "action": "产出模拟结果：余额/利率/利息/桶",
+              "owner": "新业务模拟引擎",
+              "remark": "sim_result"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "任务下发",
+          "items": [
+            {
+              "action": "打包 7 类信息，下发计量引擎",
+              "owner": "计量引擎",
+              "remark": "prcp_reverse_scheme/run"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "模型反算",
+          "items": [
+            {
+              "action": "非线性方程求解 Newton / SLSQP",
+              "owner": "计量模型引擎",
+              "remark": "NONLINEAR_SOLVER"
+            },
+            {
+              "action": "蚁群组合优化，群体智能寻优",
+              "owner": "计量模型引擎",
+              "remark": "ANT_COLONY"
+            },
+            {
+              "action": "DNN 回归，评分为奖励函数",
+              "owner": "计量模型引擎",
+              "remark": "DNN_NEURAL_NETWORK"
+            },
+            {
+              "action": "输出模型节点 24 月业务量预测",
+              "owner": "计量模型引擎",
+              "remark": "prcp_model_param"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "指标计量",
+          "items": [
+            {
+              "action": "并集合并：模拟结果 ∪ 模型结果",
+              "owner": "指标计量引擎",
+              "remark": "全量账户册 × 24 月"
+            },
+            {
+              "action": "生成完整业务表 current/adjusted/delta",
+              "owner": "指标计量引擎",
+              "remark": "prcp_data_basic"
+            },
+            {
+              "action": "指标值计量：公式引擎与函数执行器",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_definition"
+            },
+            {
+              "action": "指标评分：分段插值与锚点插值",
+              "owner": "指标计量引擎",
+              "remark": "DNN 训练作奖励函数"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP7",
+          "stepName": "结果输出",
+          "items": [
+            {
+              "action": "约束校验，按 GE/LE/EQ 比对达成",
+              "owner": "反算驾驶舱",
+              "remark": "prcp_reverse_target"
+            },
+            {
+              "action": "写结果表，落库 64 期限桶",
+              "owner": "反算驾驶舱",
+              "remark": "reverse_result"
+            },
+            {
+              "action": "结果对比 current 与 adjusted 变化",
+              "owner": "反算驾驶舱",
+              "remark": "64 桶 delta"
+            },
+            {
+              "action": "驾驶舱展示 KPI 卡、趋势与达成",
+              "owner": "反算驾驶舱",
+              "remark": "反算驾驶舱"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "业务人员",
+        "数据准备服务",
+        "新业务模拟引擎",
+        "计量引擎",
+        "计量模型引擎",
+        "指标计量引擎",
+        "反算驾驶舱"
+      ]
+    }
+  ]
+}

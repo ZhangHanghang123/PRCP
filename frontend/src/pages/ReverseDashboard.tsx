@@ -184,15 +184,16 @@ const ReverseDashboard: React.FC = () => {
     }
   }, [data])
 
-  // 大类分布饼图（按余额）
+  // 大类当前余额分布饼图（按方案基准日的当前余额汇总）
   const distOpt = useMemo(() => {
     if (!data?.category_distribution) return {}
     const cd = data.category_distribution
     const labels = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
+    const bDate = cd.balance_date
     return {
       tooltip: {
         trigger: 'item',
-        formatter: (p: any) => `${CATEGORY_META[p.name]?.label || p.name}<br/>余额: ${fmtMoney(p.value)}<br/>占比: ${p.percent}%`,
+        formatter: (p: any) => `${CATEGORY_META[p.name]?.label || p.name}<br/>当前余额: ${fmtMoney(p.value)}<br/>占比: ${p.percent}%${bDate ? `<br/>基准日: ${bDate}` : ''}`,
       },
       legend: { bottom: 0, type: 'scroll' },
       series: [{
@@ -564,7 +565,18 @@ const ReverseDashboard: React.FC = () => {
         </Col>
 
         <Col xs={24} lg={12}>
-          <Card title={<><DashboardOutlined /> 大类分布</>}>
+          <Card
+            title={
+              <>
+                <DashboardOutlined /> 大类当前余额分布
+                {data?.category_distribution?.balance_date && (
+                  <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>
+                    基准日 {data.category_distribution.balance_date}
+                  </Tag>
+                )}
+              </>
+            }
+          >
             <ReactECharts option={distOpt} style={{ height: 240 }} />
             <Divider style={{ margin: '8px 0' }} />
             <ReactECharts option={distBarOpt} style={{ height: 160 }} />
