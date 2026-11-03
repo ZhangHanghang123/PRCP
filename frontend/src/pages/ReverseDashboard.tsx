@@ -120,6 +120,53 @@ const CompareTag: React.FC<{
   )
 }
 
+// 目标达成行 —— 展示 目标 / 真实指标 / 当前完成率 / M12 完成率
+const TargetRow: React.FC<{ t: any; m12Date?: string | null }> = ({ t, m12Date }) => {
+  const meta = t.metric_type ? META[t.metric_type] : null
+  const unit = meta?.unit || ''
+  const isPct = unit === '%'
+  const fmtV = (v: number | null | undefined) => {
+    if (v == null) return '-'
+    return isPct ? `${v.toFixed(2)}%` : fmtMoney(v)
+  }
+  const ctype = t.constraint_type || 'GE'
+  const opText = ctype === 'GE' ? '≥' : (ctype === 'LE' ? '≤' : '=')
+  const rate = t.current_rate
+  const m12Rate = t.m12_rate
+  const reached = t.achieved
+  const barColor = reached === null ? '#d9d9d9' : (reached ? '#52c41a' : '#f5222d')
+  const pct = rate == null ? 0 : Math.max(0, Math.min(100, rate))
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid #f0f1f3' }}>
+      <div style={{ width: 132, flex: 'none', fontSize: 12.5, fontWeight: 600, color: meta?.color || '#1f2329' }}>
+        {meta?.label || t.kpi_code}
+      </div>
+      <div style={{ width: 92, flex: 'none', fontSize: 12, color: '#646a73' }}>
+        目标 <span style={{ color: '#1f2329', fontWeight: 600 }}>{opText}{fmtV(t.target_value)}</span>
+      </div>
+      <div style={{ width: 100, flex: 'none', fontSize: 12, color: '#646a73' }}>
+        实际 <span style={{ color: meta?.color || '#1f2329', fontWeight: 600 }}>{fmtV(t.current_value)}</span>
+      </div>
+      <div style={{ flex: 1, minWidth: 90 }}>
+        <Progress percent={pct} showInfo={false} strokeColor={barColor}
+          trailColor="#eef0f3" size="small" />
+      </div>
+      <div style={{ width: 108, flex: 'none', fontSize: 12 }}>
+        <Tooltip title={`当前期完成率（实际 ${fmtV(t.current_value)} ÷ 目标 ${opText}${fmtV(t.target_value)}）`}>
+          <span style={{ color: rate == null ? '#8f959e' : (reached ? '#52c41a' : '#f5222d'), fontWeight: 600 }}>
+            {rate == null ? '完成率 -' : `完成率 ${rate.toFixed(2)}%`}
+          </span>
+        </Tooltip>
+      </div>
+      <div style={{ width: 118, flex: 'none', fontSize: 12, color: '#8f959e' }}>
+        <Tooltip title={`M12${m12Date ? '（' + m12Date + '）' : ''} 实际 ${fmtV(t.m12_value)}`}>
+          M12 {m12Rate == null ? '-' : `${m12Rate.toFixed(2)}%`}
+        </Tooltip>
+      </div>
+    </div>
+  )
+}
+
 const ReverseDashboard: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
   const [runs, setRuns] = useState<any[]>([])
@@ -647,6 +694,35 @@ const ReverseDashboard: React.FC = () => {
           </Col>
         </Row>
       </Card>
+
+      {/* 目标达成行 — 目标 / 真实指标 / 完成率 / M12 完成率 */}
+      {(data as any).targets?.length ? (
+        <Card
+          size="small"
+          style={{ marginBottom: 12 }}
+          title={
+            <span style={{ fontSize: 13.5 }}>
+              <FundProjectionScreenOutlined style={{ marginRight: 6, color: '#165dff' }} />
+              目标达成进度
+              <span style={{ fontSize: 11.5, color: '#8f959e', fontWeight: 400, marginLeft: 10 }}>
+                当前期 vs 方案目标　|　右侧为 M12（12 个月后）完成率
+              </span>
+            </span>
+          }
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 0 6px', borderBottom: '1px solid #e3e6ec' }}>
+            <div style={{ width: 132, flex: 'none', fontSize: 11, color: '#8f959e' }}>指标</div>
+            <div style={{ width: 92, flex: 'none', fontSize: 11, color: '#8f959e' }}>目标</div>
+            <div style={{ width: 100, flex: 'none', fontSize: 11, color: '#8f959e' }}>实际</div>
+            <div style={{ flex: 1, minWidth: 90, fontSize: 11, color: '#8f959e' }}>达成进度</div>
+            <div style={{ width: 108, flex: 'none', fontSize: 11, color: '#8f959e' }}>当前完成率</div>
+            <div style={{ width: 118, flex: 'none', fontSize: 11, color: '#8f959e' }}>M12 完成率</div>
+          </div>
+          {(data as any).targets.map((t: any) => (
+            <TargetRow key={t.kpi_code} t={t} m12Date={(data as any).m12_date} />
+          ))}
+        </Card>
+      ) : null}
 
       {/* KPI 区 — 2 行 × 4 列 8 卡，每卡右下角带基期对比项 */}
       <Row gutter={[12, 12]}>

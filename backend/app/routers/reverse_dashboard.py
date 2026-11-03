@@ -827,6 +827,77 @@ async def snapshot(
         loan_weighted_den += bal
     loan_weighted_rate = round(loan_weighted_num / loan_weighted_den, 6) if loan_weighted_den > 0 else None
 
+    # ============ 目标达成（目标 vs 真实指标 vs 完成率）============
+    # 目标来自 prcp_reverse_target（组合反算方案的目标约束）
+    # 完成率按 constraint_type 计算；另给出 M12（12 个月后）的完成率
+    REG_TO_METRIC = {
+        "REG_ROE": "ROE", "REG_CET1": "CET1", "REG_LCR": "LCR",
+        "REG_NSFR": "NSFR", "REG_EVE": "DELTA_EVE", "REG_DELTA_EVE": "DELTA_EVE",
+    }
+    # M12 的 data_date
+    m12_date = None
+    m12_row = db.execute(text("""
+        SELECT data_date FROM prcp_data_reverse
+        WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+          AND offset_unit = 'M' AND date_offset = 12
+        ORDER BY data_date DESC LIMIT 1
+    """), {"sc": scheme_code, "rid": run_id}).first()
+    if m12_row:
+        m12_date = str(m12_row[0])
+    metric_map_m12 = _load_metric_map(db, nodes, m12_date, coa_code) if m12_date else {}
+
+    def _avg_metric(mm: Dict[str, Dict[str, float]], mtype: str) -> Optional[float]:
+        vals = [mm[n["node_code"]].get(mtype) for n in nodes
+                if mm.get(n["node_code"], {}).get(mtype) is not None]
+        return round(sum(vals) / len(vals), 4) if vals else None
+
+    def _completion(actual: Optional[float], target: float, ctype: str) -> Optional[float]:
+        """完成率 %；量纲明显不匹配（如目标 -5亿 vs 实际 8.05%）时返回 None"""
+        if actual is None or not target:
+            return None
+        # 量纲保护：目标与实际相差 3 个数量级以上 → 不可比
+        ratio = abs(actual / target) if target else 0
+        if ratio < 1e-3 or ratio > 1e3:
+            return None
+        if ctype == "GE":
+            return round(actual / target * 100, 2)
+        if ctype == "LE":
+            return round(target / actual * 100, 2) if actual else None
+        if ctype == "EQ":
+            return round((1 - abs(actual - target) / abs(target)) * 100, 2)
+        return None
+
+    target_rows = db.execute(text("""
+        SELECT kpi_code, target_name, target_value, constraint_type, weight, horizon_month
+        FROM prcp_reverse_target
+        WHERE scheme_id = :sid AND is_deleted = 0
+        ORDER BY sort_order
+    """), {"sid": rev_id}).fetchall()
+
+    targets_out = []
+    for t in target_rows:
+        kpi_code, tname, tval, ctype, weight, hmonth = t
+        mtype = REG_TO_METRIC.get(kpi_code or "")
+        cur = _avg_metric(metric_map, mtype) if mtype else None
+        m12 = _avg_metric(metric_map_m12, mtype) if (mtype and metric_map_m12) else None
+        tv = float(tval or 0)
+        targets_out.append({
+            "kpi_code": kpi_code,
+            "metric_type": mtype,
+            "target_name": tname,
+            "target_value": tv,
+            "constraint_type": ctype,
+            "weight": float(weight or 0),
+            "horizon_month": hmonth,
+            "current_value": cur,
+            "current_rate": _completion(cur, tv, ctype or "GE"),
+            "m12_value": m12,
+            "m12_rate": _completion(m12, tv, ctype or "GE"),
+            "achieved": (None if cur is None else
+                         ((cur >= tv) if (ctype or "GE") == "GE" else
+                          (cur <= tv) if ctype == "LE" else abs(cur - tv) < 1e-9)),
+        })
+
     kpi = {
         "total_nodes": total_nodes,
         "with_metrics": with_metrics,
@@ -1123,6 +1194,8 @@ async def snapshot(
         "data_date": data_date.isoformat() if isinstance(data_date, date) else str(data_date),
         "kpi": kpi,
         "kpi_base": kpi_base,
+        "targets": targets_out,
+        "m12_date": m12_date,
         "kpi_scores": kpi_scores,
         "trend": trend,
         "category_distribution": category_distribution,
