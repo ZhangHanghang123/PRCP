@@ -345,7 +345,7 @@ async def balance_export(
     ws = wb.active
     ws.title = "结构预测余额"
     m_headers = [f"M{o}\n{d}" for o, d in months]
-    headers = ["节点编码", "节点名称", "层级", "大类", "末级节点"] + m_headers + ["期末合计"]
+    headers = ["节点编码", "节点名称", "层级", "大类", "末级节点"] + m_headers
     _write_header(ws, headers)
     ws.row_dimensions[1].height = 32
 
@@ -366,12 +366,8 @@ async def balance_export(
             c = ws.cell(row=r, column=6 + i, value=v)
             c.number_format = NUM_FMT
             c.border = BORDER
-        c = ws.cell(row=r, column=6 + len(months), value=sum(series))
-        c.number_format = NUM_FMT
-        c.font = Font(bold=True)
-        c.border = BORDER
         if not is_leaf:
-            for cc in range(1, 7 + len(months)):
+            for cc in range(1, 6 + len(months)):
                 ws.cell(row=r, column=cc).fill = SUB_FILL
         r += 1
 
@@ -386,7 +382,7 @@ async def balance_export(
 
     # ---- Sheet2：末级节点大类汇总 ----
     ws2 = wb.create_sheet("末级节点大类汇总")
-    _write_header(ws2, ["大类"] + m_headers + ["期末合计"])
+    _write_header(ws2, ["大类"] + m_headers)
     ws2.row_dimensions[1].height = 32
     cat_tot = {k: [0.0] * len(months) for k in _CAT_LABEL}
     for nc, series in vals.items():
@@ -401,9 +397,6 @@ async def balance_export(
         for i, v in enumerate(cat_tot[cat]):
             c = ws2.cell(row=r, column=2 + i, value=v)
             c.number_format = NUM_FMT
-        c = ws2.cell(row=r, column=2 + len(months), value=sum(cat_tot[cat]))
-        c.number_format = NUM_FMT
-        c.font = Font(bold=True)
         r += 1
     # 合计行
     ws2.cell(row=r, column=1, value="合计").font = Font(bold=True)
@@ -439,7 +432,7 @@ async def balance_export(
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
-    fname = f"组合反算结构导出_{scheme_code}_run{run_id}_{months[0][1][:7]}至{months[-1][1][:7]}.xlsx"
+    fname = f"组合反算结果导出_{scheme_code}_run{run_id}_{months[0][1][:7]}至{months[-1][1][:7]}.xlsx"
     from fastapi.responses import StreamingResponse
     return StreamingResponse(
         buf,

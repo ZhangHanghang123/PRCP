@@ -146,7 +146,7 @@ const ReverseDashboard: React.FC = () => {
     })()
   }, [schemeCode, runId])
 
-  // 结构导出：按账户册导出测算期每月预测余额（xlsx）
+  // 结果导出：按账户册导出测算期每月预测余额（xlsx）
   const [exporting, setExporting] = useState(false)
   const handleExport = async () => {
     if (!schemeCode) return
@@ -158,7 +158,7 @@ const ReverseDashboard: React.FC = () => {
       })
       const cd = (res.headers?.['content-disposition'] as string) || ''
       const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
-      const fname = m ? decodeURIComponent(m[1]) : `组合反算结构导出_${schemeCode}.xlsx`
+      const fname = m ? decodeURIComponent(m[1]) : `组合反算结果导出_${schemeCode}.xlsx`
       const url = URL.createObjectURL(res.data)
       const a = document.createElement('a')
       a.href = url
@@ -605,7 +605,7 @@ const ReverseDashboard: React.FC = () => {
               size="small"
               style={{ marginRight: 12 }}
             >
-              结构导出
+              导出结果
             </Button>
             <ReloadOutlined onClick={loadSnapshot} style={{ cursor: 'pointer', fontSize: 18, color: '#667eea' }} />
           </Col>
