@@ -463,6 +463,7 @@ async def snapshot(
     #     语义：反映方案基准日的【当前余额结构】，不随预测月份漂移
     balance_date = None
     base_bal_map: Dict[str, float] = {}
+    base_leaf_map: Dict[str, bool] = {}
     if coa_scheme_id:
         # 优先取反算方案的基准日；该日无数据时回退到该方案最新的可用日期
         bd_row = db.execute(text("""
@@ -483,7 +484,8 @@ async def snapshot(
             """), {"sid": coa_scheme_id, "dd": balance_date}).fetchall()
             for r in bal_rows:
                 base_bal_map[r[0]] = float(r[1] or 0)
-                # 大类汇总只统计叶子节点（与 asset_total/liability_total KPI 卡片一致）
+                base_leaf_map[r[0]] = bool(r[3])
+                # 大类汇总只统计末级节点（与 asset_total/liability_total KPI 卡片一致）
                 if r[3]:
                     cat_dist[_classify(r[0], r[2])] += float(r[1] or 0)
 
@@ -506,7 +508,9 @@ async def snapshot(
             "node_code": nc,
             "node_name": n["node_name"],
             "node_level": n["node_level"],
-            "is_leaf": not _is_leaf(nc),
+            # 末级节点判定：以基础数据的 is_leaf 为准（数据源自带），
+            # 无基础数据行时回退到 path 前缀推断
+            "is_leaf": base_leaf_map.get(nc, _is_leaf(nc)),
             "category": cat,
             "current_balance": r_data.get("current_balance", 0),
             "base_balance": base_bal_map.get(nc, 0),
