@@ -195,7 +195,10 @@ const ReverseDashboard: React.FC = () => {
         trigger: 'item',
         formatter: (p: any) => `${CATEGORY_META[p.name]?.label || p.name}<br/>当前余额: ${fmtMoney(p.value)}<br/>占比: ${p.percent}%${bDate ? `<br/>基准日: ${bDate}` : ''}`,
       },
-      legend: { bottom: 0, type: 'scroll' },
+      legend: {
+        bottom: 0, type: 'scroll',
+        formatter: (name: string) => CATEGORY_META[name]?.label || name,
+      },
       series: [{
         type: 'pie', radius: ['45%', '70%'],
         data: labels.map((k) => ({
