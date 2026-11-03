@@ -611,9 +611,11 @@ const ReverseDashboard: React.FC = () => {
                 <DashboardOutlined /> {balanceMode === 'base' ? '当前余额分布' : '预测余额分布'}
                 {balanceMode === 'base' ? (
                   data?.category_distribution?.balance_date && (
-                    <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>
-                      基准日 {data.category_distribution.balance_date}
-                    </Tag>
+                    <Tooltip title="方案基准日（反算起点），固定不变，不随上方「预测月份」变化">
+                      <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>
+                        基准日 {data.category_distribution.balance_date}
+                      </Tag>
+                    </Tooltip>
                   )
                 ) : (
                   data?.category_distribution?.forecast_date && (
@@ -625,6 +627,11 @@ const ReverseDashboard: React.FC = () => {
               </>
             }
           >
+            {balanceMode === 'base' && (
+              <div style={{ fontSize: 11, color: '#8f959e', marginBottom: 4 }}>
+                ⓘ 基准日为方案起点，固定不变；切换上方「预测月份」时本图不变。需看随月份变化的余额，请把「余额口径」切到「当月预测余额」。
+              </div>
+            )}
             <ReactECharts option={distOpt} style={{ height: 240 }} />
             <Divider style={{ margin: '8px 0' }} />
             <div style={{ fontSize: 12, color: '#8f959e', marginBottom: 4 }}>金额分布</div>
@@ -643,9 +650,11 @@ const ReverseDashboard: React.FC = () => {
                 <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>仅末级节点</Tag>
                 {balanceMode === 'base' ? (
                   data?.category_distribution?.balance_date && (
-                    <Tag color="blue" style={{ marginLeft: 6, fontSize: 11 }}>
-                      基准日 {data.category_distribution.balance_date}
-                    </Tag>
+                    <Tooltip title="方案基准日（反算起点），固定不变，不随上方「预测月份」变化">
+                      <Tag color="blue" style={{ marginLeft: 6, fontSize: 11 }}>
+                        基准日 {data.category_distribution.balance_date}
+                      </Tag>
+                    </Tooltip>
                   )
                 ) : (
                   data?.category_distribution?.forecast_date && (
@@ -678,6 +687,7 @@ const ReverseDashboard: React.FC = () => {
               ))}
               <span style={{ fontSize: 12, color: '#8f959e', marginLeft: 'auto' }}>
                 共 {data?.node_matrix?.filter((n: any) => n.is_leaf).length || 0} 个末级节点
+                {balanceMode === 'base' && '（基准日固定，不随预测月份变化）'}
               </span>
             </div>
             <ReactECharts option={balanceBarOpt} style={{ height: Math.max(420, 22 * (data?.node_matrix?.filter((n: any) => n.is_leaf).length || 10)) }} />
