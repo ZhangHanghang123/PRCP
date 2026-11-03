@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  Card, Row, Col, Select, Tag, Empty, Spin, Table, Progress, Statistic, Divider, Tooltip, Badge,
+  Card, Row, Col, Select, Tag, Empty, Spin, Table, Progress, Statistic, Divider, Tooltip, Badge, message, Button,
 } from 'antd'
 import {
   DashboardOutlined, ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined,
   BankOutlined, RiseOutlined, FallOutlined, FundProjectionScreenOutlined,
-  RadarChartOutlined,
+  RadarChartOutlined, DownloadOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import dayjs from 'dayjs'
@@ -145,6 +145,42 @@ const ReverseDashboard: React.FC = () => {
       setDates(r.items || [])
     })()
   }, [schemeCode, runId])
+
+  // 结构导出：按账户册导出测算期每月预测余额（xlsx）
+  const [exporting, setExporting] = useState(false)
+  const handleExport = async () => {
+    if (!schemeCode) return
+    setExporting(true)
+    try {
+      const res = await fetch(
+        `/prcp/api/reverse-dashboard/balance-export?scheme_code=${encodeURIComponent(schemeCode)}` +
+        (runId ? `&run_id=${runId}` : ''),
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
+      )
+      if (!res.ok) {
+        const txt = await res.text()
+        throw new Error(txt.slice(0, 200))
+      }
+      const blob = await res.blob()
+      // 从 Content-Disposition 取文件名
+      const cd = res.headers.get('Content-Disposition') || ''
+      const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
+      const fname = m ? decodeURIComponent(m[1]) : `组合反算结构导出_${schemeCode}.xlsx`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fname
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } catch (e: any) {
+      console.error(e)
+      message.error(`导出失败：${e?.message || e}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // 拉快照
   useEffect(() => {
@@ -568,6 +604,15 @@ const ReverseDashboard: React.FC = () => {
             <Tag color="purple">预测期：{data.horizon_months} 月</Tag>
           </Col>
           <Col flex="auto" style={{ textAlign: 'right' }}>
+            <Button
+              icon={<DownloadOutlined />}
+              onClick={handleExport}
+              loading={exporting}
+              size="small"
+              style={{ marginRight: 12 }}
+            >
+              结构导出
+            </Button>
             <ReloadOutlined onClick={loadSnapshot} style={{ cursor: 'pointer', fontSize: 18, color: '#667eea' }} />
           </Col>
         </Row>

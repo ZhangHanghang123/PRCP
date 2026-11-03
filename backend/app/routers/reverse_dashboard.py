@@ -14,7 +14,7 @@
 - GET /reverse-dashboard/options                  方案/Run/月份下拉
 - GET /reverse-dashboard/snapshot                 驾驶舱快照（一次拉全）
 """
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -25,6 +25,21 @@ from app.auth import get_current_user
 from app.database import get_db
 
 router = APIRouter(prefix="/reverse-dashboard", tags=["ReverseDashboard"])
+
+# 大类中文名（与前端 CATEGORY_META 保持一致）
+_CAT_LABEL = {
+    "ASSET": "资产", "LIABILITY": "负债", "EQUITY": "权益",
+    "OFF_BALANCE": "表外", "OTHER": "其他",
+}
+
+
+def _col_letter(idx: int) -> str:
+    """1 → A, 27 → AA"""
+    s = ""
+    while idx > 0:
+        idx, rem = divmod(idx - 1, 26)
+        s = chr(65 + rem) + s
+    return s
 
 # 监管阈值（用于风险预警展示）
 THRESHOLDS = {
@@ -170,6 +185,269 @@ async def list_dates(
     }
 
 
+def _leaf_map(db, coa_scheme_id: Optional[int]) -> Dict[str, bool]:
+    """末级节点判定 —— 以 prcp_data_basic.is_leaf 为准（数据源自带，权威）"""
+    m: Dict[str, bool] = {}
+    if not coa_scheme_id:
+        return m
+    rows = db.execute(text("""
+        SELECT b.node_code, MAX(b.is_leaf)
+        FROM prcp_data_basic b
+        JOIN prcp_coa_node n ON n.id = b.coa_node_id
+        WHERE n.scheme_id = :sid AND n.is_deleted = 0 AND b.is_deleted = 0
+        GROUP BY b.node_code
+    """), {"sid": coa_scheme_id}).fetchall()
+    for r in rows:
+        if r[0]:
+            m[r[0]] = bool(r[1])
+    return m
+
+
+def _node_paths(db, coa_scheme_id: Optional[int]) -> Dict[str, str]:
+    """node_code → path（用于 _classify 与 path 前缀推断末级）"""
+    m: Dict[str, str] = {}
+    if not coa_scheme_id:
+        return m
+    rows = db.execute(text("""
+        SELECT node_code, path FROM prcp_coa_node
+        WHERE scheme_id = :sid AND is_deleted = 0
+    """), {"sid": coa_scheme_id}).fetchall()
+    for r in rows:
+        m[r[0]] = r[1] or ""
+    return m
+
+
+def _is_leaf_by_path(nc: str, node_paths: Dict[str, str]) -> bool:
+    """path 前缀推断：存在 M 使 M.path 以 N.path + "/" 开头 ⇒ N 非末级"""
+    p = node_paths.get(nc)
+    if not p:
+        return True
+    prefix = p.rstrip("/") + "/"
+    for other, op in node_paths.items():
+        if other != nc and op and op.startswith(prefix) and op != p:
+            return False
+    return True
+
+
+def coa_scheme_id_of(db, scheme_code: str) -> Optional[int]:
+    """组合方案 → 账户册方案 id"""
+    r = db.execute(text("""
+        SELECT coa_scheme_id FROM prcp_reverse_scheme
+        WHERE scheme_code = :sc AND is_deleted = 0 LIMIT 1
+    """), {"sc": scheme_code}).first()
+    return r[0] if r else None
+
+
+@router.get("/balance-export")
+async def balance_export(
+    scheme_code: str = Query("2026", description="组合方案编码"),
+    run_id: Optional[int] = Query(None, description="Run id；缺省取最新 SUCCESS"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """结构导出：按账户册导出测算期每月预测余额（xlsx）
+
+    Sheet1 结构预测余额 —— 全部账户册节点（含层级），列为 M1..M24 月末余额
+    Sheet2 末级节点大类汇总 —— 资产/负债/权益/表外/其他 逐月合计
+    Sheet3 口径说明 —— 方案/Run/基准日/月份区间/数据源
+    """
+    # 1. 方案 + Run
+    rev = db.execute(text("""
+        SELECT s.id, s.scheme_name, s.coa_scheme_id, s.data_date, s.horizon_months,
+               c.scheme_code AS coa_code, c.scheme_name AS coa_name
+        FROM prcp_reverse_scheme s
+        LEFT JOIN prcp_coa_scheme c ON c.id = s.coa_scheme_id
+        WHERE s.scheme_code = :sc AND s.is_deleted = 0
+    """), {"sc": scheme_code}).first()
+    if not rev:
+        raise HTTPException(404, f"方案 {scheme_code} 不存在")
+    rev_id, scheme_name, coa_scheme_id, base_date, horizon, coa_code, coa_name = rev
+
+    if run_id is None:
+        latest = db.execute(text("""
+            SELECT id FROM prcp_reverse_run
+            WHERE scheme_id = :sid AND status = 'SUCCESS' AND is_deleted = 0
+            ORDER BY id DESC LIMIT 1
+        """), {"sid": rev_id}).first()
+        if not latest:
+            raise HTTPException(404, "该方案无 SUCCESS 运行记录")
+        run_id = int(latest[0])
+
+    # 2. 月份（M1..M24；offset 0 与 1 同为基准月，跳过 0）
+    month_rows = db.execute(text("""
+        SELECT DISTINCT date_offset, data_date FROM prcp_data_reverse
+        WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+          AND offset_unit = 'M' AND date_offset >= 1
+        ORDER BY date_offset ASC
+    """), {"sc": scheme_code, "rid": run_id}).fetchall()
+    months = [(int(m[0]), str(m[1])) for m in month_rows]
+    if not months:
+        raise HTTPException(404, "该 Run 无月度预测数据")
+
+    # 3. 节点元数据（账户册结构）
+    node_rows = db.execute(text("""
+        SELECT node_code, node_name, node_level, path, id
+        FROM prcp_coa_node
+        WHERE scheme_id = :sid AND is_deleted = 0
+        ORDER BY node_level, node_code
+    """), {"sid": coa_scheme_id}).fetchall() if coa_scheme_id else []
+    node_paths = {n[0]: n[3] or "" for n in node_rows}
+    node_level = {n[0]: (n[2] or 1) for n in node_rows}
+    node_name = {n[0]: n[1] or n[0] for n in node_rows}
+
+    # 4. 末级判定
+    leaf_map = _leaf_map(db, coa_scheme_id)
+
+    def _is_leaf_of(nc: str) -> bool:
+        if nc in leaf_map:
+            return leaf_map[nc]
+        return _is_leaf_by_path(nc, node_paths)
+
+    # 5. 月度余额矩阵
+    val_rows = db.execute(text("""
+        SELECT date_offset, node_code, current_balance
+        FROM prcp_data_reverse
+        WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+          AND offset_unit = 'M' AND date_offset >= 1
+    """), {"sc": scheme_code, "rid": run_id}).fetchall()
+    off_idx = {o: i for i, (o, _) in enumerate(months)}
+    vals: Dict[str, List[float]] = {}
+    for r in val_rows:
+        o, nc, bal = r[0], r[1], float(r[2] or 0)
+        if o not in off_idx:
+            continue
+        vals.setdefault(nc, [0.0] * len(months))[off_idx[o]] = bal
+
+    # 6. 生成 xlsx
+    from io import BytesIO
+    from urllib.parse import quote
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+    wb = Workbook()
+    HDR_FILL = PatternFill("solid", fgColor="1F4E9C")
+    HDR_FONT = Font(color="FFFFFF", bold=True, size=10)
+    SUB_FILL = PatternFill("solid", fgColor="EAF1FB")
+    TITLE_FONT = Font(bold=True, size=12)
+    THIN = Side(style="thin", color="BFBFBF")
+    BORDER = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
+    NUM_FMT = '#,##0.00'
+
+    def _write_header(ws, headers, row=1):
+        for c, h in enumerate(headers, start=1):
+            cell = ws.cell(row=row, column=c, value=h)
+            cell.fill = HDR_FILL
+            cell.font = HDR_FONT
+            cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+            cell.border = BORDER
+
+    # ---- Sheet1：结构预测余额 ----
+    ws = wb.active
+    ws.title = "结构预测余额"
+    m_headers = [f"M{o}\n{d}" for o, d in months]
+    headers = ["节点编码", "节点名称", "层级", "大类", "末级节点"] + m_headers + ["期末合计"]
+    _write_header(ws, headers)
+    ws.row_dimensions[1].height = 32
+
+    ordered = sorted(
+        vals.keys(),
+        key=lambda nc: (node_level.get(nc, 9), nc))
+    r = 2
+    for nc in ordered:
+        cat = _classify(nc, node_paths.get(nc, ""))
+        is_leaf = _is_leaf_of(nc)
+        series = vals[nc]
+        ws.cell(row=r, column=1, value=nc).border = BORDER
+        ws.cell(row=r, column=2, value=node_name.get(nc, nc)).border = BORDER
+        ws.cell(row=r, column=3, value=node_level.get(nc, 1)).border = BORDER
+        ws.cell(row=r, column=4, value=_CAT_LABEL.get(cat, cat)).border = BORDER
+        ws.cell(row=r, column=5, value="是" if is_leaf else "").border = BORDER
+        for i, v in enumerate(series):
+            c = ws.cell(row=r, column=6 + i, value=v)
+            c.number_format = NUM_FMT
+            c.border = BORDER
+        c = ws.cell(row=r, column=6 + len(months), value=sum(series))
+        c.number_format = NUM_FMT
+        c.font = Font(bold=True)
+        c.border = BORDER
+        if not is_leaf:
+            for cc in range(1, 7 + len(months)):
+                ws.cell(row=r, column=cc).fill = SUB_FILL
+        r += 1
+
+    ws.freeze_panes = "F2"
+    ws.column_dimensions["A"].width = 20
+    ws.column_dimensions["B"].width = 34
+    ws.column_dimensions["C"].width = 6
+    ws.column_dimensions["D"].width = 10
+    ws.column_dimensions["E"].width = 10
+    for i in range(len(months)):
+        ws.column_dimensions[_col_letter(6 + i)].width = 16
+
+    # ---- Sheet2：末级节点大类汇总 ----
+    ws2 = wb.create_sheet("末级节点大类汇总")
+    _write_header(ws2, ["大类"] + m_headers + ["期末合计"])
+    ws2.row_dimensions[1].height = 32
+    cat_tot = {k: [0.0] * len(months) for k in _CAT_LABEL}
+    for nc, series in vals.items():
+        if not _is_leaf_of(nc):
+            continue
+        cat = _classify(nc, node_paths.get(nc, ""))
+        for i, v in enumerate(series):
+            cat_tot[cat][i] += v
+    r = 2
+    for cat in ["ASSET", "LIABILITY", "EQUITY", "OFF_BALANCE", "OTHER"]:
+        ws2.cell(row=r, column=1, value=_CAT_LABEL[cat]).font = Font(bold=True)
+        for i, v in enumerate(cat_tot[cat]):
+            c = ws2.cell(row=r, column=2 + i, value=v)
+            c.number_format = NUM_FMT
+        c = ws2.cell(row=r, column=2 + len(months), value=sum(cat_tot[cat]))
+        c.number_format = NUM_FMT
+        c.font = Font(bold=True)
+        r += 1
+    # 合计行
+    ws2.cell(row=r, column=1, value="合计").font = Font(bold=True)
+    for i in range(len(months)):
+        c = ws2.cell(row=r, column=2 + i, value=sum(cat_tot[k][i] for k in cat_tot))
+        c.number_format = NUM_FMT
+        c.font = Font(bold=True)
+    ws2.column_dimensions["A"].width = 16
+    for i in range(len(months)):
+        ws2.column_dimensions[_col_letter(2 + i)].width = 16
+
+    # ---- Sheet3：口径说明 ----
+    ws3 = wb.create_sheet("口径说明")
+    _write_header(ws3, ["项目", "内容"])
+    meta_rows = [
+        ("组合方案", f"{scheme_code} · {scheme_name}"),
+        ("Run ID", str(run_id)),
+        ("账户册方案", f"{coa_code or '-'} · {coa_name or '-'}"),
+        ("基准日", str(base_date) if base_date else "-"),
+        ("预测期", f"{horizon or len(months)} 个月"),
+        ("月份区间", f"M{months[0][0]} ({months[0][1]}) ~ M{months[-1][0]} ({months[-1][1]})"),
+        ("节点总数", f"{len(vals)} 个（含末级 {sum(1 for nc in vals if _is_leaf_of(nc))} 个）"),
+        ("数据来源", "prcp_data_reverse（组合反算结果）+ prcp_coa_node（账户册结构）+ prcp_data_basic（末级判定）"),
+        ("导出时间", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+        ("说明", "余额单位与源表一致（1 = 1 元）；非末级节点为账户册层级行，余额为其自身口径值"),
+    ]
+    for i, (k, v) in enumerate(meta_rows, start=2):
+        ws3.cell(row=i, column=1, value=k).font = Font(bold=True)
+        ws3.cell(row=i, column=2, value=v)
+    ws3.column_dimensions["A"].width = 16
+    ws3.column_dimensions["B"].width = 90
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"组合反算结构导出_{scheme_code}_run{run_id}_{months[0][1][:7]}至{months[-1][1][:7]}.xlsx"
+    from fastapi.responses import StreamingResponse
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(fname)}"},
+    )
+
+
 @router.get("/balance-trend")
 async def balance_trend(
     scheme_code: str = Query("2026", description="组合方案编码"),
@@ -207,14 +485,26 @@ async def balance_trend(
     months = [{"offset": m[0], "date": str(m[1])} for m in month_rows]
     offsets = [m["offset"] for m in months]
 
-    # 3. 末级节点月度余额（prcp_data_reverse 自带 node_name / category / is_leaf）
+    # 3. 末级节点月度余额
+    #    注意：不同 Run 写入的 is_leaf / category 标记并不可靠
+    #    （如 REV_ANT_REG 全为 0、category 为 NULL），
+    #    故末级判定以 prcp_data_basic.is_leaf 为准，无 basic 行时回退 path 前缀推断。
     rows = db.execute(text("""
         SELECT date_offset, node_code, node_name, category, current_balance
         FROM prcp_data_reverse
         WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
-          AND offset_unit = 'M' AND is_leaf = 1 AND date_offset >= 1
+          AND offset_unit = 'M' AND date_offset >= 1
         ORDER BY date_offset ASC
     """), {"sc": scheme_code, "rid": run_id}).fetchall()
+
+    # 末级判定
+    leaf_map = _leaf_map(db, coa_scheme_id_of(db, scheme_code))
+    node_paths = _node_paths(db, coa_scheme_id_of(db, scheme_code))
+
+    def _is_leaf_of(nc: str) -> bool:
+        if nc in leaf_map:
+            return leaf_map[nc]
+        return _is_leaf_by_path(nc, node_paths)
 
     off_idx = {o: i for i, o in enumerate(offsets)}
     node_meta: Dict[str, Dict] = {}
@@ -228,11 +518,15 @@ async def balance_trend(
             node_vals[nc] = [0.0] * len(offsets)
         node_vals[nc][off_idx[o]] = bal
 
-    # 4. 按大类汇总
+    # 4. 按大类汇总（末级节点）
     cat_keys = ["ASSET", "LIABILITY", "EQUITY", "OFF_BALANCE", "OTHER"]
     cat_vals: Dict[str, List[float]] = {k: [0.0] * len(offsets) for k in cat_keys}
     for nc, meta in node_meta.items():
+        if not _is_leaf_of(nc):
+            continue
         cat = meta["category"] if meta["category"] in cat_vals else "OTHER"
+        if cat == "OTHER" and meta["category"] not in cat_vals:
+            cat = _classify(nc, node_paths.get(nc, ""))
         for i, v in enumerate(node_vals[nc]):
             cat_vals[cat][i] += v
 
