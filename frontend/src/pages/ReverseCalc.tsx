@@ -318,7 +318,7 @@ const ReverseCalc: React.FC = () => {
       ) },
     { title: '关联账户册', key: 'coa', width: 210,
       render: (_: any, r: any) => r.coa_code ? (
-        <Tag color="cyan">{r.coa_code}{r.coa_name ? ` · ${r.coa_name}` : ''}</Tag>
+        <Tag color="cyan">{r.coa_name || r.coa_code}</Tag>
       ) : <span style={{ color: '#bbb' }}>未关联</span> },
     { title: '计量模型', key: 'model', width: 190,
       render: (_: any, r: any) => r.model_id
@@ -515,7 +515,7 @@ const ReverseCalc: React.FC = () => {
                 dataSource={filteredSchemes}
                 pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `共 ${t} 个方案` }}
                 size="small"
-                scroll={{ x: 1400 }}
+                scroll={{ x: 1580 }}
                 rowClassName={(r) => r.id === activeSchemeId ? 'ant-table-row-selected' : ''}
                 onRow={(r) => ({ onDoubleClick: () => { setActiveSchemeId(r.id); setActiveTab('targets') } })}
               />
