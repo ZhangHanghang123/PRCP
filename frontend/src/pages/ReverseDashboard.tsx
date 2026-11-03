@@ -100,6 +100,11 @@ const ReverseDashboard: React.FC = () => {
   // 余额口径：base = 基准日当前余额（prcp_data_basic，静态）
   //           forecast = 当月预测余额（prcp_data_reverse，随预测月份变化）
   const [balanceMode, setBalanceMode] = useState<'base' | 'forecast'>('base')
+  // 末级账户册余额走势
+  const [trendData, setTrendData] = useState<any>(null)
+  const [trendLoading, setTrendLoading] = useState(false)
+  const [trendView, setTrendView] = useState<'category' | 'node'>('category')
+  const [trendTopN, setTrendTopN] = useState(10)
 
   // 初始化：加载选项
   useEffect(() => {
@@ -147,6 +152,25 @@ const ReverseDashboard: React.FC = () => {
     loadSnapshot()
     // eslint-disable-next-line
   }, [schemeCode, runId, dateOffset])
+
+  // 拉末级账户册余额走势（随方案/run 变化，与预测月份无关）
+  useEffect(() => {
+    if (!schemeCode || !runId) { setTrendData(null); return }
+    let cancelled = false
+    setTrendLoading(true)
+    ;(async () => {
+      try {
+        const r = await reverseDashboardApi.balanceTrend({ scheme_code: schemeCode, run_id: runId })
+        if (!cancelled) setTrendData(r)
+      } catch (e) {
+        console.error(e)
+        if (!cancelled) setTrendData(null)
+      } finally {
+        if (!cancelled) setTrendLoading(false)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [schemeCode, runId])
 
   const loadSnapshot = async () => {
     setLoading(true)
@@ -380,6 +404,76 @@ const ReverseDashboard: React.FC = () => {
       }],
     }
   }, [data, filterCat, balanceMode])
+
+  // 末级账户册余额走势（测算期每个月月末余额）
+  const balanceTrendOpt = useMemo(() => {
+    if (!trendData?.months?.length) return {}
+    const months = trendData.months
+    const xLabels = months.map((m: any) => (m.date || '').slice(0, 7))
+
+    let series: any[] = []
+    if (trendView === 'category') {
+      // 按大类汇总
+      series = (trendData.categories || []).map((c: any) => ({
+        name: CATEGORY_META[c.key]?.label || c.key,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 5,
+        data: c.values,
+        lineStyle: { width: 2.5 },
+        itemStyle: { color: CATEGORY_META[c.key]?.color },
+        emphasis: { focus: 'series' },
+      }))
+    } else {
+      // 按末级节点明细（Top N）
+      const top = (trendData.nodes || []).slice(0, trendTopN)
+      series = top.map((n: any) => ({
+        name: n.name || n.code,
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 4,
+        data: n.values,
+        lineStyle: { width: 1.8 },
+        itemStyle: { color: CATEGORY_META[n.category]?.color || '#8c8c8c' },
+        emphasis: { focus: 'series' },
+      }))
+    }
+
+    return {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'line' },
+        formatter: (ps: any) => {
+          if (!ps?.length) return ''
+          const head = `${months[ps[0].dataIndex]?.offset ? 'M' + months[ps[0].dataIndex].offset + ' · ' : ''}${xLabels[ps[0].dataIndex]}`
+          const body = ps.map((p: any) =>
+            `${p.marker}${p.seriesName}<br/>月末余额: <b>${fmtMoney(p.value)}</b>`).join('<br/>')
+          return `${head}<br/>${body}`
+        },
+      },
+      legend: { type: 'scroll', bottom: 0, textStyle: { fontSize: 11 } },
+      grid: { left: 70, right: 30, top: 30, bottom: 56 },
+      xAxis: {
+        type: 'category',
+        boundaryGap: false,
+        data: xLabels,
+        axisLabel: { fontSize: 10, rotate: 45 },
+      },
+      yAxis: {
+        type: 'value',
+        name: '月末余额',
+        nameLocation: 'middle',
+        nameGap: 46,
+        nameTextStyle: { color: '#8f959e', fontSize: 11 },
+        axisLabel: {
+          formatter: (v: number) => (Math.abs(v) >= 1e12 ? `${(v / 1e12).toFixed(1)}万亿` : fmtMoney(v)),
+        },
+      },
+      series,
+    }
+  }, [trendData, trendView, trendTopN])
 
   if (!data && loading) {
     return <div style={{ textAlign: 'center', padding: 80 }}><Spin tip="加载驾驶舱…" /></div>
@@ -691,6 +785,59 @@ const ReverseDashboard: React.FC = () => {
               </span>
             </div>
             <ReactECharts option={balanceBarOpt} style={{ height: Math.max(420, 22 * (data?.node_matrix?.filter((n: any) => n.is_leaf).length || 10)) }} />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* 末级账户册余额走势 —— 测算期每月月末余额 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        <Col span={24}>
+          <Card
+            title={
+              <>
+                <DashboardOutlined /> 末级账户册余额走势
+                <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>仅末级节点</Tag>
+                {trendData?.months?.length ? (
+                  <Tag color="purple" style={{ marginLeft: 6, fontSize: 11 }}>
+                    测算期 {trendData.months.length} 个月（M{trendData.months[0].offset}~M{trendData.months[trendData.months.length - 1].offset}）
+                  </Tag>
+                ) : null}
+                <Select
+                  size="small" value={trendView}
+                  onChange={setTrendView}
+                  style={{ width: 120, marginLeft: 10 }}
+                >
+                  <Option value="category">按大类汇总</Option>
+                  <Option value="node">按节点明细</Option>
+                </Select>
+                {trendView === 'node' && (
+                  <Select
+                    size="small" value={trendTopN}
+                    onChange={setTrendTopN}
+                    style={{ width: 92, marginLeft: 8 }}
+                  >
+                    {[5, 10, 15, 20].map((n) => (
+                      <Option key={n} value={n}>Top {n}</Option>
+                    ))}
+                  </Select>
+                )}
+              </>
+            }
+          >
+            {trendLoading ? (
+              <div style={{ textAlign: 'center', padding: 60 }}><Spin tip="加载走势…" /></div>
+            ) : trendData?.months?.length ? (
+              <>
+                <div style={{ fontSize: 11, color: '#8f959e', marginBottom: 4 }}>
+                  {trendView === 'category'
+                    ? '各大类末级账户册月末余额合计走势（单位按轴刻度）'
+                    : `余额规模前 ${Math.min(trendTopN, trendData.nodes?.length || 0)} 个末级节点的月末余额走势，颜色表示所属大类`}
+                </div>
+                <ReactECharts option={balanceTrendOpt} style={{ height: 420 }} />
+              </>
+            ) : (
+              <Empty description="暂无走势数据" />
+            )}
           </Card>
         </Col>
       </Row>

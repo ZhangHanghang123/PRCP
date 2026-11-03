@@ -170,6 +170,90 @@ async def list_dates(
     }
 
 
+@router.get("/balance-trend")
+async def balance_trend(
+    scheme_code: str = Query("2026", description="组合方案编码"),
+    run_id: Optional[int] = Query(None, description="Run id；缺省取最新 SUCCESS"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """末级账户册余额走势 —— 测算期每个月月末余额
+
+    返回：
+      months     : [{offset, date}]        M1..M24
+      categories : [{key,label,values}]    按大类汇总的走势
+      nodes      : [{code,name,category,values,total}]  末级节点明细走势
+    """
+    # 1. 定位 run
+    if run_id is None:
+        latest = db.execute(text("""
+            SELECT r.id FROM prcp_reverse_run r
+            JOIN prcp_reverse_scheme s ON s.id = r.scheme_id
+            WHERE s.scheme_code = :sc AND r.status = 'SUCCESS' AND r.is_deleted = 0
+            ORDER BY r.id DESC LIMIT 1
+        """), {"sc": scheme_code}).first()
+        if not latest:
+            raise HTTPException(404, "该方案无 SUCCESS 运行记录")
+        run_id = int(latest[0])
+
+    # 2. 月份序列（M1..M24；date_offset=0 与 1 同为基准月，跳过 0）
+    month_rows = db.execute(text("""
+        SELECT DISTINCT date_offset, data_date
+        FROM prcp_data_reverse
+        WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+          AND offset_unit = 'M' AND date_offset >= 1
+        ORDER BY date_offset ASC
+    """), {"sc": scheme_code, "rid": run_id}).fetchall()
+    months = [{"offset": m[0], "date": str(m[1])} for m in month_rows]
+    offsets = [m["offset"] for m in months]
+
+    # 3. 末级节点月度余额（prcp_data_reverse 自带 node_name / category / is_leaf）
+    rows = db.execute(text("""
+        SELECT date_offset, node_code, node_name, category, current_balance
+        FROM prcp_data_reverse
+        WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+          AND offset_unit = 'M' AND is_leaf = 1 AND date_offset >= 1
+        ORDER BY date_offset ASC
+    """), {"sc": scheme_code, "rid": run_id}).fetchall()
+
+    off_idx = {o: i for i, o in enumerate(offsets)}
+    node_meta: Dict[str, Dict] = {}
+    node_vals: Dict[str, List[float]] = {}
+    for r in rows:
+        o, nc, nn, cat, bal = r[0], r[1], r[2], r[3], float(r[4] or 0)
+        if o not in off_idx:
+            continue
+        if nc not in node_meta:
+            node_meta[nc] = {"code": nc, "name": nn or nc, "category": cat or "OTHER"}
+            node_vals[nc] = [0.0] * len(offsets)
+        node_vals[nc][off_idx[o]] = bal
+
+    # 4. 按大类汇总
+    cat_keys = ["ASSET", "LIABILITY", "EQUITY", "OFF_BALANCE", "OTHER"]
+    cat_vals: Dict[str, List[float]] = {k: [0.0] * len(offsets) for k in cat_keys}
+    for nc, meta in node_meta.items():
+        cat = meta["category"] if meta["category"] in cat_vals else "OTHER"
+        for i, v in enumerate(node_vals[nc]):
+            cat_vals[cat][i] += v
+
+    # 5. 节点明细按期末余额降序
+    nodes = sorted(
+        [{"code": nc, "name": meta["name"], "category": meta["category"],
+          "values": node_vals[nc],
+          "total": sum(abs(v) for v in node_vals[nc])} for nc, meta in node_meta.items()],
+        key=lambda x: x["total"], reverse=True)
+
+    return {
+        "scheme_code": scheme_code,
+        "run_id": run_id,
+        "months": months,
+        "categories": [
+            {"key": k, "values": [round(v, 2) for v in cat_vals[k]]} for k in cat_keys
+        ],
+        "nodes": nodes,
+    }
+
+
 @router.get("/snapshot")
 async def snapshot(
     scheme_code: str = Query("2026", description="组合方案编码，默认 2026"),

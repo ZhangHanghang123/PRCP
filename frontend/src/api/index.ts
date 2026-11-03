@@ -410,4 +410,6 @@ export const reverseDashboardApi = {
     http.get('/reverse-dashboard/dates', { params: { scheme_code: schemeCode, run_id: runId } }).then((r) => r.data),
   snapshot: (params: { scheme_code: string; run_id?: number; date_offset: number }) =>
     http.get('/reverse-dashboard/snapshot', { params }).then((r) => r.data),
+  balanceTrend: (params: { scheme_code: string; run_id?: number }) =>
+    http.get('/reverse-dashboard/balance-trend', { params }).then((r) => r.data),
 }
