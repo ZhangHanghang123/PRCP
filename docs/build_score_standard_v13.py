@@ -136,7 +136,7 @@ try {
     $sd.Range("A9").Value2 = "CAR"
     $sd.Range("B9").Value2 = "< 11.9% (10.5 监管 + 0.5 附加 + 0.9 本行)"
     $sd.Range("C9").Value2 = "12.80%"
-    $sd.Range("D9").Value2 = [char]0x1F7E2 + " 安全"
+    $sd.Range("D9").Value2 = "🟢 安全"
     $sd.Range("E9").Value2 = 400
     $sd.Range("F9").Value2 = 0.1
     $sd.Range("H9").Value2 = "资本充足率 实测 12.80%"
