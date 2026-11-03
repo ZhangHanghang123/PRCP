@@ -211,22 +211,43 @@ const ReverseDashboard: React.FC = () => {
   }, [data])
 
   // 大类节点数柱状图
+  // 大类金额分布柱状图（与饼图同源：基准日当前余额）
   const distBarOpt = useMemo(() => {
     if (!data?.category_distribution) return {}
     const cd = data.category_distribution
     const labels = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
+    const bDate = cd.balance_date
     return {
-      tooltip: { trigger: 'axis' },
-      grid: { left: 40, right: 20, top: 20, bottom: 30 },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (ps: any) => {
+          const p = ps[0]
+          const k = labels[p.dataIndex]
+          return `${CATEGORY_META[k]?.label || k}<br/>当前余额: ${fmtMoney(p.value)}${
+            bDate ? `<br/>基准日: ${bDate}` : ''
+          }<br/>节点数: ${cd.by_count[k] || 0}`
+        },
+      },
+      grid: { left: 60, right: 20, top: 24, bottom: 30 },
       xAxis: { type: 'category', data: labels.map((k) => CATEGORY_META[k]?.label || k) },
-      yAxis: { type: 'value', name: '节点数' },
+      yAxis: {
+        type: 'value',
+        name: '当前余额',
+        axisLabel: {
+          formatter: (v: number) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}万亿` : fmtMoney(v)),
+        },
+      },
       series: [{
-        type: 'bar', barWidth: '60%',
+        type: 'bar', barWidth: '50%',
         data: labels.map((k) => ({
-          value: cd.by_count[k] || 0,
+          value: cd.by_balance[k] || 0,
           itemStyle: { color: CATEGORY_META[k].color },
         })),
-        label: { show: true, position: 'top', formatter: '{c}' },
+        label: {
+          show: true, position: 'top',
+          formatter: (p: any) => fmtMoney(p.value),
+        },
       }],
     }
   }, [data])
@@ -571,7 +592,7 @@ const ReverseDashboard: React.FC = () => {
           <Card
             title={
               <>
-                <DashboardOutlined /> 大类当前余额分布
+                <DashboardOutlined /> 当前余额分布
                 {data?.category_distribution?.balance_date && (
                   <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>
                     基准日 {data.category_distribution.balance_date}
@@ -582,6 +603,7 @@ const ReverseDashboard: React.FC = () => {
           >
             <ReactECharts option={distOpt} style={{ height: 240 }} />
             <Divider style={{ margin: '8px 0' }} />
+            <div style={{ fontSize: 12, color: '#8f959e', marginBottom: 4 }}>金额分布</div>
             <ReactECharts option={distBarOpt} style={{ height: 160 }} />
           </Card>
         </Col>
