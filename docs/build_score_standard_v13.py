@@ -70,10 +70,99 @@ mid = (0.1600 + 9.99) / 2
 rrow("🟢 安全", 23, 0.1600, 9.99, pp((9.99 - 0.1600) * 100, 2), 300, "极度过剩 300 分", 320, 300,
      pp(abs(ROE_ACT - mid) * 100), "16.00%", "999.00%")
 
+
+# ===================== 得分重算 + 峰值修正 =====================
+import openpyxl as _ox
+
+_v12 = r"C://银行经营//PRCP//docs//v2//评分标准_v12c.xlsx"
+_wb = _ox.load_workbook(_v12, data_only=True)
+_ws = _wb["0-500分评分标准"]
+_sdp = _wb["中信银行得分"]
+
+
+def _pct(t):
+    if t is None:
+        return None
+    if isinstance(t, (int, float)):
+        return float(t) / 100 if abs(t) > 1.5 else float(t)
+    t = str(t).strip()
+    if t.endswith("%"):
+        return float(t[:-1]) / 100
+    if t.endswith("pp"):
+        return float(t[:-2]) / 100
+    try:
+        return float(t) / 100
+    except Exception:
+        return None
+
+
+def _num(t):
+    if t is None:
+        return None
+    if isinstance(t, (int, float)):
+        return float(t)
+    try:
+        return float(str(t).strip())
+    except Exception:
+        return None
+
+
+# 得分页实测值（文本百分比）-> 小数
+ACT = {}
+for _r in range(5, 12):
+    _nm = _sdp.cell(_r, 1).value
+    _v = _sdp.cell(_r, 3).value
+    if _nm and _v:
+        ACT[str(_nm).strip()] = _pct(_v)
+
+# 指标块起点
+_blocks = {}
+for _r in range(5, 200):
+    _v = _ws.cell(_r, 1).value
+    if isinstance(_v, str) and _v.strip() in ACT:
+        _blocks[_v.strip()] = _r
+
+SCORES = []
+for _nm in ["LCR", "NSFR", "EVE", "CET1", "ROE", "IBL", "LR"]:
+    _act = ACT[_nm]
+    _s = _blocks[_nm]
+    _hit = None
+    for _r in range(_s, _s + 30):
+        _lo, _hi = _pct(_ws.cell(_r, 4).value), _pct(_ws.cell(_r, 5).value)
+        if _lo is None or _hi is None:
+            break
+        if _lo - 1e-12 <= _act <= _hi + 1e-12:
+            _hit = (_r, _lo, _hi, _num(_ws.cell(_r, 9).value), _num(_ws.cell(_r, 10).value))
+            break
+    if not _hit:
+        raise SystemExit("no segment for " + _nm)
+    _r, _lo, _hi, _ilo, _ihi = _hit
+    _sc = _ilo if _hi == _lo else _ilo + (_act - _lo) / (_hi - _lo) * (_ihi - _ilo)
+    SCORES.append((_nm, round(_sc, 2)))
+SCORES.append(("CAR", 400.0))
+SCORES_ORDER = ["LCR", "NSFR", "EVE", "CET1", "CAR", "ROE", "IBL", "LR"]
+SCORES = sorted(SCORES, key=lambda x: SCORES_ORDER.index(x[0]))
+
+# 峰值修正：EVE 子段12 的 I（r62）与 IBL 子段12 的 I（v13 中 r154）-> 500
+PEAK_FIX = [("EVE_I", 62, 500), ("IBL_I", 154, 500)]
+
 PS = r'''$ErrorActionPreference = "Stop"
 $SRC = "C:\银行经营\PRCP\docs\v2\评分标准_v12c.xlsx"
 $DST = "C:\银行经营\PRCP\docs\v2\评分标准_v13_8指标_含CAR.xlsx"
 Copy-Item $SRC $DST -Force
+
+function Read-Tsv2D($path, $cols) {
+    $lines = @(Get-Content -Path $path -Encoding UTF8 | Where-Object { $_ -ne "" })
+    $arr = [object[,]]::new($lines.Count, $cols)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $parts = @($lines[$i] -split "`t")
+        for ($j = 0; $j -lt $cols; $j++) {
+            $v = $parts[$j]
+            if ($v -eq "") { $arr[$i, $j] = $null } else { $arr[$i, $j] = $v }
+        }
+    }
+    return $arr
+}
 
 function Write-TsvRows($ws, $path, $firstRow, $lastCol) {
     $lines = @(Get-Content -Path $path -Encoding UTF8 | Where-Object { $_ -ne "" })
@@ -122,6 +211,12 @@ try {
     $sc.Range("M120:M142").Merge()
     Write-Output "ROE segment 18-23 appended at rows 137-142"
 
+    # ================= 2b. 峰值修正 + 得分重算 =================
+    $sc.Range("I62").Value2 = 500        # EVE 子段12 下限分 = 峰值 500（消除 8.00% 处凹陷）
+    $sc.Range("I154").Value2 = 500       # IBL 子段12 下限分 = 峰值 500（消除 20.00% 处凹陷）
+    # 越高越好型指标：子段16 的上限分 480 -> 500，使「适度最优 500 分」真正可达
+    foreach ($r in 20, 43, 89, 112, 135, 181) { $sc.Range("J" + $r).Value2 = 500 }
+
     # ================= 3. 标题 =================
     $sc.Range("A1").Value2 = "中信银行 8 指标 0-500 分评分规则 v13 (LCR / NSFR / EVE / CET1 / CAR / ROE / IBL / LR)"
     $sc.Range("A2").Value2 = "LCR 16% + NSFR 13% + EVE 12% + CET1 16% + CAR 10% + ROE 12% + IBL 11% + LR 10% = 100% | 0-500 分制 | 监管不达标 = 0 分"
@@ -135,6 +230,15 @@ try {
     $sd.Range("E9").Value2 = 400
     $sd.Range("F9").Value2 = 0.1
     $sd.Range("H9").Value2 = "资本充足率 实测 12.80%"
+    # 得分按 v13 档位表重算后写入（必须在插入 CAR 行之后，否则行序错位）
+    $sclines = @(Get-Content -Path $TSVSCORE -Encoding UTF8 | Where-Object { $_ -ne "" })
+    $i = 0
+    for ($r = 5; $r -le 12; $r++) {
+        $sp = @($sclines[$i] -split "`t")
+        $sd.Cells.Item($r, 5).Value2 = [double]$sp[1]
+        $i++
+    }
+    Write-Output "scores rewritten (8 indicators)"
     # 权重改数值 + 加权改公式
     $w = @(0.16, 0.13, 0.12, 0.16, 0.1, 0.12, 0.11, 0.1)
     for ($i = 0; $i -lt 8; $i++) {
@@ -160,6 +264,18 @@ try {
     # ================= 5. 规则说明页 =================
     $sr.Range("A1").Value2 = "v13 0-500 分评分规则 + 平滑性约束 + 8 指标说明"
     $sr.Range("A21").Value2 = "三、8 指标说明"
+    $sr.Range("A33").Value2 = "五、v13 修正说明"
+    $sr.Range("A34").Value2 = "1）得分页原沿用 v12b 档位表结果，与 v12c 档位表已不一致（如 LCR 得分 445.8 实际对应实测 148.29%，而实测值列为 147.29%），v13 已按档位表统一重算，全部指标得分下调 15~20 分"
+    $sr.Range("A35").Value2 = "2）ROE 原仅 17 个档位（子段 1-17），实测值 >12% 时无任何区间匹配，打分引擎会抛「值不在任何段位区间内」异常；v13 补齐子段 18-23（12%-16% 过优减分 + ≥16% 极度过剩 300 分）"
+    $sr.Range("A36").Value2 = "3）EVE / IBL 的适度最优单点（8.00% / 20.00%）原被子段 12 区间下界覆盖，引擎首个匹配规则下取不到 500 分且在峰值处形成 20 分凹陷；v13 将子段 12 的「区间下限分数」改为 500，峰值连续"
+    $sr.Range("A37").Value2 = "4）新增 CAR 指标，权重 10%，红线 11.9%（10.5 监管 + 0.5 附加 + 0.9 本行），中信实测 12.80% 落在安全区，得 400 分，加权贡献 8.00 分"
+    $sr.Range("A38").Value2 = "5）8 指标权重重新分配：LCR 16 / NSFR 13 / EVE 12 / CET1 16 / CAR 10 / ROE 12 / IBL 11 / LR 10 = 100%；资本类合计 26%（CET1 16 + CAR 10）"
+    $sr.Range("A39").Value2 = "6）得分页 G 列（加权）、综合得分、评级改为活公式，改动实测值或得分后自动刷新"
+    $sr.Range("A40").Value2 = "7）所有指标的「适度最优 500 分」单点（子段17）原被子段16 区间上界抢先匹配，引擎规则下永远取不到 500 分；v13 将子段16 的「区间上限分数」由 480 改为 500，峰值真正可达且曲线连续"
+    foreach ($r in 33..40) {
+        $sr.Range("A" + $r).Font.Size = 9
+        $sr.Range("A" + $r).HorizontalAlignment = -4131
+    }
     $sr.Range("A29:M29").Copy() | Out-Null
     $sr.Range("A31:M31").PasteSpecial(-4104) | Out-Null     # xlPasteFormats
     $sr.Range("A31").Value2 = "CAR 资本充足率"
@@ -228,10 +344,12 @@ tsv_car = r"C:\银行经营\PRCP\docs\_v13_car.tsv"
 tsv_roe = r"C:\银行经营\PRCP\docs\_v13_roe.tsv"
 write_tsv(tsv_car, CAR)
 write_tsv(tsv_roe, ROE)
+tsv_score = r"C://银行经营//PRCP//docs//_v13_score.tsv"
+write_tsv(tsv_score, [[n, s] for n, s in SCORES])
 
-assert "$TSVCAR" in PS and "$TSVROE" in PS, "TSV placeholder missing"
-PS = PS.replace("$TSVCAR", tsv_car).replace("$TSVROE", tsv_roe)
-assert "$TSVCAR" not in PS and "$TSVROE" not in PS, "TSV placeholder not replaced"
+assert "$TSVCAR" in PS and "$TSVROE" in PS and "$TSVSCORE" in PS, "TSV placeholder missing"
+PS = PS.replace("$TSVCAR", tsv_car).replace("$TSVROE", tsv_roe).replace("$TSVSCORE", tsv_score)
+assert "$TSVCAR" not in PS and "$TSVROE" not in PS and "$TSVSCORE" not in PS, "TSV placeholder not replaced"
 out = r"C:\银行经营\PRCP\docs\build_score_standard_v13.ps1"
 open(out, "w", encoding="utf-8-sig").write(PS)
 print("已生成:", out)

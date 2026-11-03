@@ -104,7 +104,7 @@ const ReverseDashboard: React.FC = () => {
   const [trendData, setTrendData] = useState<any>(null)
   const [trendLoading, setTrendLoading] = useState(false)
   const [trendView, setTrendView] = useState<'category' | 'node'>('category')
-  const [trendTopN, setTrendTopN] = useState(10)
+  const [trendTopN, setTrendTopN] = useState<number | 'all'>(10)
 
   // 初始化：加载选项
   useEffect(() => {
@@ -427,7 +427,8 @@ const ReverseDashboard: React.FC = () => {
       }))
     } else {
       // 按末级节点明细（Top N）
-      const top = (trendData.nodes || []).slice(0, trendTopN)
+      const all = trendData.nodes || []
+      const top = trendTopN === 'all' ? all : all.slice(0, trendTopN)
       series = top.map((n: any) => ({
         name: n.name || n.code,
         type: 'line',
@@ -814,11 +815,12 @@ const ReverseDashboard: React.FC = () => {
                   <Select
                     size="small" value={trendTopN}
                     onChange={setTrendTopN}
-                    style={{ width: 92, marginLeft: 8 }}
+                    style={{ width: 100, marginLeft: 8 }}
                   >
                     {[5, 10, 15, 20].map((n) => (
                       <Option key={n} value={n}>Top {n}</Option>
                     ))}
+                    <Option value="all">全部</Option>
                   </Select>
                 )}
               </>
@@ -831,7 +833,9 @@ const ReverseDashboard: React.FC = () => {
                 <div style={{ fontSize: 11, color: '#8f959e', marginBottom: 4 }}>
                   {trendView === 'category'
                     ? '各大类末级账户册月末余额合计走势（单位按轴刻度）'
-                    : `余额规模前 ${Math.min(trendTopN, trendData.nodes?.length || 0)} 个末级节点的月末余额走势，颜色表示所属大类`}
+                    : trendTopN === 'all'
+                      ? `全部 ${trendData.nodes?.length || 0} 个末级节点的月末余额走势，颜色表示所属大类`
+                      : `余额规模前 ${Math.min(trendTopN, trendData.nodes?.length || 0)} 个末级节点的月末余额走势，颜色表示所属大类`}
                 </div>
                 <ReactECharts option={balanceTrendOpt} style={{ height: 420 }} />
               </>

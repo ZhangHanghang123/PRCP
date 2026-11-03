@@ -3,6 +3,19 @@ $SRC = "C:\银行经营\PRCP\docs\v2\评分标准_v12c.xlsx"
 $DST = "C:\银行经营\PRCP\docs\v2\评分标准_v13_8指标_含CAR.xlsx"
 Copy-Item $SRC $DST -Force
 
+function Read-Tsv2D($path, $cols) {
+    $lines = @(Get-Content -Path $path -Encoding UTF8 | Where-Object { $_ -ne "" })
+    $arr = [object[,]]::new($lines.Count, $cols)
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        $parts = @($lines[$i] -split "`t")
+        for ($j = 0; $j -lt $cols; $j++) {
+            $v = $parts[$j]
+            if ($v -eq "") { $arr[$i, $j] = $null } else { $arr[$i, $j] = $v }
+        }
+    }
+    return $arr
+}
+
 function Write-TsvRows($ws, $path, $firstRow, $lastCol) {
     $lines = @(Get-Content -Path $path -Encoding UTF8 | Where-Object { $_ -ne "" })
     $r = $firstRow
@@ -50,6 +63,12 @@ try {
     $sc.Range("M120:M142").Merge()
     Write-Output "ROE segment 18-23 appended at rows 137-142"
 
+    # ================= 2b. 峰值修正 + 得分重算 =================
+    $sc.Range("I62").Value2 = 500        # EVE 子段12 下限分 = 峰值 500（消除 8.00% 处凹陷）
+    $sc.Range("I154").Value2 = 500       # IBL 子段12 下限分 = 峰值 500（消除 20.00% 处凹陷）
+    # 越高越好型指标：子段16 的上限分 480 -> 500，使「适度最优 500 分」真正可达
+    foreach ($r in 20, 43, 89, 112, 135, 181) { $sc.Range("J" + $r).Value2 = 500 }
+
     # ================= 3. 标题 =================
     $sc.Range("A1").Value2 = "中信银行 8 指标 0-500 分评分规则 v13 (LCR / NSFR / EVE / CET1 / CAR / ROE / IBL / LR)"
     $sc.Range("A2").Value2 = "LCR 16% + NSFR 13% + EVE 12% + CET1 16% + CAR 10% + ROE 12% + IBL 11% + LR 10% = 100% | 0-500 分制 | 监管不达标 = 0 分"
@@ -63,6 +82,15 @@ try {
     $sd.Range("E9").Value2 = 400
     $sd.Range("F9").Value2 = 0.1
     $sd.Range("H9").Value2 = "资本充足率 实测 12.80%"
+    # 得分按 v13 档位表重算后写入（必须在插入 CAR 行之后，否则行序错位）
+    $sclines = @(Get-Content -Path C://银行经营//PRCP//docs//_v13_score.tsv -Encoding UTF8 | Where-Object { $_ -ne "" })
+    $i = 0
+    for ($r = 5; $r -le 12; $r++) {
+        $sp = @($sclines[$i] -split "`t")
+        $sd.Cells.Item($r, 5).Value2 = [double]$sp[1]
+        $i++
+    }
+    Write-Output "scores rewritten (8 indicators)"
     # 权重改数值 + 加权改公式
     $w = @(0.16, 0.13, 0.12, 0.16, 0.1, 0.12, 0.11, 0.1)
     for ($i = 0; $i -lt 8; $i++) {
@@ -88,6 +116,18 @@ try {
     # ================= 5. 规则说明页 =================
     $sr.Range("A1").Value2 = "v13 0-500 分评分规则 + 平滑性约束 + 8 指标说明"
     $sr.Range("A21").Value2 = "三、8 指标说明"
+    $sr.Range("A33").Value2 = "五、v13 修正说明"
+    $sr.Range("A34").Value2 = "1）得分页原沿用 v12b 档位表结果，与 v12c 档位表已不一致（如 LCR 得分 445.8 实际对应实测 148.29%，而实测值列为 147.29%），v13 已按档位表统一重算，全部指标得分下调 15~20 分"
+    $sr.Range("A35").Value2 = "2）ROE 原仅 17 个档位（子段 1-17），实测值 >12% 时无任何区间匹配，打分引擎会抛「值不在任何段位区间内」异常；v13 补齐子段 18-23（12%-16% 过优减分 + ≥16% 极度过剩 300 分）"
+    $sr.Range("A36").Value2 = "3）EVE / IBL 的适度最优单点（8.00% / 20.00%）原被子段 12 区间下界覆盖，引擎首个匹配规则下取不到 500 分且在峰值处形成 20 分凹陷；v13 将子段 12 的「区间下限分数」改为 500，峰值连续"
+    $sr.Range("A37").Value2 = "4）新增 CAR 指标，权重 10%，红线 11.9%（10.5 监管 + 0.5 附加 + 0.9 本行），中信实测 12.80% 落在安全区，得 400 分，加权贡献 8.00 分"
+    $sr.Range("A38").Value2 = "5）8 指标权重重新分配：LCR 16 / NSFR 13 / EVE 12 / CET1 16 / CAR 10 / ROE 12 / IBL 11 / LR 10 = 100%；资本类合计 26%（CET1 16 + CAR 10）"
+    $sr.Range("A39").Value2 = "6）得分页 G 列（加权）、综合得分、评级改为活公式，改动实测值或得分后自动刷新"
+    $sr.Range("A40").Value2 = "7）所有指标的「适度最优 500 分」单点（子段17）原被子段16 区间上界抢先匹配，引擎规则下永远取不到 500 分；v13 将子段16 的「区间上限分数」由 480 改为 500，峰值真正可达且曲线连续"
+    foreach ($r in 33..40) {
+        $sr.Range("A" + $r).Font.Size = 9
+        $sr.Range("A" + $r).HorizontalAlignment = -4131
+    }
     $sr.Range("A29:M29").Copy() | Out-Null
     $sr.Range("A31:M31").PasteSpecial(-4104) | Out-Null     # xlPasteFormats
     $sr.Range("A31").Value2 = "CAR 资本充足率"
