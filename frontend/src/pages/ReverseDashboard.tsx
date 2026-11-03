@@ -335,13 +335,13 @@ const ReverseDashboard: React.FC = () => {
           }`
         },
       },
-      grid: { left: 220, right: 90, top: 20, bottom: 40 },
+      grid: { left: 220, right: 90, top: 20, bottom: 56 },
       xAxis: {
         type: 'value',
         name: '当前余额',
-        nameLocation: 'end',
-        nameGap: 14,
-        nameTextStyle: { align: 'right', color: '#8f959e', fontSize: 11 },
+        nameLocation: 'middle',
+        nameGap: 36,
+        nameTextStyle: { color: '#8f959e', fontSize: 11 },
         axisLabel: {
           formatter: (v: number) => (Math.abs(v) >= 1e12 ? `${(v / 1e12).toFixed(1)}万亿` : fmtMoney(v)),
         },
@@ -354,6 +354,7 @@ const ReverseDashboard: React.FC = () => {
       },
       series: [{
         type: 'bar',
+        name: '当前余额',
         barWidth: '58%',
         data: nodes.map((n: any) => ({
           value: n.base_balance,
@@ -365,12 +366,6 @@ const ReverseDashboard: React.FC = () => {
           formatter: (p: any) => fmtMoney(p.value),
         },
       }],
-      legend: {
-        bottom: 0, type: 'scroll',
-        data: cats,
-        formatter: (name: string) => CATEGORY_META[name]?.label || name,
-        textStyle: { fontSize: 11 },
-      },
     }
   }, [data, filterCat])
 
@@ -632,6 +627,20 @@ const ReverseDashboard: React.FC = () => {
               </>
             }
           >
+            <div style={{ display: 'flex', gap: 16, marginBottom: 6, flexWrap: 'wrap' }}>
+              {['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER'].map((k) => (
+                <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#646a73' }}>
+                  <span style={{
+                    width: 10, height: 10, borderRadius: 2,
+                    background: CATEGORY_META[k]?.color || '#8c8c8c', display: 'inline-block',
+                  }} />
+                  {CATEGORY_META[k]?.label || k}
+                </span>
+              ))}
+              <span style={{ fontSize: 12, color: '#8f959e', marginLeft: 'auto' }}>
+                共 {data?.node_matrix?.filter((n: any) => n.is_leaf).length || 0} 个末级节点
+              </span>
+            </div>
             <ReactECharts option={balanceBarOpt} style={{ height: Math.max(420, 22 * (data?.node_matrix?.filter((n: any) => n.is_leaf).length || 10)) }} />
           </Card>
         </Col>
