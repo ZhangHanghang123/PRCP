@@ -454,7 +454,7 @@ const ReverseDashboard: React.FC = () => {
         },
       },
       legend: { type: 'scroll', bottom: 0, textStyle: { fontSize: 11 } },
-      grid: { left: 70, right: 30, top: 30, bottom: 56 },
+      grid: { left: 82, right: 30, top: 30, bottom: 56 },
       xAxis: {
         type: 'category',
         boundaryGap: false,
@@ -465,7 +465,7 @@ const ReverseDashboard: React.FC = () => {
         type: 'value',
         name: '月末余额',
         nameLocation: 'middle',
-        nameGap: 46,
+        nameGap: 64,
         nameTextStyle: { color: '#8f959e', fontSize: 11 },
         axisLabel: {
           formatter: (v: number) => (Math.abs(v) >= 1e12 ? `${(v / 1e12).toFixed(1)}万亿` : fmtMoney(v)),

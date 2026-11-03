@@ -75,22 +75,15 @@ $SRC = "C:\银行经营\PRCP\docs\v2\评分标准_v12c.xlsx"
 $DST = "C:\银行经营\PRCP\docs\v2\评分标准_v13_8指标_含CAR.xlsx"
 Copy-Item $SRC $DST -Force
 
-$CAR = ConvertFrom-Json @'
-__CAR__
-'@
-$ROE = ConvertFrom-Json @'
-__ROE__
-'@
-
-function To2D($rows, $cols) {
-    $arr = New-Object 'object[,]' $rows.Count, $cols
-    for ($i = 0; $i -lt $rows.Count; $i++) {
-        for ($j = 0; $j -lt $cols; $j++) {
-            $v = $rows[$i][$j]
-            if ($null -eq $v) { $arr[$i, $j] = $null } else { $arr[$i, $j] = $v }
-        }
+function Write-TsvRows($ws, $path, $firstRow, $lastCol) {
+    $lines = @(Get-Content -Path $path -Encoding UTF8 | Where-Object { $_ -ne "" })
+    $r = $firstRow
+    foreach ($line in $lines) {
+        $parts = @($line -split "`t")
+        $ws.Range("A" + $r + ":" + $lastCol + $r).Value2 = $parts
+        $r++
     }
-    return $arr
+    return $r - 1
 }
 
 $xl = New-Object -ComObject Excel.Application
@@ -105,8 +98,9 @@ try {
 
     # ================= 1. 评分页：CET1 之后插入 CAR 23 行 =================
     $sc.Rows("97:119").Insert(-4121) | Out-Null        # xlDown
-    $data = To2D $CAR 13
-    $sc.Range("A97:M119").Value2 = $data
+    foreach ($rng in @("D97:E119","F97:F119","K97:K119")) { $sc.Range($rng).NumberFormat = "@" }
+    $last = Write-TsvRows $sc $TSVCAR 97 "M"
+    Write-Output "  CAR rows written: 97..$last"
     $sc.Range("A97").Value2 = "CAR"
     $sc.Range("L97").Value2 = "越高越好"
     $sc.Range("M97").Value2 = "< 11.9% (10.5 监管 + 0.5 附加 + 0.9 本行)"
@@ -119,8 +113,9 @@ try {
 
     # ================= 2. 评分页：ROE 补 18-23 段（ROE 原 120-136，插入 6 行）=================
     $sc.Rows("137:142").Insert(-4121) | Out-Null
-    $rdata = To2D $ROE 13
-    $sc.Range("A137:M142").Value2 = $rdata
+    foreach ($rng in @("D137:E142","F137:F142","K137:K142")) { $sc.Range($rng).NumberFormat = "@" }
+    $last2 = Write-TsvRows $sc $TSVROE 137 "M"
+    Write-Output "  ROE rows written: 137..$last2"
     foreach ($a in @("A120:A136","L120:L136","M120:M136")) { try { $sc.Range($a).UnMerge() } catch {} }
     $sc.Range("A120:A142").Merge()
     $sc.Range("L120:L142").Merge()
@@ -146,7 +141,7 @@ try {
         $r = 5 + $i
         $sd.Cells.Item($r, 6).Value2 = $w[$i]
         $sd.Cells.Item($r, 6).NumberFormat = "0%"
-        $sd.Cells.Item($r, 7).Formula = "=E" + $r + "/500*F" + $r
+        $sd.Cells.Item($r, 7).Formula = "=E" + $r + "/500*F" + $r + "*100"
         $sd.Cells.Item($r, 7).NumberFormat = "0.00"
     }
     $sd.Range("A1").Value2 = "中信银行 8 指标 0-500 分实测得分 v13"
@@ -223,8 +218,20 @@ try {
 }
 '''
 
-PS = PS.replace("__CAR__", json.dumps(CAR, ensure_ascii=False))
-PS = PS.replace("__ROE__", json.dumps(ROE, ensure_ascii=False))
+def write_tsv(path, rows):
+    with open(path, "w", encoding="utf-8-sig", newline="") as f:
+        for r in rows:
+            f.write("\t".join("" if v is None else str(v) for v in r) + "\n")
+
+
+tsv_car = r"C:\银行经营\PRCP\docs\_v13_car.tsv"
+tsv_roe = r"C:\银行经营\PRCP\docs\_v13_roe.tsv"
+write_tsv(tsv_car, CAR)
+write_tsv(tsv_roe, ROE)
+
+assert "$TSVCAR" in PS and "$TSVROE" in PS, "TSV placeholder missing"
+PS = PS.replace("$TSVCAR", tsv_car).replace("$TSVROE", tsv_roe)
+assert "$TSVCAR" not in PS and "$TSVROE" not in PS, "TSV placeholder not replaced"
 out = r"C:\银行经营\PRCP\docs\build_score_standard_v13.ps1"
 open(out, "w", encoding="utf-8-sig").write(PS)
 print("已生成:", out)
