@@ -23,14 +23,13 @@ const META: Record<string, { label: string; color: string; unit: string; desc: s
 }
 const METRIC_KEYS = ['ROE', 'CET1', 'LCR', 'NSFR', 'DELTA_EVE']
 
-// 节点财务指标（4 列）— 用于热力图下拉框
+// 节点财务指标（4 列）— 节点详情表的指标说明
 const HEATMAP_META: Record<string, { label: string; color: string; unit: string; desc: string; fmt: (v: number) => string }> = {
   current_balance:  { label: '当前余额',     color: '#1890ff', unit: '亿', desc: '节点当前余额',       fmt: (v) => fmtMoney(v) },
   interest_amount:  { label: '利息收支',     color: '#52c41a', unit: '亿', desc: '本期利息收支',       fmt: (v) => fmtMoney(v) },
   weighted_rate:    { label: '加权平均利率', color: '#fa8c16', unit: '%', desc: '加权平均利率(年化)', fmt: (v) => (v * 100).toFixed(2) + '%' },
   avg_balance:      { label: '月均余额',     color: '#722ed1', unit: '亿', desc: '月均余额',           fmt: (v) => fmtMoney(v) },
 }
-const HEATMAP_KEYS = ['current_balance', 'interest_amount', 'weighted_rate', 'avg_balance']
 
 // 节点大类配色
 const CATEGORY_META: Record<string, { label: string; color: string }> = {
@@ -98,7 +97,6 @@ const ReverseDashboard: React.FC = () => {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [filterCat, setFilterCat] = useState<string | undefined>(undefined)
-  const [metricView, setMetricView] = useState<string>('current_balance')  // 热力图选中指标（财务指标）
 
   // 初始化：加载选项
   useEffect(() => {
@@ -313,71 +311,68 @@ const ReverseDashboard: React.FC = () => {
     }
   }, [data])
 
-  // 节点指标热力图（按所选指标 + 当前 data_date）
-  const heatOpt = useMemo(() => {
+  // 末级节点当前余额柱状图（横向条形，按余额降序）
+  //   数据源：prcp_data_basic 基准日当前余额（base_balance），与「当前余额分布」卡片同源
+  //   仅展示末级节点（is_leaf = true），避免父子重复
+  const balanceBarOpt = useMemo(() => {
     if (!data?.node_matrix) return {}
-    const nodes = filterCat
-      ? data.node_matrix.filter((n: any) => n.category === filterCat)
-      : data.node_matrix
+    let nodes = data.node_matrix.filter((n: any) => n.is_leaf)
+    if (filterCat) nodes = nodes.filter((n: any) => n.category === filterCat)
+    // 余额降序（大额在前）
+    nodes = [...nodes].sort((a: any, b: any) => Math.abs(b.base_balance) - Math.abs(a.base_balance))
     const cats = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
-    const yLabels = cats.map((c) => CATEGORY_META[c].label || c)
-    // 数据 = [x_index, y_index, value]
-    const heatData: any[] = []
-    const vals: number[] = []
-    nodes.forEach((n: any, i: number) => {
-      const raw = n[metricView]
-      const v = raw == null ? null : Number(raw)
-      if (v != null && !Number.isNaN(v)) vals.push(v)
-      heatData.push([i, cats.indexOf(n.category), v])
-    })
-    // 横轴只展示账户册名称，不再拼编码
-    const xLabels = nodes.map((n: any) => `${n.node_name || n.node_code}`)
-    // visualMap 自动适配数据
-    const vMin = vals.length ? Math.min(...vals) : 0
-    const vMax = vals.length ? Math.max(...vals) : 1
-    const isRate = metricView === 'weighted_rate'
-    const min = isRate ? 0 : Math.min(0, vMin)
-    const max = isRate ? Math.max(0.10, vMax) : vMax
-    // 纵轴标识指标的度量（单位 + 名称）
-    const yAxisName = HEATMAP_META[metricView].label
-    const yAxisUnit = HEATMAP_META[metricView].unit
-
+    // 横向条形：y 轴放节点名（倒序绘制，使最大条在顶部）
+    const yLabels = nodes.map((n: any) => `${n.node_name || n.node_code}`)
+    const bDate = data.category_distribution?.balance_date
     return {
       tooltip: {
-        position: 'top',
+        trigger: 'item',
         formatter: (p: any) => {
-          const n = nodes[p.data[0]]
-          if (p.data[2] == null) return `${n.node_code}<br/>${HEATMAP_META[metricView].label}: 无数据`
-          return `${n.node_code} · ${n.node_name}<br/>${HEATMAP_META[metricView].label}: <b>${HEATMAP_META[metricView].fmt(p.data[2])}</b>`
+          const n = nodes[p.dataIndex]
+          const catLabel = CATEGORY_META[n.category]?.label || n.category
+          return `${n.node_code} · ${n.node_name}<br/>大类: ${catLabel}<br/>当前余额: <b>${fmtMoney(p.value)}</b>${
+            bDate ? `<br/>基准日: ${bDate}` : ''
+          }`
         },
       },
-      grid: { left: 100, right: 10, top: 60, bottom: 100 },
-      xAxis: { type: 'category', data: xLabels, axisLabel: { rotate: 60, fontSize: 10 }, splitArea: { show: true } },
+      grid: { left: 220, right: 90, top: 20, bottom: 40 },
+      xAxis: {
+        type: 'value',
+        name: '当前余额',
+        nameLocation: 'end',
+        nameGap: 14,
+        nameTextStyle: { align: 'right', color: '#8f959e', fontSize: 11 },
+        axisLabel: {
+          formatter: (v: number) => (Math.abs(v) >= 1e12 ? `${(v / 1e12).toFixed(1)}万亿` : fmtMoney(v)),
+        },
+      },
       yAxis: {
         type: 'category',
         data: yLabels,
-        splitArea: { show: true },
-        name: `${yAxisName}（${yAxisUnit}）`,
-        nameLocation: 'middle',
-        nameGap: 50,
-        nameTextStyle: { fontSize: 12, fontWeight: 'bold', color: '#1890ff' },
-      },
-      visualMap: {
-        min, max,
-        calculable: true,
-        orient: 'horizontal',
-        left: 'center',
-        bottom: 0,
-        text: [`${HEATMAP_META[metricView].fmt(max)}`, `${HEATMAP_META[metricView].fmt(min)}`],
-        inRange: { color: ['#f5222d', '#fa8c16', '#52c41a'] },
+        axisLabel: { fontSize: 11, width: 200, overflow: 'truncate' },
+        axisTick: { alignWithLabel: true },
       },
       series: [{
-        name: HEATMAP_META[metricView].label, type: 'heatmap', data: heatData,
-        label: { show: false },
-        emphasis: { itemStyle: { shadowBlur: 10, shadowColor: 'rgba(0,0,0,0.5)' } },
+        type: 'bar',
+        barWidth: '58%',
+        data: nodes.map((n: any) => ({
+          value: n.base_balance,
+          itemStyle: { color: CATEGORY_META[n.category]?.color || '#8c8c8c' },
+          category: n.category,
+        })),
+        label: {
+          show: true, position: 'right', fontSize: 10,
+          formatter: (p: any) => fmtMoney(p.value),
+        },
       }],
+      legend: {
+        bottom: 0, type: 'scroll',
+        data: cats,
+        formatter: (name: string) => CATEGORY_META[name]?.label || name,
+        textStyle: { fontSize: 11 },
+      },
     }
-  }, [data, filterCat, metricView])
+  }, [data, filterCat])
 
   if (!data && loading) {
     return <div style={{ textAlign: 'center', padding: 80 }}><Spin tip="加载驾驶舱…" /></div>
@@ -612,26 +607,23 @@ const ReverseDashboard: React.FC = () => {
         </Col>
       </Row>
 
-      {/* 节点指标热力图 — 放最下面（全宽） */}
+      {/* 末级节点当前余额柱状图 — 放最下面（全宽） */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col span={24}>
           <Card
             title={
               <>
-                <DashboardOutlined /> 节点 × 指标 热力图
-                <Select
-                  size="small" value={metricView}
-                  onChange={setMetricView}
-                  style={{ width: 160, marginLeft: 12 }}
-                >
-                  {HEATMAP_KEYS.map((mk) => (
-                    <Option key={mk} value={mk}>{HEATMAP_META[mk].label}</Option>
-                  ))}
-                </Select>
+                <DashboardOutlined /> 当前余额柱状图
+                <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>仅末级节点</Tag>
+                {data?.category_distribution?.balance_date && (
+                  <Tag color="blue" style={{ marginLeft: 6, fontSize: 11 }}>
+                    基准日 {data.category_distribution.balance_date}
+                  </Tag>
+                )}
                 <Select
                   size="small" allowClear placeholder="按大类过滤"
                   value={filterCat} onChange={setFilterCat}
-                  style={{ width: 140, marginLeft: 8 }}
+                  style={{ width: 140, marginLeft: 10 }}
                 >
                   {Object.entries(CATEGORY_META).map(([k, v]) => (
                     <Option key={k} value={k}>{v.label}</Option>
@@ -640,7 +632,7 @@ const ReverseDashboard: React.FC = () => {
               </>
             }
           >
-            <ReactECharts option={heatOpt} style={{ height: 380 }} />
+            <ReactECharts option={balanceBarOpt} style={{ height: Math.max(420, 22 * (data?.node_matrix?.filter((n: any) => n.is_leaf).length || 10)) }} />
           </Card>
         </Col>
       </Row>

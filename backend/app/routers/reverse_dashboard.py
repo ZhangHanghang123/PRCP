@@ -462,6 +462,7 @@ async def snapshot(
     #           避免父子节点重复计算 —— 非叶子节点也存有余额，全量累加会翻倍）
     #     语义：反映方案基准日的【当前余额结构】，不随预测月份漂移
     balance_date = None
+    base_bal_map: Dict[str, float] = {}
     if coa_scheme_id:
         # 优先取反算方案的基准日；该日无数据时回退到该方案最新的可用日期
         bd_row = db.execute(text("""
@@ -474,15 +475,17 @@ async def snapshot(
         if bd_row and bd_row[0]:
             balance_date = str(bd_row[0])
             bal_rows = db.execute(text("""
-                SELECT b.node_code, b.current_balance, n.path
+                SELECT b.node_code, b.current_balance, n.path, b.is_leaf
                 FROM prcp_data_basic b
                 JOIN prcp_coa_node n ON n.id = b.coa_node_id
                 WHERE n.scheme_id = :sid AND n.is_deleted = 0
                   AND b.is_deleted = 0 AND b.data_date = :dd
-                  AND b.is_leaf = 1
             """), {"sid": coa_scheme_id, "dd": balance_date}).fetchall()
             for r in bal_rows:
-                cat_dist[_classify(r[0], r[2])] += float(r[1] or 0)
+                base_bal_map[r[0]] = float(r[1] or 0)
+                # 大类汇总只统计叶子节点（与 asset_total/liability_total KPI 卡片一致）
+                if r[3]:
+                    cat_dist[_classify(r[0], r[2])] += float(r[1] or 0)
 
     category_distribution = {
         "by_count": cat_count,
@@ -491,7 +494,7 @@ async def snapshot(
         "balance_source": "prcp_data_basic",
     }
 
-    # 10. 节点详情矩阵（用于热力图 + Top 榜）
+    # 10. 节点详情矩阵（用于当前余额柱状图 + Top 榜）
     node_matrix = []
     for n in nodes:
         nc = n["node_code"]
@@ -503,8 +506,10 @@ async def snapshot(
             "node_code": nc,
             "node_name": n["node_name"],
             "node_level": n["node_level"],
+            "is_leaf": not _is_leaf(nc),
             "category": cat,
             "current_balance": r_data.get("current_balance", 0),
+            "base_balance": base_bal_map.get(nc, 0),
             "avg_balance": r_data.get("avg_balance", 0),
             "weighted_rate": r_data.get("weighted_rate", 0),
             "interest_amount": r_data.get("interest_amount", 0),
