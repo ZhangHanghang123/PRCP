@@ -426,17 +426,20 @@ const ReverseDashboard: React.FC = () => {
         emphasis: { focus: 'series' },
       }))
     } else {
-      // 按末级节点明细（Top N）
+      // 按末级节点明细（Top N / 全部）
       const all = trendData.nodes || []
       const top = trendTopN === 'all' ? all : all.slice(0, trendTopN)
+      // 线条多时自动变细、隐掉数据点，避免糊成一片
+      const dense = top.length > 20
       series = top.map((n: any) => ({
         name: n.name || n.code,
         type: 'line',
         smooth: true,
         symbol: 'circle',
-        symbolSize: 4,
+        symbolSize: dense ? 0 : 4,
+        showSymbol: !dense,
         data: n.values,
-        lineStyle: { width: 1.8 },
+        lineStyle: { width: dense ? 1.1 : 1.8 },
         itemStyle: { color: CATEGORY_META[n.category]?.color || '#8c8c8c' },
         emphasis: { focus: 'series' },
       }))
@@ -475,6 +478,12 @@ const ReverseDashboard: React.FC = () => {
       series,
     }
   }, [trendData, trendView, trendTopN])
+
+  // 图表高度：按线条数自适应（线条越多越高，避免全部模式下挤成一团）
+  const trendHeight = useMemo(() => {
+    const n = (balanceTrendOpt as any)?.series?.length || 0
+    return Math.max(420, 40 + n * 16)
+  }, [balanceTrendOpt])
 
   if (!data && loading) {
     return <div style={{ textAlign: 'center', padding: 80 }}><Spin tip="加载驾驶舱…" /></div>
@@ -837,7 +846,7 @@ const ReverseDashboard: React.FC = () => {
                       ? `全部 ${trendData.nodes?.length || 0} 个末级节点的月末余额走势，颜色表示所属大类`
                       : `余额规模前 ${Math.min(trendTopN, trendData.nodes?.length || 0)} 个末级节点的月末余额走势，颜色表示所属大类`}
                 </div>
-                <ReactECharts option={balanceTrendOpt} style={{ height: 420 }} />
+                <ReactECharts option={balanceTrendOpt} style={{ height: trendHeight }} />
               </>
             ) : (
               <Empty description="暂无走势数据" />
