@@ -541,6 +541,46 @@ async def balance_export(
     )
 
 
+def _load_metric_map(db, nodes, data_date, coa_code) -> Dict[str, Dict[str, float]]:
+    """加载某数据日期的 5 指标值 → {node_code: {metric_type: value}}
+
+    当前期与基期对比共用此函数，保证口径完全一致。
+    若该账户册方案无指标数据，回退到任意 scheme_code（兼容 ZXCOA_V1）。
+    """
+    out: Dict[str, Dict[str, float]] = {}
+    if not nodes or not data_date:
+        return out
+    ph = ",".join([f":n{i}" for i in range(len(nodes))])
+    ph2 = ",".join([f":m{i}" for i in range(len(DEFAULT_METRIC_TYPES))])
+    base_params: Dict[str, Any] = {"dd": data_date}
+    for i, n in enumerate(nodes):
+        base_params[f"n{i}"] = n["node_code"]
+    for i, m in enumerate(DEFAULT_METRIC_TYPES):
+        base_params[f"m{i}"] = m
+
+    rows = db.execute(text(f"""
+        SELECT node_code, metric_type, current_value
+        FROM prcp_metric_coefficient
+        WHERE is_deleted = 0
+          AND scheme_code = :sc
+          AND data_date = :dd
+          AND node_code IN ({ph})
+          AND metric_type IN ({ph2})
+    """), {**base_params, "sc": coa_code}).fetchall()
+    if not rows:
+        rows = db.execute(text(f"""
+            SELECT node_code, metric_type, current_value
+            FROM prcp_metric_coefficient
+            WHERE is_deleted = 0
+              AND data_date = :dd
+              AND node_code IN ({ph})
+              AND metric_type IN ({ph2})
+        """), base_params).fetchall()
+    for r in rows:
+        out.setdefault(r[0], {})[r[1]] = float(r[2] or 0)
+    return out
+
+
 @router.get("/balance-trend")
 async def balance_trend(
     scheme_code: str = Query("2026", description="组合方案编码"),
@@ -717,41 +757,7 @@ async def snapshot(
     } for r in rev_rows}
 
     # 6. 当前月份的 5 个指标
-    metric_map: Dict[str, Dict[str, float]] = {}
-    if nodes:
-        ph = ",".join([f":n{i}" for i in range(len(nodes))])
-        params = {"sc": coa_code, "dd": data_date}
-        for i, n in enumerate(nodes):
-            params[f"n{i}"] = n["node_code"]
-        ph2 = ",".join([f":m{i}" for i in range(len(DEFAULT_METRIC_TYPES))])
-        for i, m in enumerate(DEFAULT_METRIC_TYPES):
-            params[f"m{i}"] = m
-        mrows = db.execute(text(f"""
-            SELECT node_code, metric_type, current_value
-            FROM prcp_metric_coefficient
-            WHERE is_deleted = 0
-              AND scheme_code = :sc
-              AND data_date = :dd
-              AND node_code IN ({ph})
-              AND metric_type IN ({ph2})
-        """), params).fetchall()
-        # 如果该 schema 没有任何指标数据，回退到任何 scheme_code（兼容 ZXCOA_V1 数据）
-        if not mrows:
-            params2 = {"dd": data_date}
-            for i, n in enumerate(nodes):
-                params2[f"n{i}"] = n["node_code"]
-            for i, m in enumerate(DEFAULT_METRIC_TYPES):
-                params2[f"m{i}"] = m
-            mrows = db.execute(text(f"""
-                SELECT node_code, metric_type, current_value
-                FROM prcp_metric_coefficient
-                WHERE is_deleted = 0
-                  AND data_date = :dd
-                  AND node_code IN ({ph})
-                  AND metric_type IN ({ph2})
-            """), params2).fetchall()
-        for r in mrows:
-            metric_map.setdefault(r[0], {})[r[1]] = float(r[2] or 0)
+    metric_map: Dict[str, Dict[str, float]] = _load_metric_map(db, nodes, data_date, coa_code)
 
     # 7. KPI 聚合（仅汇总叶子节点，避免父节点合计被重复计算）
     total_nodes = len(nodes)
@@ -861,21 +867,8 @@ async def snapshot(
                        if _classify(n["node_code"], n["path"]) == cat
                        and _is_leaf(n["node_code"]) and n["node_code"] in src)
 
-        # 指标类：取基期月份的 prcp_metric_coefficient
-        base_metric_rows = db.execute(text("""
-            SELECT node_code, metric_type, current_value
-            FROM prcp_metric_coefficient
-            WHERE is_deleted = 0 AND data_date = :dd
-              AND node_code IN ({ph}) AND metric_type IN ({ph2})
-        """).format(
-            ph=",".join([f":n{i}" for i in range(len(nodes))]) if nodes else "NULL",
-            ph2=",".join([f":m{i}" for i in range(len(DEFAULT_METRIC_TYPES))]) if DEFAULT_METRIC_TYPES else "NULL",
-        ), {**{f"n{i}": n["node_code"] for i, n in enumerate(nodes)},
-            **{f"m{i}": m for i, m in enumerate(DEFAULT_METRIC_TYPES)},
-            "dd": base_period_date}).fetchall()
-        base_metric: Dict[str, Dict[str, float]] = {}
-        for r in base_metric_rows:
-            base_metric.setdefault(r[0], {})[r[1]] = float(r[2] or 0)
+        # 指标类：取基期月份的 prcp_metric_coefficient（与当前期同一函数，口径一致）
+        base_metric = _load_metric_map(db, nodes, base_period_date, coa_code)
 
         base_metric_avg: Dict[str, Optional[float]] = {}
         for m in DEFAULT_METRIC_TYPES:
