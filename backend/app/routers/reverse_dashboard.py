@@ -489,11 +489,28 @@ async def snapshot(
                 if r[3]:
                     cat_dist[_classify(r[0], r[2])] += float(r[1] or 0)
 
+    # 9c. 大类【当月预测余额】分布（对照口径）
+    #     数据源：prcp_data_reverse（反算结果，当前选中的预测月）
+    #     口径：与 9b 相同的末级节点集合，保证两张图可直接对比
+    cat_dist_forecast: Dict[str, float] = {"ASSET": 0, "LIABILITY": 0, "EQUITY": 0, "OFF_BALANCE": 0, "OTHER": 0}
+    for n in nodes:
+        nc = n["node_code"]
+        if not base_leaf_map.get(nc, _is_leaf(nc)):
+            continue
+        r_data = rev_map.get(nc)
+        if r_data:
+            cat_dist_forecast[_classify(nc, n["path"])] += float(r_data.get("current_balance", 0) or 0)
+
     category_distribution = {
         "by_count": cat_count,
+        # 基准日当前余额（prcp_data_basic）
         "by_balance": {k: round(v, 2) for k, v in cat_dist.items()},
         "balance_date": balance_date,
         "balance_source": "prcp_data_basic",
+        # 当月预测余额（prcp_data_reverse，随预测月份变化）
+        "by_balance_forecast": {k: round(v, 2) for k, v in cat_dist_forecast.items()},
+        "forecast_date": str(data_date) if data_date else None,
+        "forecast_source": "prcp_data_reverse",
     }
 
     # 10. 节点详情矩阵（用于当前余额柱状图 + Top 榜）

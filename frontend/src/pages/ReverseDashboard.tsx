@@ -97,6 +97,9 @@ const ReverseDashboard: React.FC = () => {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [filterCat, setFilterCat] = useState<string | undefined>(undefined)
+  // 余额口径：base = 基准日当前余额（prcp_data_basic，静态）
+  //           forecast = 当月预测余额（prcp_data_reverse，随预测月份变化）
+  const [balanceMode, setBalanceMode] = useState<'base' | 'forecast'>('base')
 
   // 初始化：加载选项
   useEffect(() => {
@@ -182,16 +185,18 @@ const ReverseDashboard: React.FC = () => {
     }
   }, [data])
 
-  // 大类当前余额分布饼图（按方案基准日的当前余额汇总）
+  // 大类余额分布饼图（口径随 balanceMode 切换）
   const distOpt = useMemo(() => {
     if (!data?.category_distribution) return {}
     const cd = data.category_distribution
     const labels = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
-    const bDate = cd.balance_date
+    const isBase = balanceMode === 'base'
+    const values = isBase ? cd.by_balance : cd.by_balance_forecast
+    const bDate = isBase ? cd.balance_date : cd.forecast_date
     return {
       tooltip: {
         trigger: 'item',
-        formatter: (p: any) => `${CATEGORY_META[p.name]?.label || p.name}<br/>当前余额: ${fmtMoney(p.value)}<br/>占比: ${p.percent}%${bDate ? `<br/>基准日: ${bDate}` : ''}`,
+        formatter: (p: any) => `${CATEGORY_META[p.name]?.label || p.name}<br/>${isBase ? '当前余额' : '预测余额'}: ${fmtMoney(p.value)}<br/>占比: ${p.percent}%${bDate ? `<br/>${isBase ? '基准日' : '预测月'}: ${bDate}` : ''}`,
       },
       legend: {
         bottom: 0, type: 'scroll',
@@ -200,21 +205,23 @@ const ReverseDashboard: React.FC = () => {
       series: [{
         type: 'pie', radius: ['45%', '70%'],
         data: labels.map((k) => ({
-          name: k, value: cd.by_balance[k] || 0,
+          name: k, value: (values || {})[k] || 0,
           itemStyle: { color: CATEGORY_META[k].color },
         })),
         label: { formatter: (p: any) => `${CATEGORY_META[p.name]?.label || p.name}\n${p.percent}%` },
       }],
     }
-  }, [data])
+  }, [data, balanceMode])
 
   // 大类节点数柱状图
-  // 大类金额分布柱状图（与饼图同源：基准日当前余额）
+  // 大类金额分布柱状图（与饼图同源，口径随 balanceMode 切换）
   const distBarOpt = useMemo(() => {
     if (!data?.category_distribution) return {}
     const cd = data.category_distribution
     const labels = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
-    const bDate = cd.balance_date
+    const isBase = balanceMode === 'base'
+    const values = isBase ? cd.by_balance : cd.by_balance_forecast
+    const bDate = isBase ? cd.balance_date : cd.forecast_date
     return {
       tooltip: {
         trigger: 'axis',
@@ -222,8 +229,8 @@ const ReverseDashboard: React.FC = () => {
         formatter: (ps: any) => {
           const p = ps[0]
           const k = labels[p.dataIndex]
-          return `${CATEGORY_META[k]?.label || k}<br/>当前余额: ${fmtMoney(p.value)}${
-            bDate ? `<br/>基准日: ${bDate}` : ''
+          return `${CATEGORY_META[k]?.label || k}<br/>${isBase ? '当前余额' : '预测余额'}: ${fmtMoney(p.value)}${
+            bDate ? `<br/>${isBase ? '基准日' : '预测月'}: ${bDate}` : ''
           }<br/>节点数: ${cd.by_count[k] || 0}`
         },
       },
@@ -231,7 +238,7 @@ const ReverseDashboard: React.FC = () => {
       xAxis: { type: 'category', data: labels.map((k) => CATEGORY_META[k]?.label || k) },
       yAxis: {
         type: 'value',
-        name: '当前余额',
+        name: isBase ? '当前余额' : '预测余额',
         nameLocation: 'end',
         nameGap: 14,
         nameTextStyle: { align: 'right', color: '#8f959e', fontSize: 11 },
@@ -242,7 +249,7 @@ const ReverseDashboard: React.FC = () => {
       series: [{
         type: 'bar', barWidth: '50%',
         data: labels.map((k) => ({
-          value: cd.by_balance[k] || 0,
+          value: (values || {})[k] || 0,
           itemStyle: { color: CATEGORY_META[k].color },
         })),
         label: {
@@ -251,7 +258,7 @@ const ReverseDashboard: React.FC = () => {
         },
       }],
     }
-  }, [data])
+  }, [data, balanceMode])
 
   // 指标评分雷达图（5 维：ROE/CET1/LCR/NSFR/DELTA_EVE，分值 0-500，v12b 评分标准）
   const radarOpt = useMemo(() => {
@@ -311,34 +318,39 @@ const ReverseDashboard: React.FC = () => {
     }
   }, [data])
 
-  // 末级节点当前余额柱状图（横向条形，按余额降序）
-  //   数据源：prcp_data_basic 基准日当前余额（base_balance），与「当前余额分布」卡片同源
+  // 末级节点余额柱状图（横向条形，按余额降序）
+  //   口径随 balanceMode 切换：
+  //     base     → base_balance（prcp_data_basic 基准日，不随预测月变化）
+  //     forecast → current_balance（prcp_data_reverse 当月预测，随 M1..M24 变化）
   //   仅展示末级节点（is_leaf = true），避免父子重复
   const balanceBarOpt = useMemo(() => {
     if (!data?.node_matrix) return {}
+    const isBase = balanceMode === 'base'
+    const valOf = (n: any) => (isBase ? n.base_balance : n.current_balance)
     let nodes = data.node_matrix.filter((n: any) => n.is_leaf)
     if (filterCat) nodes = nodes.filter((n: any) => n.category === filterCat)
     // 余额降序（大额在前）
-    nodes = [...nodes].sort((a: any, b: any) => Math.abs(b.base_balance) - Math.abs(a.base_balance))
+    nodes = [...nodes].sort((a: any, b: any) => Math.abs(valOf(b)) - Math.abs(valOf(a)))
     const cats = ['ASSET', 'LIABILITY', 'EQUITY', 'OFF_BALANCE', 'OTHER']
     // 横向条形：y 轴放节点名（倒序绘制，使最大条在顶部）
     const yLabels = nodes.map((n: any) => `${n.node_name || n.node_code}`)
-    const bDate = data.category_distribution?.balance_date
+    const cd = data.category_distribution
+    const bDate = isBase ? cd?.balance_date : cd?.forecast_date
     return {
       tooltip: {
         trigger: 'item',
         formatter: (p: any) => {
           const n = nodes[p.dataIndex]
           const catLabel = CATEGORY_META[n.category]?.label || n.category
-          return `${n.node_code} · ${n.node_name}<br/>大类: ${catLabel}<br/>当前余额: <b>${fmtMoney(p.value)}</b>${
-            bDate ? `<br/>基准日: ${bDate}` : ''
+          return `${n.node_code} · ${n.node_name}<br/>大类: ${catLabel}<br/>${isBase ? '当前余额' : '预测余额'}: <b>${fmtMoney(p.value)}</b>${
+            bDate ? `<br/>${isBase ? '基准日' : '预测月'}: ${bDate}` : ''
           }`
         },
       },
       grid: { left: 220, right: 90, top: 20, bottom: 56 },
       xAxis: {
         type: 'value',
-        name: '当前余额',
+        name: isBase ? '当前余额' : '预测余额',
         nameLocation: 'middle',
         nameGap: 36,
         nameTextStyle: { color: '#8f959e', fontSize: 11 },
@@ -354,10 +366,10 @@ const ReverseDashboard: React.FC = () => {
       },
       series: [{
         type: 'bar',
-        name: '当前余额',
+        name: isBase ? '基准日当前余额' : '当月预测余额',
         barWidth: '58%',
         data: nodes.map((n: any) => ({
-          value: n.base_balance,
+          value: valOf(n),
           itemStyle: { color: CATEGORY_META[n.category]?.color || '#8c8c8c' },
           category: n.category,
         })),
@@ -367,7 +379,7 @@ const ReverseDashboard: React.FC = () => {
         },
       }],
     }
-  }, [data, filterCat])
+  }, [data, filterCat, balanceMode])
 
   if (!data && loading) {
     return <div style={{ textAlign: 'center', padding: 80 }}><Spin tip="加载驾驶舱…" /></div>
@@ -432,6 +444,17 @@ const ReverseDashboard: React.FC = () => {
                   M{d.date_offset} · {d.data_date}
                 </Option>
               ))}
+            </Select>
+          </Col>
+          <Col>
+            <span style={{ marginRight: 8 }}>余额口径：</span>
+            <Select
+              value={balanceMode}
+              onChange={setBalanceMode}
+              style={{ width: 160 }}
+            >
+              <Option value="base">基准日当前余额</Option>
+              <Option value="forecast">当月预测余额</Option>
             </Select>
           </Col>
           <Col>
@@ -585,11 +608,19 @@ const ReverseDashboard: React.FC = () => {
           <Card
             title={
               <>
-                <DashboardOutlined /> 当前余额分布
-                {data?.category_distribution?.balance_date && (
-                  <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>
-                    基准日 {data.category_distribution.balance_date}
-                  </Tag>
+                <DashboardOutlined /> {balanceMode === 'base' ? '当前余额分布' : '预测余额分布'}
+                {balanceMode === 'base' ? (
+                  data?.category_distribution?.balance_date && (
+                    <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>
+                      基准日 {data.category_distribution.balance_date}
+                    </Tag>
+                  )
+                ) : (
+                  data?.category_distribution?.forecast_date && (
+                    <Tag color="purple" style={{ marginLeft: 10, fontSize: 11 }}>
+                      预测月 {data.category_distribution.forecast_date}
+                    </Tag>
+                  )
                 )}
               </>
             }
@@ -608,12 +639,20 @@ const ReverseDashboard: React.FC = () => {
           <Card
             title={
               <>
-                <DashboardOutlined /> 当前余额柱状图
+                <DashboardOutlined /> {balanceMode === 'base' ? '基准日当前余额柱状图' : '当月预测余额柱状图'}
                 <Tag color="blue" style={{ marginLeft: 10, fontSize: 11 }}>仅末级节点</Tag>
-                {data?.category_distribution?.balance_date && (
-                  <Tag color="blue" style={{ marginLeft: 6, fontSize: 11 }}>
-                    基准日 {data.category_distribution.balance_date}
-                  </Tag>
+                {balanceMode === 'base' ? (
+                  data?.category_distribution?.balance_date && (
+                    <Tag color="blue" style={{ marginLeft: 6, fontSize: 11 }}>
+                      基准日 {data.category_distribution.balance_date}
+                    </Tag>
+                  )
+                ) : (
+                  data?.category_distribution?.forecast_date && (
+                    <Tag color="purple" style={{ marginLeft: 6, fontSize: 11 }}>
+                      预测月 {data.category_distribution.forecast_date}
+                    </Tag>
+                  )
                 )}
                 <Select
                   size="small" allowClear placeholder="按大类过滤"
