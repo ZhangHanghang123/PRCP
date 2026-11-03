@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRCP 组合反算结果优化 · 需求设计文档</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg); color:var(--txt); line-height:1.65; font-size:14px; padding:0 0 60px;
+}
+.wrap{display:flex;max-width:1460px;margin:0 auto}
+.nav{width:250px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px;letter-spacing:.5px}
+.nav a{display:block;padding:6px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;
+  font-size:12.5px;margin-bottom:1px;transition:.15s}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.nav a.l2{padding-left:26px;font-size:12px}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+
+.hd{background:var(--card);border-radius:12px;padding:26px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:22px;font-weight:600;margin-bottom:8px}
+.hd .sub{font-size:13px;color:var(--txt2);margin-bottom:12px}
+.hd .meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);
+  padding-top:13px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;
+  font-family:var(--mono);vertical-align:middle}
+.tag-b{background:var(--blue-bg);color:var(--blue)}
+.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}
+.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}
+.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:15px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-h h2{font-size:16px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:24px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:18px 0 8px;color:var(--txt)}
+.sec-b h4 .fr{font-family:var(--mono);color:var(--blue);font-size:11.5px;margin-right:6px}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+.sec-b ul,.sec-b ol{margin:0 0 12px 22px;color:var(--txt2)}
+.sec-b li{margin-bottom:4px}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);
+  border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tbl{overflow-x:auto}
+code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:nowrap}
+
+.sql{background:#fbfcfd;border:1px solid var(--line);border-left:3px solid var(--blue);
+  border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;
+  font-family:var(--mono);font-size:12px;line-height:1.85;overflow-x:auto;white-space:pre}
+.sql .c{color:#8f959e}
+.sql .k{color:var(--blue);font-weight:600}
+.sql .s{color:var(--green)}
+.sql .n{color:var(--orange)}
+
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);
+  border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+
+.toc{background:var(--card);border-radius:12px;padding:18px 26px;margin-bottom:18px;border:1px solid var(--line)}
+.toc h4{font-size:13px;font-weight:600;margin-bottom:11px;color:var(--txt3)}
+.toc-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:7px}
+.toc a{display:block;padding:8px 12px;background:#f7f8fa;border-radius:7px;text-decoration:none;
+  color:var(--txt2);font-size:12.5px;border:1px solid var(--line)}
+.toc a:hover{background:var(--blue-bg);color:var(--blue);border-color:var(--blue)}
+.toc a b{color:var(--blue);font-family:var(--mono);margin-right:5px}
+
+/* 数据流图 */
+.flow{background:#fbfcfd;border:1px solid var(--line);border-radius:10px;padding:18px;margin:14px 0}
+.layer{border:1.5px solid var(--line);border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.layer-t{font-size:11px;font-weight:600;font-family:var(--mono);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.layer-t .lt{font-size:10px;color:var(--txt3);font-weight:400;margin-left:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.node{flex:1;min-width:110px;border:1.5px solid #d0d4da;border-radius:8px;padding:9px 10px;
+  text-align:center;background:#fff}
+.node .nt{font-size:12px;font-weight:600;margin-bottom:2px}
+.node .ns{font-size:9.5px;color:var(--txt3);font-family:var(--mono);line-height:1.5}
+.node.b{border-color:var(--blue);background:var(--blue-bg)}.node.b .nt{color:var(--blue)}
+.node.g{border-color:var(--green);background:var(--green-bg)}.node.g .nt{color:var(--green)}
+.node.o{border-color:var(--orange);background:var(--orange-bg)}.node.o .nt{color:var(--orange)}
+.node.p{border-color:var(--purple);background:var(--purple-bg)}.node.p .nt{color:var(--purple)}
+.node.c{border-color:var(--cyan);background:var(--cyan-bg)}.node.c .nt{color:#0aa39e}
+.node.r{border-color:var(--red);background:var(--red-bg)}.node.r .nt{color:var(--red)}
+.arrow{text-align:center;color:var(--txt3);font-size:15px;margin:3px 0}
+
+/* 页面结构 */
+.page-map{border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;background:#fbfcfd}
+.pm-row{display:flex;gap:10px;margin-bottom:9px;align-items:stretch}
+.pm-lab{width:96px;flex:none;font-size:11px;font-family:var(--mono);color:var(--txt3);
+  display:flex;align-items:center;justify-content:flex-end;padding-right:4px;text-align:right}
+.pm-box{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff;font-size:12.5px}
+.pm-box b{font-weight:600}
+.pm-box.blue{border-color:var(--blue);background:var(--blue-bg)}
+.pm-box.green{border-color:var(--green);background:var(--green-bg)}
+.pm-box.orange{border-color:var(--orange);background:var(--orange-bg)}
+.pm-box.purple{border-color:var(--purple);background:var(--purple-bg)}
+.pm-box.cyan{border-color:var(--cyan);background:var(--cyan-bg)}
+
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s1" class="on">1 文档信息</a>
+  <a href="#s2">2 需求背景与目标</a>
+  <a href="#s3">3 术语与口径定义</a>
+  <a href="#s4">4 页面功能结构</a>
+  <a href="#s5">5 数据来源与查询条件</a>
+  <a href="#s5-1" class="l2">5.1 数据表清单</a>
+  <a href="#s5-2" class="l2">5.2 公共查询条件</a>
+  <a href="#s5-3" class="l2">5.3 各功能点查询条件</a>
+  <a href="#s6">6 口径计算规则</a>
+  <a href="#s7">7 功能需求明细</a>
+  <a href="#s8">8 接口清单</a>
+  <a href="#s9">9 已知问题与规划</a>
+  <a href="#s10">10 附录</a>
+</div>
+
+<div class="main">
+
+<div class="hd">
+  <h1>PRCP 组合反算结果优化 · 需求设计文档</h1>
+  <div class="sub">组合反算 · 结果驾驶舱（/prcp/dashboard）指标展示与导出能力建设</div>
+  <div style="margin-bottom:12px">
+    <span class="tag tag-b">11 项功能需求</span>
+    <span class="tag tag-g">9 张数据表</span>
+    <span class="tag tag-o">4 个接口</span>
+    <span class="tag tag-p">1 套口径体系</span>
+    <span class="tag tag-c">FastAPI + Vue3</span>
+  </div>
+  <div class="meta">
+    <div>产品 <b>组合反算平台 / PRCP</b></div>
+    <div>模块 <b>结果驾驶舱</b></div>
+    <div>版本 <b>v1.0</b></div>
+    <div>日期 <b>2026-11-03</b></div>
+    <div>作者 <b>产品/研发联合</b></div>
+  </div>
+</div>
+
+<div class="toc">
+  <h4>文档结构</h4>
+  <div class="toc-g">
+    <a href="#s1"><b>01</b>文档信息</a>
+    <a href="#s2"><b>02</b>需求背景与目标</a>
+    <a href="#s3"><b>03</b>术语与口径定义</a>
+    <a href="#s4"><b>04</b>页面功能结构</a>
+    <a href="#s5"><b>05</b>数据来源与查询条件</a>
+    <a href="#s6"><b>06</b>口径计算规则</a>
+    <a href="#s7"><b>07</b>功能需求明细</a>
+    <a href="#s8"><b>08</b>接口清单</a>
+    <a href="#s9"><b>09</b>已知问题与规划</a>
+    <a href="#s10"><b>10</b>附录</a>
+  </div>
+</div>
+
+<!-- ============ 1 ============ -->
+<div class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>文档信息</h2></div>
+  <div class="sec-b">
+    <h3>1.1 修订记录</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:90px">版本</th><th style="width:100px">日期</th><th style="width:150px">修订人</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>v1.0</td><td>2026-11-03</td><td>产品/研发</td><td>首次发布，覆盖组合反算结果驾驶舱当日全部优化项</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>1.2 涉及端点与代码位置</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">位置</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>backend/app/routers/reverse_dashboard.py</code></td><td>后端全部接口（snapshot / balance-trend / balance-export / dates / options / runs）</td></tr>
+        <tr><td><code>backend/app/services/reverse_calc_engine.py</code></td><td>反算引擎（数据写入方，本次未改动）</td></tr>
+        <tr><td><code>frontend/src/pages/ReverseDashboard.tsx</code></td><td>结果驾驶舱页面（<code>/prcp/dashboard</code> 实际指向此组件）</td></tr>
+        <tr><td><code>frontend/src/api/index.ts</code></td><td>API 客户端（<code>reverseDashboardApi</code>、<code>http</code> 实例）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>需求背景与目标</h2></div>
+  <div class="sec-b">
+
+    <h3>2.1 背景</h3>
+    <p>组合反算结果驾驶舱初期存在四个问题：</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">编号</th><th style="width:170px">问题</th><th>影响</th></tr></thead>
+      <tbody>
+        <tr><td>P1</td><td>「大类分布」取的是反算结果的<strong>预测月</strong>余额</td>
+            <td>切到 M24 时分布图跟着变，用户无法判断「当前账户结构长什么样」</td></tr>
+        <tr><td>P2</td><td>缺少节点级余额明细与走势</td>
+            <td>只能看到大类占比，看不到「哪个科目在涨、涨多少」</td></tr>
+        <tr><td>P3</td><td>无导出能力</td>
+            <td>汇报场景需手工截图/复制，无法留痕</td></tr>
+        <tr><td>P4</td><td>KPI 卡片只有孤立数值</td>
+            <td>看不到「离目标还有多远」「比基期好了还是差了」</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>2.2 目标</h3>
+    <ul>
+      <li>建立<strong>基准日当前余额</strong>与<strong>当月预测余额</strong>两套可切换口径，覆盖「现状」与「预测」两个视角</li>
+      <li>提供<strong>节点级</strong>与<strong>层级汇总</strong>两种粒度的余额展示与走势</li>
+      <li>提供<strong>结构化导出</strong>（xlsx），含账户册树、层级汇总、口径说明</li>
+      <li>为每个 KPI 补充<strong>基期对比项</strong>与<strong>目标达成进度</strong>，让数值可被解读</li>
+    </ul>
+
+    <h3>2.3 设计原则</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">原则</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>口径唯一</b></td><td>当前期与基期、图表与导出，必须走同一套取值函数，杜绝口径漂移</td></tr>
+        <tr><td><b>末级口径统一</b></td><td>「末级节点」判定链：<code>prcp_data_basic.is_leaf</code> → path 前缀推断</td></tr>
+        <tr><td><b>父节点不重复</b></td><td>父级汇总一律由末级节点上卷（roll-up）计算，不采信父节点自身值</td></tr>
+        <tr><td><b>量纲可解释</b></td><td>目标与实际量级不可比时（相差 3 个数量级以上），完成率置空而非给出荒谬数字</td></tr>
+        <tr><td><b>口径可见</b></td><td>静态字段必须标注「固定/不随预测月变化」，避免误判为功能失效</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>术语与口径定义</h2></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:140px">术语</th><th style="width:180px">定义</th><th>取值 / 说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>组合方案</b></td><td><code>prcp_reverse_scheme.scheme_code</code></td><td>如 <code>2026</code>、<code>REV_ANT_REG</code></td></tr>
+        <tr><td><b>Run</b></td><td><code>prcp_reverse_run.id</code>（status='SUCCESS'）</td><td>一次反算执行；缺省取该方案最新 SUCCESS</td></tr>
+        <tr><td><b>账户册方案</b></td><td><code>prcp_reverse_scheme.coa_scheme_id</code> → <code>prcp_coa_scheme</code></td><td>如 <code>ZX_COA</code></td></tr>
+        <tr><td><b>基准日</b></td><td><code>prcp_reverse_scheme.data_date</code></td><td>反算起点，如 <code>2025-12-31</code></td></tr>
+        <tr><td><b>基期</b></td><td>反算结果的第 1 期（<code>date_offset = 1</code>）</td><td>对应 <code>data_date = 2025-12-01</code>；<b>与趋势图起点一致</b></td></tr>
+        <tr><td><b>测算期</b></td><td><code>date_offset = 1 ~ 24</code>，<code>offset_unit = 'M'</code></td><td>2025-12-01 ~ 2027-11-01</td></tr>
+        <tr><td><b>末级节点</b></td><td><code>prcp_data_basic.is_leaf = 1</code></td><td>无 basic 行时回退 path 前缀推断；<b>不采信 <code>prcp_data_reverse.is_leaf</code></b></td></tr>
+        <tr><td><b>大类</b></td><td>资产 / 负债 / 权益 / 表外 / 其他</td><td>由 <code>_classify(node_code, path)</code> 判定（编码前缀 S01/S02/S03/S04）</td></tr>
+        <tr><td><b>基准日当前余额</b></td><td><code>prcp_data_basic.current_balance</code></td><td>账户册基准日余额，<b>不随预测月份变化</b></td></tr>
+        <tr><td><b>当月预测余额</b></td><td><code>prcp_data_reverse.current_balance</code></td><td>反算结果在所选 <code>date_offset</code> 的余额</td></tr>
+        <tr><td><b>roll-up 上卷</b></td><td>父节点 = 其子树内末级节点余额之和</td><td>自底向上递归计算，保证父子不重复</td></tr>
+        <tr><td><b>完成率</b></td><td>按 <code>constraint_type</code> 换算</td><td>GE=实际/目标；LE=目标/实际；EQ=1−|差|/|目标|</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <div class="note warn">
+      <b>⚠️ 基准日 vs 基期 —— 两个不同的日期</b>
+      <ul style="margin:8px 0 0">
+        <li><b>基准日</b> = <code>2025-12-31</code>（<code>prcp_reverse_scheme.data_date</code>），反算的<strong>起点</strong></li>
+        <li><b>基期</b> = <code>2025-12-01</code>（<code>date_offset = 1</code> 的 <code>data_date</code>），<strong>第 1 个测算月</strong></li>
+      </ul>
+      两者相差 30 天，源于 <code>prcp_data_reverse</code> 按「基准月的月初」记录月度快照。
+      涉及「基准日当前余额」的功能用基准日；涉及「与基期比较」的功能用基期。
+    </div>
+  </div>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>页面功能结构</h2></div>
+  <div class="sec-b">
+
+    <h3>4.1 页面分区</h3>
+    <div class="page-map">
+      <div class="pm-row"><div class="pm-lab">控件区</div>
+        <div class="pm-box blue">
+          <b>组合方案</b> ▾ ｜ <b>运行记录</b> ▾ ｜ <b>预测月份</b> ▾ ｜ <b>余额口径</b> ▾（基准日当前余额 / 当月预测余额）
+          ｜ <b>导出结果</b> 按钮 ｜ 🔄
+        </div></div>
+      <div class="pm-row"><div class="pm-lab">目标达成</div>
+        <div class="pm-box green">
+          <b>目标达成进度</b>（新增）— 指标 / 目标 / 实际 / 进度条 / 当前完成率 / M12 完成率
+        </div></div>
+      <div class="pm-row"><div class="pm-lab">KPI 区</div>
+        <div class="pm-box orange">
+          <b>8 张 KPI 卡</b>（资产余额、负债余额、贷款加权平均利率、ROE、CET1、LCR、NSFR、ΔEVE）
+          —— 每卡右下角带<b>基期对比项</b>
+        </div></div>
+      <div class="pm-row"><div class="pm-lab">分析区</div>
+        <div class="pm-box purple">
+          5 指标 24 月趋势 ｜ 指标评分雷达图 ｜ Top 10 节点 ｜ <b>当前余额分布</b>（饼图 + 金额分布柱状图）
+        </div></div>
+      <div class="pm-row"><div class="pm-lab">节点区</div>
+        <div class="pm-box cyan">
+          <b>当前余额柱状图</b>（末级节点，横向条形）｜ <b>末级账户册余额走势</b>（新增，按大类 / 按节点明细）
+        </div></div>
+    </div>
+
+    <h3>4.2 数据流总览</h3>
+    <div class="flow">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--purple)">配置层 <span class="lt">方案 / Run / 月份 / 口径</span></div>
+        <div class="row">
+          <div class="node p"><div class="nt">prcp_reverse_scheme</div><div class="ns">组合方案<br>coa_scheme_id / data_date</div></div>
+          <div class="node p"><div class="nt">prcp_reverse_run</div><div class="ns">执行记录<br>status=SUCCESS</div></div>
+          <div class="node p"><div class="nt">prcp_reverse_target</div><div class="ns">目标约束<br>目标值/约束类型/权重</div></div>
+          <div class="node p"><div class="nt">prcp_coa_node</div><div class="ns">账户册树<br>parent_id / path</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--orange)">数据层 <span class="lt">余额 / 指标 / 评分</span></div>
+        <div class="row">
+          <div class="node o"><div class="nt">prcp_data_reverse</div><div class="ns">逐月预测余额<br>24 期 × 节点</div></div>
+          <div class="node o"><div class="nt">prcp_data_basic</div><div class="ns">基准日余额<br>is_leaf 判定</div></div>
+          <div class="node o"><div class="nt">prcp_metric_coefficient</div><div class="ns">5 指标系数<br>逐月</div></div>
+          <div class="node o"><div class="nt">prcp_kpi_*</div><div class="ns">指标定义/值/评分规则</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--blue)">服务层 <span class="lt">reverse_dashboard.py</span></div>
+        <div class="row">
+          <div class="node b"><div class="nt">snapshot</div><div class="ns">KPI + 基期 + 目标</div></div>
+          <div class="node b"><div class="nt">balance-trend</div><div class="ns">月度走势</div></div>
+          <div class="node b"><div class="nt">balance-export</div><div class="ns">xlsx 导出</div></div>
+          <div class="node b"><div class="nt">公共函数</div><div class="ns">_leaf_map / _load_metric_map<br>_rollup / _classify</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--green)">展现层 <span class="lt">ReverseDashboard.tsx</span></div>
+        <div class="row">
+          <div class="node g"><div class="nt">目标达成进度</div><div class="ns">TargetRow</div></div>
+          <div class="node g"><div class="nt">KPI 卡</div><div class="ns">Statistic + CompareTag</div></div>
+          <div class="node g"><div class="nt">分布/柱状/走势</div><div class="ns">ECharts</div></div>
+          <div class="node g"><div class="nt">导出</div><div class="ns">Blob 下载</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 5 ============ -->
+<div class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>数据来源与查询条件</h2>
+    <span class="tag tag-r">核心章节</span></div>
+  <div class="sec-b">
+
+    <h3 id="s5-1">5.1 数据表清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:190px">数据表</th><th style="width:120px">数据域</th>
+        <th style="width:180px">本方案使用字段</th><th>说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>prcp_reverse_scheme</code></td><td>组合反算</td>
+            <td><code>id</code> <code>scheme_code</code> <code>scheme_name</code> <code>coa_scheme_id</code><br>
+                <code>data_date</code> <code>horizon_months</code> <code>algorithm</code> <code>model_id</code></td>
+            <td>组合方案主表；<code>data_date</code> 即「基准日」</td></tr>
+        <tr><td><code>prcp_reverse_run</code></td><td>组合反算</td>
+            <td><code>id</code> <code>scheme_id</code> <code>status</code> <code>run_code</code><br>
+                <code>start_at</code> <code>end_at</code> <code>duration_sec</code> <code>optimal_value</code></td>
+            <td>反算执行记录；仅取 <code>status='SUCCESS'</code></td></tr>
+        <tr><td><code>prcp_reverse_target</code></td><td>组合反算</td>
+            <td><code>scheme_id</code> <code>kpi_code</code> <code>target_name</code><br>
+                <code>target_value</code> <code>constraint_type</code> <code>weight</code> <code>horizon_month</code></td>
+            <td><b>目标值的唯一来源</b>；本次优化首次接入</td></tr>
+        <tr><td><code>prcp_data_reverse</code></td><td>组合反算</td>
+            <td><code>scheme_code</code> <code>run_id</code> <code>date_offset</code> <code>offset_unit</code><br>
+                <code>data_date</code> <code>node_code</code> <code>node_name</code> <code>node_level</code><br>
+                <code>is_leaf</code> <code>category</code> <code>current_balance</code> <code>weighted_rate</code></td>
+            <td>逐月预测结果；<b>当月预测余额的唯一来源</b></td></tr>
+        <tr><td><code>prcp_data_basic</code></td><td>账户册基础数据</td>
+            <td><code>data_date</code> <code>coa_node_id</code> <code>node_code</code><br>
+                <code>is_leaf</code> <code>category</code> <code>current_balance</code> <code>weighted_rate</code></td>
+            <td><b>基准日当前余额的唯一来源</b>；<b>末级节点判定权威源</b></td></tr>
+        <tr><td><code>prcp_coa_node</code></td><td>账户册</td>
+            <td><code>id</code> <code>scheme_id</code> <code>node_code</code> <code>node_name</code><br>
+                <code>node_level</code> <code>parent_id</code> <code>path</code> <code>sort_order</code></td>
+            <td>账户册树；<code>parent_id</code> 用于 roll-up 建树，<code>path</code> 用于分类与末级推断</td></tr>
+        <tr><td><code>prcp_coa_scheme</code></td><td>账户册</td>
+            <td><code>id</code> <code>scheme_code</code> <code>scheme_name</code></td>
+            <td>账户册方案；<code>scheme_code</code> 即指标表的关联键</td></tr>
+        <tr><td><code>prcp_metric_coefficient</code></td><td>指标</td>
+            <td><code>scheme_code</code> <code>node_code</code> <code>metric_type</code><br>
+                <code>data_date</code> <code>current_value</code></td>
+            <td>5 指标（ROE/CET1/LCR/NSFR/DELTA_EVE）逐月系数</td></tr>
+        <tr><td><code>prcp_kpi_definition</code> / <code>_value</code> /<br>
+                <code>_score_rule</code> / <code>_score_segment</code></td><td>指标</td>
+            <td><code>kpi_code</code> <code>kpi_name</code> <code>current_value</code> <code>score</code><br>
+                <code>min_value</code> <code>max_value</code></td>
+            <td>指标评分；按 <code>kpi_code LIKE 'REG_%'</code> 取监管口径指标</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 id="s5-2">5.2 公共查询条件</h3>
+
+    <h4>① 组合方案定位</h4>
+    <div class="sql"><span class="c">-- 用途：取得 coa_scheme_id / base_date / 账户册方案编码</span>
+<span class="k">SELECT</span> s.id, s.scheme_name, s.coa_scheme_id, s.data_date, s.horizon_months,
+       c.scheme_code <span class="k">AS</span> coa_code, c.scheme_name <span class="k">AS</span> coa_name
+<span class="k">FROM</span> prcp_reverse_scheme s
+<span class="k">LEFT JOIN</span> prcp_coa_scheme c <span class="k">ON</span> c.id = s.coa_scheme_id
+<span class="k">WHERE</span> s.scheme_code = :sc <span class="k">AND</span> s.is_deleted = <span class="n">0</span></div>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">条件</th><th style="width:120px">参数</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>scheme_code = :sc</code></td><td>URL 参数</td><td>组合方案编码，缺省 <code>2026</code></td></tr>
+        <tr><td><code>is_deleted = 0</code></td><td>常量</td><td>软删除过滤，全表统一约定</td></tr>
+        <tr><td><code>LEFT JOIN prcp_coa_scheme</code></td><td>—</td><td>取账户册方案编码，供指标表关联使用</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>② Run 定位（缺省取最新 SUCCESS）</h4>
+    <div class="sql"><span class="c">-- 用途：确定本次展示/导出的执行批次</span>
+<span class="k">SELECT</span> id <span class="k">FROM</span> prcp_reverse_run
+<span class="k">WHERE</span> scheme_id = :sid <span class="k">AND</span> status = <span class="s">'SUCCESS'</span> <span class="k">AND</span> is_deleted = <span class="n">0</span>
+<span class="k">ORDER BY</span> id <span class="k">DESC</span> <span class="k">LIMIT</span> <span class="n">1</span></div>
+    <p style="font-size:12.5px">URL 传入 <code>run_id</code> 时直接使用；否则按上式取最新成功批次。失败/进行中的批次不参与展示。</p>
+
+    <h4>③ 测算期月份序列</h4>
+    <div class="sql"><span class="c">-- 用途：确定 M1~M24 的 (offset, data_date) 映射</span>
+<span class="k">SELECT DISTINCT</span> date_offset, data_date
+<span class="k">FROM</span> prcp_data_reverse
+<span class="k">WHERE</span> scheme_code = :sc <span class="k">AND</span> run_id = :rid <span class="k">AND</span> is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> offset_unit = <span class="s">'M'</span> <span class="k">AND</span> date_offset &gt;= <span class="n">1</span>
+<span class="k">ORDER BY</span> date_offset <span class="k">ASC</span></div>
+    <div class="note">
+      <b>为什么 <code>date_offset >= 1</code></b>：<code>prcp_data_reverse</code> 中 <code>date_offset = 0</code> 与
+      <code>1</code> 指向<strong>同一个 <code>data_date</code></strong>（基准月），属重复行。
+      过滤掉 0 后得到 24 个不重复月份（M1~M24）。
+    </div>
+    <p style="font-size:12.5px"><b>命中索引</b>：<code>uk_node_date(scheme_code, run_id, coa_node_id, data_date, date_offset)</code> 前缀命中；<code>idx_run(run_id)</code> 辅助。</p>
+
+    <h4>④ 末级节点判定（口径链，两级）</h4>
+    <div class="sql"><span class="c">-- 第一级（权威）：prcp_data_basic.is_leaf</span>
+<span class="k">SELECT</span> b.node_code, <span class="k">MAX</span>(b.is_leaf)
+<span class="k">FROM</span> prcp_data_basic b
+<span class="k">JOIN</span> prcp_coa_node n <span class="k">ON</span> n.id = b.coa_node_id
+<span class="k">WHERE</span> n.scheme_id = :sid <span class="k">AND</span> n.is_deleted = <span class="n">0</span> <span class="k">AND</span> b.is_deleted = <span class="n">0</span>
+<span class="k">GROUP BY</span> b.node_code</div>
+    <div class="sql"><span class="c">-- 第二级（兜底）：path 前缀推断「有子节点则非末级」</span>
+<span class="c">-- 存在 M 使 M.path 以 N.path + "/" 开头 ⇒ N 非末级</span></div>
+    <div class="note warn">
+      <b>⚠️ 不可使用 <code>prcp_data_reverse.is_leaf</code></b>
+      <div class="tbl" style="margin-top:8px">
+      <table>
+        <thead><tr><th style="width:150px">方案 / Run</th><th style="width:80px">节点数</th><th style="width:100px">is_leaf=1 行数</th><th>说明</th></tr></thead>
+        <tbody>
+        <tr><td><code>2026</code> / run 31</td><td class="num">36</td><td class="num">900</td><td>标记完整，可用</td></tr>
+        <tr><td><code>REV_ANT_REG</code> / run 9</td><td class="num">57</td><td class="num" style="color:var(--red)">0</td><td><b>标记全为 0</b>，且 <code>category</code> 为 NULL</td></tr>
+        <tr><td><code>REV_DNN_REG</code> / run 8</td><td class="num">57</td><td class="num" style="color:var(--red)">0</td><td>同上</td></tr>
+        <tr><td><code>REV_NLS_REG</code> / run 10</td><td class="num">57</td><td class="num" style="color:var(--red)">0</td><td>同上</td></tr>
+        </tbody>
+      </table>
+      </div>
+      若直接用 <code>prcp_data_reverse.is_leaf = 1</code> 过滤，后三个方案将返回<b>空数据</b>。
+    </div>
+
+    <h4>⑤ 5 指标取值（当前期与基期共用）</h4>
+    <div class="sql"><span class="c">-- 优先按账户册方案编码取</span>
+<span class="k">SELECT</span> node_code, metric_type, current_value
+<span class="k">FROM</span> prcp_metric_coefficient
+<span class="k">WHERE</span> is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> scheme_code = :sc        <span class="c">-- = 账户册方案编码，如 ZX_COA</span>
+  <span class="k">AND</span> data_date = :dd           <span class="c">-- 当前期 data_date 或基期 data_date</span>
+  <span class="k">AND</span> node_code <span class="k">IN</span> ({ph})
+  <span class="k">AND</span> metric_type <span class="k">IN</span> ({ph2})   <span class="c">-- ROE/CET1/LCR/NSFR/DELTA_EVE</span>
+
+<span class="c">-- 无数据时回退（兼容 ZXCOA_V1 历史数据）</span>
+<span class="k">SELECT</span> node_code, metric_type, current_value
+<span class="k">FROM</span> prcp_metric_coefficient
+<span class="k">WHERE</span> is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> data_date = :dd
+  <span class="k">AND</span> node_code <span class="k">IN</span> ({ph})
+  <span class="k">AND</span> metric_type <span class="k">IN</span> ({ph2})</div>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">条件</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>scheme_code = :sc</code></td><td>注意是<b>账户册方案编码</b>（<code>ZX_COA</code>），不是组合方案编码</td></tr>
+        <tr><td><code>data_date = :dd</code></td><td>当前期用所选月份的 data_date；基期用 <code>date_offset=1</code> 的 data_date</td></tr>
+        <tr><td>回退分支</td><td>该账户册方案无指标数据时，去掉 <code>scheme_code</code> 条件再查一次</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 id="s5-3">5.3 各功能点的查询条件</h3>
+
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:56px">FR</th><th style="width:170px">功能</th><th style="width:190px">数据来源表</th>
+        <th style="width:210px">关键查询条件</th><th>口径</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>FR-01</td><td>当前余额分布（基准日）</td>
+            <td><code>prcp_data_basic</code> × <code>prcp_coa_node</code></td>
+            <td><code>n.scheme_id = :coa_scheme_id</code><br><code>b.is_deleted = 0</code><br>
+                <code>MAX(b.data_date) WHERE b.data_date &lt;= :base_date</code></td>
+            <td>仅 <code>is_leaf = 1</code> 累加</td></tr>
+        <tr><td>FR-01b</td><td>当月预测余额分布</td>
+            <td><code>prcp_data_reverse</code></td>
+            <td><code>scheme_code = :sc</code> <code>run_id = :rid</code><br>
+                <code>offset_unit = 'M'</code> <code>date_offset = :do</code></td>
+            <td>同上，叶子口径</td></tr>
+        <tr><td>FR-02</td><td>当前余额柱状图</td>
+            <td><code>prcp_data_basic</code> / <code>prcp_data_reverse</code></td>
+            <td>同上，按 <code>node_code</code> 关联</td>
+            <td>仅末级节点，按余额降序</td></tr>
+        <tr><td>FR-04</td><td>末级账户册余额走势</td>
+            <td><code>prcp_data_reverse</code></td>
+            <td><code>scheme_code = :sc</code> <code>run_id = :rid</code><br>
+                <code>offset_unit = 'M'</code> <code>date_offset &gt;= 1</code></td>
+            <td>24 个月全序列</td></tr>
+        <tr><td>FR-07</td><td>导出结果</td>
+            <td>上述 4 表 + <code>prcp_coa_node</code></td>
+            <td>同上，另加 <code>prcp_coa_node.scheme_id = :sid</code> 取完整树</td>
+            <td>roll-up 上卷</td></tr>
+        <tr><td>FR-08</td><td>层级汇总</td>
+            <td>内存计算</td>
+            <td>由 <code>prcp_coa_node.parent_id</code> 建索引，自底向上递归</td>
+            <td>大类 × 层级交叉</td></tr>
+        <tr><td>FR-09</td><td>KPI 基期对比</td>
+            <td><code>prcp_data_reverse</code> + <code>prcp_metric_coefficient</code></td>
+            <td>余额：<code>date_offset = 1</code>；指标：<code>data_date = :base_period_date</code></td>
+            <td>与当前期同口径</td></tr>
+        <tr><td>FR-10</td><td>目标达成进度</td>
+            <td><code>prcp_reverse_target</code> + <code>prcp_metric_coefficient</code></td>
+            <td>目标：<code>scheme_id = :rev_id</code> <code>ORDER BY sort_order</code><br>
+                M12：<code>date_offset = 12</code> 的 <code>data_date</code></td>
+            <td>完成率按约束类型</td></tr>
+        <tr><td>FR-11</td><td>指标评分标签</td>
+            <td><code>prcp_kpi_definition</code> × <code>_value</code> × <code>_score_rule</code> × <code>_score_segment</code></td>
+            <td><code>d.kpi_code LIKE 'REG_%'</code><br>
+                <code>v.data_date = :base_date</code><br>
+                区间：<code>v.current_value &gt;= s.min_value AND &lt; s.max_value</code></td>
+            <td>按分段插值取档位</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>① 基准日余额（FR-01）</h4>
+    <div class="sql"><span class="c">-- 步骤 1：定位基准日（优先方案基准日，无则取该方案最新可用日）</span>
+<span class="k">SELECT MAX</span>(b.data_date) <span class="k">FROM</span> prcp_data_basic b
+<span class="k">JOIN</span> prcp_coa_node n <span class="k">ON</span> n.id = b.coa_node_id
+<span class="k">WHERE</span> n.scheme_id = :sid <span class="k">AND</span> n.is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> b.is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> (:dd <span class="k">IS NULL</span> <span class="k">OR</span> b.data_date &lt;= :dd)   <span class="c">-- :dd = 方案基准日</span>
+
+<span class="c">-- 步骤 2：取该日全部节点余额（同时建立 node_code → is_leaf 映射）</span>
+<span class="k">SELECT</span> b.node_code, b.current_balance, n.path, b.is_leaf
+<span class="k">FROM</span> prcp_data_basic b
+<span class="k">JOIN</span> prcp_coa_node n <span class="k">ON</span> n.id = b.coa_node_id
+<span class="k">WHERE</span> n.scheme_id = :sid <span class="k">AND</span> n.is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> b.is_deleted = <span class="n">0</span> <span class="k">AND</span> b.data_date = :dd</div>
+    <p style="font-size:12.5px"><b>命中索引</b>：<code>uk_node_date_offset(coa_node_id, data_date, date_offset, offset_unit)</code>；
+    <code>idx_node(coa_node_id)</code>、<code>idx_date(data_date)</code> 辅助。</p>
+
+    <h4>② 预测月余额（FR-01b / FR-02 / FR-04）</h4>
+    <div class="sql"><span class="c">-- 单月（快照接口用）</span>
+<span class="k">SELECT</span> coa_node_id, node_code, current_balance, avg_balance,
+       weighted_rate, interest_amount, risk_weight
+<span class="k">FROM</span> prcp_data_reverse
+<span class="k">WHERE</span> scheme_code = :sc <span class="k">AND</span> run_id = :rid <span class="k">AND</span> date_offset = :do
+  <span class="k">AND</span> offset_unit = <span class="s">'M'</span> <span class="k">AND</span> is_deleted = <span class="n">0</span>
+
+<span class="c">-- 全序列（走势/导出用）</span>
+<span class="k">SELECT</span> date_offset, node_code, node_name, category, current_balance
+<span class="k">FROM</span> prcp_data_reverse
+<span class="k">WHERE</span> scheme_code = :sc <span class="k">AND</span> run_id = :rid <span class="k">AND</span> is_deleted = <span class="n">0</span>
+  <span class="k">AND</span> offset_unit = <span class="s">'M'</span> <span class="k">AND</span> date_offset &gt;= <span class="n">1</span>
+<span class="k">ORDER BY</span> date_offset <span class="k">ASC</span></div>
+
+    <h4>③ 目标约束（FR-10）</h4>
+    <div class="sql"><span class="k">SELECT</span> kpi_code, target_name, target_value, constraint_type, weight, horizon_month
+<span class="k">FROM</span> prcp_reverse_target
+<span class="k">WHERE</span> scheme_id = :sid <span class="k">AND</span> is_deleted = <span class="n">0</span>
+<span class="k">ORDER BY</span> sort_order</div>
+    <p style="font-size:12.5px"><b>命中索引</b>：<code>idx_scheme(scheme_id)</code>。当前方案 2026 的 4 条目标均为
+    <code>constraint_type = 'GE'</code>、<code>horizon_month = 24</code>。</p>
+
+    <h4>④ 指标评分（FR-11）</h4>
+    <div class="sql"><span class="k">SELECT</span> d.kpi_code, d.kpi_name, v.current_value, v.score, s.segment_desc
+<span class="k">FROM</span> prcp_kpi_definition d
+<span class="k">LEFT JOIN</span> prcp_kpi_value v
+       <span class="k">ON</span> v.kpi_id = d.id <span class="k">AND</span> v.data_date = :bdd <span class="k">AND</span> v.is_deleted = <span class="n">0</span>
+<span class="k">LEFT JOIN</span> prcp_kpi_score_rule r
+       <span class="k">ON</span> r.kpi_id = d.id <span class="k">AND</span> r.is_deleted = <span class="n">0</span>
+<span class="k">LEFT JOIN</span> prcp_kpi_score_segment s
+       <span class="k">ON</span> s.rule_id = r.id <span class="k">AND</span> s.is_deleted = <span class="n">0</span>
+       <span class="k">AND</span> (s.min_value <span class="k">IS NULL</span> <span class="k">OR</span> v.current_value &gt;= s.min_value)
+       <span class="k">AND</span> (s.max_value <span class="k">IS NULL</span> <span class="k">OR</span> v.current_value &lt;  s.max_value)
+<span class="k">WHERE</span> d.is_deleted = <span class="n">0</span> <span class="k">AND</span> d.kpi_code <span class="k">LIKE</span> <span class="s">'REG_%'</span></div>
+
+    <h4>⑤ 账户册树（导出用）</h4>
+    <div class="sql"><span class="k">SELECT</span> node_code, node_name, node_level, path, id, parent_id, sort_order
+<span class="k">FROM</span> prcp_coa_node
+<span class="k">WHERE</span> scheme_id = :sid <span class="k">AND</span> is_deleted = <span class="n">0</span>
+<span class="k">ORDER BY</span> node_level, sort_order, node_code</div>
+    <p style="font-size:12.5px"><b>命中索引</b>：<code>uk_scheme_code(scheme_id, node_code)</code>。
+    <code>parent_id</code> 用于构建 children 索引（roll-up），<code>path</code> 用于大类分类与末级推断。</p>
+  </div>
+</div>
+
+<!-- ============ 6 ============ -->
+<div class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>口径计算规则</h2></div>
+  <div class="sec-b">
+
+    <h3>6.1 大类分类（_classify）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">大类</th><th style="width:250px">判定条件（任一命中）</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>资产</b> ASSET</td><td><code>node_code</code> 前缀 <code>S01</code> / <code>ZX_A</code><br>
+            <code>path</code> 前缀 <code>/L1_资产</code> 或等于 <code>/L1_ASSET/</code></td><td>中信 ZX_COA 编码体系</td></tr>
+        <tr><td><b>负债</b> LIABILITY</td><td><code>S02</code> / <code>ZX_L</code>；<code>/L1_负债</code> / <code>/L1_LIABILITY/</code></td><td></td></tr>
+        <tr><td><b>权益</b> EQUITY</td><td><code>S03</code> / <code>ZX_E</code>；<code>/L1_权益</code> / <code>/L1_EQUITY/</code></td><td></td></tr>
+        <tr><td><b>表外</b> OFF_BALANCE</td><td><code>S04</code>；<code>/L1_表外</code> / <code>/L1_OFF_BALANCE/</code></td><td></td></tr>
+        <tr><td><b>其他</b> OTHER</td><td>兜底</td><td></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>6.2 roll-up 上卷（父节点汇总）</h3>
+    <div class="sql"><span class="c">// 末级节点：直接取自身预测余额</span>
+<span class="k">for</span> nc <span class="k">in</span> vals:
+    <span class="k">if</span> _is_leaf_of(nc): rolled[nc] = list(vals[nc])
+
+<span class="c">// 父节点：递归求子树末级之和（自底向上）</span>
+<span class="k">def</span> _rollup(nc, depth=0):
+    <span class="k">if</span> nc <span class="k">in</span> rolled: <span class="k">return</span> rolled[nc]
+    kids = children_of[node_id_by_code[nc]]
+    <span class="k">if not</span> kids: rolled[nc] = [0.0]*N; <span class="k">return</span> rolled[nc]
+    acc = [0.0]*N
+    <span class="k">for</span> k <span class="k">in</span> kids:
+        kv = _rollup(k, depth+1)
+        <span class="k">for</span> i <span class="k">in</span> range(N): acc[i] += kv[i]
+    rolled[nc] = acc
+    <span class="k">return</span> acc</div>
+    <div class="note ok">
+      <b>关键</b>：<b>只采信末级节点的自身值</b>。父节点一律由子树上卷得出，
+      因此不存在父子重复计算；各层级互不重叠，末级合计 = 账户册总额。
+    </div>
+
+    <h3>6.3 完成率与达标判定</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:110px">约束类型</th><th style="width:230px">完成率</th>
+        <th style="width:160px">达标判定</th><th>说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>GE</code>（≥）</td><td><code>实际 / 目标 × 100</code></td><td><code>实际 ≥ 目标</code></td><td>当前方案全部目标均为 GE</td></tr>
+        <tr><td><code>LE</code>（≤）</td><td><code>目标 / 实际 × 100</code></td><td><code>实际 ≤ 目标</code></td><td>实际越小越接近目标</td></tr>
+        <tr><td><code>EQ</code>（=）</td><td><code>(1 − |实际−目标| / |目标|) × 100</code></td><td><code>|实际−目标| &lt; 1e-9</code></td><td></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note warn">
+      <b>量纲保护（必须）</b>：当 <code>|实际/目标|</code> 落在 <code>[1e-3, 1e3]</code> 之外时，
+      判定为<b>量纲不可比</b>，完成率返回 <code>null</code>，前端显示「-」。
+      <br>
+      实例：<code>REG_EVE</code> 目标为 <code>-500000000</code>（-5 亿，单位元），
+      而实际值 ΔEVE 为 <code>8.05</code>（%），直接相除得 <code>-0.0016%</code>，看似精确实则荒谬。
+    </div>
+
+    <h3>6.4 KPI 聚合口径</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">KPI</th><th style="width:230px">计算式</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>资产/负债/权益/表外余额</td>
+            <td><code>SUM(余额)</code>，仅 <code>_classify = 目标大类</code> 且 <code>_is_leaf</code> 的节点</td>
+            <td>末级口径，避免父节点重复</td></tr>
+        <tr><td>贷款加权平均利率</td>
+            <td><code>Σ(余额 × 加权利率) / Σ(余额)</code>，节点前缀 <code>S01010101~05</code></td>
+            <td>取境内各项人民币贷款的 L4 子节点，不含 L3 父节点</td></tr>
+        <tr><td>5 指标均值</td>
+            <td><code>AVG(有值节点的 current_value)</code></td>
+            <td>取 <code>prcp_metric_coefficient</code>，无值节点不参与</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 7 ============ -->
+<div class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>功能需求明细</h2>
+    <span class="tag tag-g">11 项</span></div>
+  <div class="sec-b">
+
+    <h4><span class="fr">FR-01</span>当前余额分布（基准日口径）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>「大类分布」改为「按方案基准日的当前余额汇总分布」，反映账户册期初结构，不随预测月份漂移</td></tr>
+        <tr><td><b>数据源</b></td><td><code>prcp_data_basic</code> × <code>prcp_coa_node</code></td></tr>
+        <tr><td><b>查询条件</b></td><td><code>n.scheme_id = :coa_scheme_id</code>、<code>b.data_date = :balance_date</code>、<code>b.is_leaf = 1</code>；<code>balance_date</code> 取 <code>MAX(data_date) WHERE data_date &lt;= 方案基准日</code></td></tr>
+        <tr><td><b>呈现</b></td><td>饼图（占比）+ 金额分布柱状图（绝对值），配色按大类；标题标注基准日</td></tr>
+        <tr><td><b>验收</b></td><td>切 M1~M24 数值不变；与基期合计一致（19.42 万亿）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-01b</span>余额口径切换（基准日 / 当月预测）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>顶部「余额口径」下拉，全页两个图表同步切换数据源</td></tr>
+        <tr><td><b>数据源</b></td><td>基准日 → <code>prcp_data_basic</code>；当月预测 → <code>prcp_data_reverse</code>（<code>date_offset = :do</code>）</td></tr>
+        <tr><td><b>呈现</b></td><td>标题联动（当前余额分布 / 预测余额分布）；Tag 联动（基准日 X / 预测月 X）；Tooltip 文案联动</td></tr>
+        <tr><td><b>验收</b></td><td>预测口径下切 M1→M24，分布与柱状图数值随之变化（资产 10.13 → 11.11 万亿）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-02</span>末级节点当前余额柱状图</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>原「节点 × 指标 热力图」改为「当前余额柱状图」，<b>仅展示末级节点</b></td></tr>
+        <tr><td><b>数据源</b></td><td>同 FR-01 / FR-01b</td></tr>
+        <tr><td><b>呈现</b></td><td>横向条形（节点名放 y 轴，宽 200 截断）；按余额绝对值降序；颜色按大类；柱顶标金额；可按大类过滤</td></tr>
+        <tr><td><b>验收</b></td><td>37 个末级节点；合计 = 大类分布合计（19.42 / 20.26 万亿）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-03</span>末级账户册余额走势</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>新增趋势图，展示测算期内每个月月末余额走势</td></tr>
+        <tr><td><b>数据源</b></td><td><code>prcp_data_reverse</code>，条件 <code>scheme_code</code> + <code>run_id</code> + <code>offset_unit='M'</code> + <code>date_offset &gt;= 1</code></td></tr>
+        <tr><td><b>视图</b></td><td>按大类汇总（默认，5 线）/ 按节点明细（Top 5/10/15/20/全部）</td></tr>
+        <tr><td><b>呈现</b></td><td>x 轴 <code>YYYY-MM</code>（45° 旋转），y 轴月末余额（万亿/亿自适应）；高度按线条数自适应 <code>max(420, 40+n×16)</code>；&gt;20 条时线宽降至 1.1 并隐去数据点</td></tr>
+        <tr><td><b>验收</b></td><td>24 个月完整序列；与导出 Sheet1 数值一致</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-04</span>结果导出（xlsx）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>顶部「导出结果」按钮，按账户册导出测算期每月预测余额</td></tr>
+        <tr><td><b>数据源</b></td><td><code>prcp_data_reverse</code> + <code>prcp_coa_node</code> + <code>prcp_data_basic</code></td></tr>
+        <tr><td><b>Sheet1</b></td><td>「账户册结构」—— 按 path 树序展示全部节点，名称按层级缩进 <code>indent=(level-1)×2</code>；末级=自身值，父节点=roll-up 子树和；父节点行浅蓝底加粗</td></tr>
+        <tr><td><b>Sheet2</b></td><td>「按层级汇总」—— 大类 × 层级交叉表（节点数 / 末级节点数 / 逐月汇总），末行「末级合计」= 账户册总额</td></tr>
+        <tr><td><b>Sheet3</b></td><td>「末级节点大类汇总」—— 资产/负债/权益/表外/其他 逐月合计 + 合计行</td></tr>
+        <tr><td><b>Sheet4</b></td><td>「口径说明」—— 方案/Run/账户册方案/基准日/预测期/月份区间/节点数/余额口径/数据源/导出时间</td></tr>
+        <tr><td><b>输出</b></td><td>文件名 <code>组合反算结果导出_{方案}_run{run_id}_{起始月}至{结束月}.xlsx</code>；<code>Content-Disposition: attachment; filename*=UTF-8''{quote}</code></td></tr>
+        <tr><td><b>验收</b></td><td>20 个父节点的 roll-up 全部校验通过；Sheet3 与 Sheet2 末级合计一致</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-05</span>KPI 基期对比项</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>每张 KPI 卡右下角增加与基期的对比项，形成「指标 + 对比项」组合</td></tr>
+        <tr><td><b>数据源</b></td><td>余额类 → <code>prcp_data_reverse</code>（<code>date_offset = 1</code>）；指标类 → <code>prcp_metric_coefficient</code>（基期 <code>data_date</code>）</td></tr>
+        <tr><td><b>呈现</b></td><td>金额型：基期值 + 百分比差；比率型：基期值 + <b>pp</b> 差；颜色按指标方向（越高越好涨绿跌红 / ΔEVE 越低越好涨红跌绿 / 规模类中性色）；Tooltip 显示完整对比说明</td></tr>
+        <tr><td><b>验收</b></td><td>M1 时差值全为 0（自己跟自己比）；M24 时 ROE +0.92pp、ΔEVE −0.35pp</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-06</span>目标达成进度行</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>KPI 区上方新增一条，列出目标、真实指标、当前完成率，以及 M12（12 个月后）的完成率</td></tr>
+        <tr><td><b>数据源</b></td><td>目标 → <code>prcp_reverse_target</code>（<code>scheme_id = :rev_id</code>）；实际 → 当前期与 <code>date_offset = 12</code> 两期的 <code>prcp_metric_coefficient</code></td></tr>
+        <tr><td><b>呈现</b></td><td>每行：指标 / 目标 / 实际 / 进度条 / 当前完成率 / M12 完成率；进度条达标绿、未达标红</td></tr>
+        <tr><td><b>验收</b></td><td>M1 时当前完成率 ≠ M12 完成率；M12 时两者相等；M24 时分化。量纲不可比时显示「-」</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-07</span>末级节点判定修复</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>问题</b></td><td><code>prcp_data_reverse.is_leaf</code> 在 3 个方案中全为 0，导致走势/导出返回空数据</td></tr>
+        <tr><td><b>方案</b></td><td>判定链：<code>prcp_data_basic.is_leaf</code> → path 前缀推断</td></tr>
+        <tr><td><b>验收</b></td><td>REV_ANT_REG 导出大类汇总 M1 = 19.42 万亿（= basic 叶子口径）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-08</span>图表联动修复</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>问题</b></td><td>ECharts <code>setOption</code> 默认 merge 模式，series 数量变化时旧 series 残留（切「全部」→「Top 10」后仍有 26 条多余线，tooltip 出现重复项）</td></tr>
+        <tr><td><b>方案</b></td><td>全部 6 处 <code>&lt;ReactECharts&gt;</code> 加 <code>replaceMerge={['series']}</code>（比 <code>notMerge</code> 保留过渡动画）</td></tr>
+        <tr><td><b>验收</b></td><td>下拉切换后 series 数量 = 期望值（10 → 36 → 10 → 5）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 8 ============ -->
+<div class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n">8</div><h2>接口清单</h2></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:290px">接口</th><th style="width:180px">方法 / 参数</th>
+        <th style="width:110px">返回</th><th>说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>/prcp/api/reverse-dashboard/options</code></td><td>GET</td><td>JSON</td>
+            <td>方案 / Run / 默认值下拉</td></tr>
+        <tr><td><code>/prcp/api/reverse-dashboard/runs</code></td><td>GET <code>scheme_code</code></td><td>JSON</td>
+            <td>某方案的 Run 列表</td></tr>
+        <tr><td><code>/prcp/api/reverse-dashboard/dates</code></td><td>GET <code>scheme_code</code> <code>run_id</code></td><td>JSON</td>
+            <td>Run 下所有月份（M1..M24）</td></tr>
+        <tr><td><code>/prcp/api/reverse-dashboard/snapshot</code></td>
+            <td>GET <code>scheme_code</code><br><code>run_id</code> <code>date_offset</code></td><td>JSON</td>
+            <td><b>驾驶舱快照</b>：kpi / kpi_base / targets / m12_date / trend /<br>
+                category_distribution / node_matrix / top_nodes / risk_alerts / thresholds</td></tr>
+        <tr><td><code>/prcp/api/reverse-dashboard/balance-trend</code></td>
+            <td>GET <code>scheme_code</code> <code>run_id</code></td><td>JSON</td>
+            <td><b>末级账户册余额走势</b>：months / categories / nodes</td></tr>
+        <tr><td><code>/prcp/api/reverse-dashboard/balance-export</code></td>
+            <td>GET <code>scheme_code</code> <code>run_id</code></td><td>xlsx</td>
+            <td><b>结果导出</b>：4 个 Sheet</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.1 snapshot 响应结构（增量部分）</h3>
+    <div class="sql"><span class="c">// 新增/调整的字段</span>
+{
+  <span class="k">"kpi"</span>: {                                  <span class="c">// 原有：当前期 KPI</span>
+    "asset_total", "liability_total", "equity_total", "off_balance",
+    "loan_weighted_rate", "metric_avg", "metric_max", "metric_min"
+  },
+  <span class="k">"kpi_base"</span>: {                            <span class="c">// 新增：基期 KPI</span>
+    "period": <span class="s">"2025-12-01"</span>,                <span class="c">// 基期日期</span>
+    "asset_total", "liability_total", "equity_total",
+    "loan_weighted_rate", "metric_avg"
+  },
+  <span class="k">"targets"</span>: [                             <span class="c">// 新增：目标达成</span>
+    {
+      "kpi_code": <span class="s">"REG_LCR"</span>,
+      "metric_type": <span class="s">"LCR"</span>,
+      "target_name": <span class="s">"≥150%"</span>,
+      "target_value": <span class="n">150.0</span>,
+      "constraint_type": <span class="s">"GE"</span>,
+      "weight": <span class="n">1.5</span>,
+      "horizon_month": <span class="n">24</span>,
+      "current_value": <span class="n">148.92</span>,
+      "current_rate": <span class="n">99.28</span>,               <span class="c">// %，不可比为 null</span>
+      "m12_value": <span class="n">148.44</span>,
+      "m12_rate": <span class="n">98.96</span>,
+      "achieved": <span class="n">false</span>
+    }
+  ],
+  <span class="k">"m12_date"</span>: <span class="s">"2026-11-01"</span>,              <span class="c">// 新增：M12 的 data_date</span>
+  <span class="k">"category_distribution"</span>: {                <span class="c">// 调整：新增两套口径</span>
+    "by_count": { "ASSET": <span class="n">32</span>, "LIABILITY": <span class="n">24</span>, "EQUITY": <span class="n">1</span>, ... },
+    "by_balance":        { ... },    <span class="c">// 基准日当前余额（prcp_data_basic）</span>
+    "balance_date": <span class="s">"2025-12-31"</span>,
+    "balance_source": <span class="s">"prcp_data_basic"</span>,
+    "by_balance_forecast": { ... },  <span class="c">// 新增：当月预测余额（prcp_data_reverse）</span>
+    "forecast_date": <span class="s">"2027-11-01"</span>,
+    "forecast_source": <span class="s">"prcp_data_reverse"</span>
+  },
+  <span class="k">"node_matrix"</span>: [                         <span class="c">// 调整：新增两个字段</span>
+    { "node_code", "node_name", "node_level",
+      "is_leaf": <span class="n">true</span>,                     <span class="c">// 新增</span>
+      "category", "current_balance",
+      "base_balance": <span class="n">9478626645606.28</span>,     <span class="c">// 新增：基准日余额</span>
+      "avg_balance", "weighted_rate", "interest_amount", "metric_values" }
+  ]
+}</div>
+  </div>
+</div>
+
+<!-- ============ 9 ============ -->
+<div class="sec" id="s9">
+  <div class="sec-h"><div class="sec-n">9</div><h2>已知问题与后续规划</h2></div>
+  <div class="sec-b">
+
+    <h3>9.1 已知问题</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">编号</th><th style="width:200px">问题</th><th style="width:100px">等级</th><th>说明与建议</th></tr></thead>
+      <tbody>
+        <tr><td>I1</td><td>M1 的日期早于基准日</td><td><span class="tag tag-o">中</span></td>
+            <td><code>prcp_data_reverse</code> 的 M1 = <code>2025-12-01</code>，而方案基准日为 <code>2025-12-31</code>。
+                根因在 <code>reverse_calc_engine._save_results</code>：按月粒度取基准月的<b>月初</b>。
+                建议改为「M1 = 基准日当月末、M2 = 次月末」</td></tr>
+        <tr><td>I2</td><td>REG_EVE 目标与实际量纲不一致</td><td><span class="tag tag-o">中</span></td>
+            <td>目标为金额（-5 亿），实际为百分比（ΔEVE）。当前以量纲保护返回「-」，
+                建议为 EVE 类指标单独定义目标口径（如「ΔEVE ≤ 8%」）</td></tr>
+        <tr><td>I3</td><td>各 Run 的 <code>is_leaf</code> / <code>category</code> 标记不一致</td><td><span class="tag tag-g">低</span></td>
+            <td>已在读取层用 fallback 规避，但建议在<b>写入层</b>（<code>_save_results</code>）统一补全标记</td></tr>
+        <tr><td>I4</td><td>导出的 Sheet2 为交叉表</td><td><span class="tag tag-y">低</span></td>
+            <td>「按层级汇总」采用大类 × 层级交叉，避免 L1 跨大类相加（资产+负债）造成误读。
+                若业务需要「每层一行」的简单版，可另加 Sheet</td></tr>
+        <tr><td>I5</td><td>前端多组件共用 ECharts 实例</td><td><span class="tag tag-y">低</span></td>
+            <td>已统一加 <code>replaceMerge={['series']}</code>，新增图表时需沿用该约定</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>9.2 后续规划</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">编号</th><th style="width:200px">事项</th><th style="width:90px">优先级</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>F1</td><td>目标值支持多期（分年目标）</td><td><span class="tag tag-r">P0</span></td>
+            <td>当前 <code>prcp_reverse_target</code> 每目标仅一个 <code>target_value</code> + <code>horizon_month</code>，
+                无法表达「分年度监管目标」</td></tr>
+        <tr><td>F2</td><td>完成率支持加权综合得分</td><td><span class="tag tag-o">P1</span></td>
+            <td><code>prcp_reverse_target.weight</code> 已存在但未用于汇总，可加「综合达成率 = Σ(完成率×权重)/Σ权重」</td></tr>
+        <tr><td>F3</td><td>导出支持「仅末级节点」选项</td><td><span class="tag tag-o">P1</span></td>
+            <td>当前 Sheet1 含全部层级行，可加参数控制</td></tr>
+        <tr><td>F4</td><td>余额走势支持多方案对比</td><td><span class="tag tag-y">P2</span></td>
+            <td>同一账户册在不同算法方案下的走势对比</td></tr>
+        <tr><td>F5</td><td>目标达成支持历史回溯</td><td><span class="tag tag-y">P2</span></td>
+            <td>展示历次 Run 对同一目标的达成轨迹</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 10 ============ -->
+<div class="sec" id="s10">
+  <div class="sec-h"><div class="sec-n">10</div><h2>附录</h2></div>
+  <div class="sec-b">
+
+    <h3>10.1 关键索引一览</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:190px">表</th><th style="width:230px">索引名</th><th style="width:250px">字段</th><th>本方案命中场景</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>prcp_data_reverse</code></td><td><code>uk_node_date</code></td>
+            <td><code>scheme_code, run_id, coa_node_id, data_date, date_offset</code></td><td>余额与走势查询（前缀命中）</td></tr>
+        <tr><td><code>prcp_data_reverse</code></td><td><code>idx_run</code> / <code>idx_scheme</code></td>
+            <td><code>run_id</code> / <code>scheme_code</code></td><td>按批次取数</td></tr>
+        <tr><td><code>prcp_data_basic</code></td><td><code>uk_node_date_offset</code></td>
+            <td><code>coa_node_id, data_date, date_offset, offset_unit</code></td><td>基准日余额与 is_leaf</td></tr>
+        <tr><td><code>prcp_data_basic</code></td><td><code>idx_node</code> / <code>idx_date</code></td>
+            <td><code>coa_node_id</code> / <code>data_date</code></td><td>辅助过滤</td></tr>
+        <tr><td><code>prcp_metric_coefficient</code></td><td><code>idx_mc_scheme_date</code> / <code>idx_mc_metric_type</code></td>
+            <td><code>scheme_id, data_date</code> / <code>metric_type, data_date</code></td><td>5 指标逐月取数</td></tr>
+        <tr><td><code>prcp_coa_node</code></td><td><code>uk_scheme_code</code> / <code>idx_path</code> / <code>idx_parent</code></td>
+            <td><code>scheme_id, node_code</code> / <code>path</code> / <code>parent_id</code></td><td>账户册树、分类、roll-up 建索引</td></tr>
+        <tr><td><code>prcp_reverse_target</code></td><td><code>idx_scheme</code></td><td><code>scheme_id</code></td><td>目标约束</td></tr>
+        <tr><td><code>prcp_reverse_run</code></td><td><code>idx_scheme</code> / <code>idx_status</code></td>
+            <td><code>scheme_id</code> / <code>status</code></td><td>定位最新 SUCCESS</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>10.2 相关变更提交</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:120px">提交</th><th style="width:240px">标题</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>fe514d3</code></td><td>（前序）新业务模拟 v2.4 + 指标评分插值</td><td>本次优化的基线</td></tr>
+        <tr><td><code>5193049</code> → <code>af221ab</code></td><td>结构导出 → 结果导出</td><td>按钮改名、去掉期末合计列</td></tr>
+        <tr><td><code>f5e681e</code> → <code>6023982</code></td><td>导出按账户册树 + 层级汇总</td><td>roll-up 上卷、大类×层级交叉表</td></tr>
+        <tr><td><code>e26aeec</code></td><td>修复图表联动失效</td><td><code>replaceMerge={['series']}</code></td></tr>
+        <tr><td><code>4ca1f55</code> → <code>9645417</code></td><td>KPI 基期对比项</td><td><code>kpi_base</code> 段 + CompareTag</td></tr>
+        <tr><td><code>173b111</code></td><td>目标达成进度行</td><td><code>targets</code> 段 + TargetRow</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>10.3 环境信息</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">项</th><th>值</th></tr></thead>
+      <tbody>
+        <tr><td>访问地址</td><td><code>https://wxfzhh.online/prcp/dashboard</code></td></tr>
+        <tr><td>后端</td><td>FastAPI + SQLAlchemy 2，<code>prcp-backend.service</code>（systemd），端口 8006</td></tr>
+        <tr><td>前端</td><td>Vue3 + Ant Design 5 + ECharts + Vite，静态目录 <code>/var/www/prcp</code></td></tr>
+        <tr><td>数据库</td><td>MySQL 8，库 <code>prcp_db</code>，用户 <code>prcp</code></td></tr>
+        <tr><td>部署方式</td><td><code>bash deploy/release.sh -m "说明"</code>（提交 → 推送 → 服务器拉取 → 构建 → 重启）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  PRCP 组合反算结果优化 · 需求设计文档 v1.0<br>
+  11 项功能需求 · 9 张数据表 · 4 个接口 · 1 套口径体系<br>
+  生成时间 2026-11-03
+</div>
+
+</div>
+</div>
+
+<script>
+const secs=[...document.querySelectorAll('.sec')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{
+    if(e.isIntersecting){
+      links.forEach(l=>l.classList.remove('on'));
+      const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id);
+      if(a)a.classList.add('on');
+    }
+  });
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
