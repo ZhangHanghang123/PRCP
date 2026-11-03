@@ -9,7 +9,7 @@ import {
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import dayjs from 'dayjs'
-import { reverseDashboardApi } from '../api'
+import { reverseDashboardApi, http } from '../api'
 
 const { Option } = Select
 
@@ -152,21 +152,14 @@ const ReverseDashboard: React.FC = () => {
     if (!schemeCode) return
     setExporting(true)
     try {
-      const res = await fetch(
-        `/prcp/api/reverse-dashboard/balance-export?scheme_code=${encodeURIComponent(schemeCode)}` +
-        (runId ? `&run_id=${runId}` : ''),
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } },
-      )
-      if (!res.ok) {
-        const txt = await res.text()
-        throw new Error(txt.slice(0, 200))
-      }
-      const blob = await res.blob()
-      // 从 Content-Disposition 取文件名
-      const cd = res.headers.get('Content-Disposition') || ''
+      const res = await http.get('/reverse-dashboard/balance-export', {
+        params: { scheme_code: schemeCode, ...(runId ? { run_id: runId } : {}) },
+        responseType: 'blob',
+      })
+      const cd = (res.headers?.['content-disposition'] as string) || ''
       const m = cd.match(/filename\*=UTF-8''([^;]+)/i)
       const fname = m ? decodeURIComponent(m[1]) : `组合反算结构导出_${schemeCode}.xlsx`
-      const url = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(res.data)
       const a = document.createElement('a')
       a.href = url
       a.download = fname
@@ -174,9 +167,10 @@ const ReverseDashboard: React.FC = () => {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
+      message.success(`已导出：${fname}`)
     } catch (e: any) {
-      console.error(e)
-      message.error(`导出失败：${e?.message || e}`)
+      // blob 错误响应的 detail 读不出来，这里给通用提示
+      message.error(`导出失败：${e?.response?.status === 404 ? '该方案无 SUCCESS 运行记录或无月度数据' : (e?.message || e)}`)
     } finally {
       setExporting(false)
     }
