@@ -2,22 +2,33 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Card, Row, Col, Form, Input, InputNumber, Select, Button, Table, Space, Tag,
   Modal, message, Empty, Popconfirm, Progress, Alert, Statistic, Drawer,
-  Descriptions, Tooltip,
+  Descriptions, Tooltip, Tabs,
 } from 'antd'
 import {
   PlusOutlined, ReloadOutlined, EditOutlined, DeleteOutlined,
   PlayCircleOutlined, PauseCircleOutlined, EyeOutlined,
   ExperimentOutlined, RocketOutlined, FunctionOutlined,
-  AimOutlined,
+  AimOutlined, ProfileOutlined, CalendarOutlined, ThunderboltOutlined,
 } from '@ant-design/icons'
 import { reverseApi, coaApi } from '../api'
 import { DictSelect, DictTag } from '../components'
+import ReverseDashboard from './ReverseDashboard'
+
+const { TabPane } = Tabs
 
 const CONSTRAINT_LABELS: Record<string, { label: string; color: string }> = {
   GE: { label: '≥', color: 'green' },
   LE: { label: '≤', color: 'orange' },
   EQ: { label: '=', color: 'blue' },
 }
+
+/** 方案状态筛选（对齐 Java 版测算方案页） */
+const SCHEME_STATUS_OPTIONS = [
+  { value: 'DRAFT', label: '草稿' },
+  { value: 'RUNNING', label: '运行中' },
+  { value: 'SUCCESS', label: '已完成' },
+  { value: 'DISABLED', label: '已停用' },
+]
 
 const ReverseCalc: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
@@ -30,6 +41,11 @@ const ReverseCalc: React.FC = () => {
 
   const [activeSchemeId, setActiveSchemeId] = useState<number | null>(null)
   const [activeRunId, setActiveRunId] = useState<number | null>(null)
+
+  // Tab 布局（对齐 Java 版：测算方案 / 目标设置 / 测算结果 / 运行记录）
+  const [activeTab, setActiveTab] = useState<string>('schemes')
+  const [schemeKeyword, setSchemeKeyword] = useState('')
+  const [schemeStatus, setSchemeStatus] = useState<string | undefined>(undefined)
 
   // Modal
   const [schemeModal, setSchemeModal] = useState(false)
@@ -272,36 +288,62 @@ const ReverseCalc: React.FC = () => {
     }
   }
 
+  /** 一键运行：建 Run → 立即启动 → 打开日志抽屉（对齐 Java 版「运行」按钮） */
+  const onRunScheme = async (s: any) => {
+    try {
+      const r = await reverseApi.createRun({ scheme_id: s.id })
+      const started = await reverseApi.startRun(r.id)
+      message.success(`反算已启动：${started.run_code || r.run_code}`)
+      setActiveSchemeId(s.id)
+      setLogRun({ ...started, scheme_id: s.id, scheme_code: s.scheme_code, scheme_name: s.scheme_name })
+      setLogDrawer(true)
+      loadRuns(s.id)
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '启动失败')
+    }
+  }
+
   // ============================================================
   // 表格列
   // ============================================================
+  // 方案表格列（对齐 Java 版：编码/名称/关联账户册/计量模型/数据日期/预测期/运行数/状态/操作）
   const schemeColumns = [
-    { title: '方案编码', dataIndex: 'scheme_code', key: 'sc', width: 130,
+    { title: '编码', dataIndex: 'scheme_code', key: 'sc', width: 150,
       render: (v: string) => <strong style={{ color: '#534ab7' }}>{v}</strong> },
-    { title: '方案名称', dataIndex: 'scheme_name', key: 'sn' },
-    { title: '算法', dataIndex: 'algorithm', key: 'algo', width: 110,
-      render: (v: string) => <DictTag dictType="PRCP_REVERSE_ALGO" value={v} /> },
-    { title: '计量模型', key: 'model', width: 200,
+    { title: '名称', dataIndex: 'scheme_name', key: 'sn', width: 220,
+      render: (v: string, r: any) => (
+        <Tooltip title={r.description || v}>
+          <span>{v}</span>
+        </Tooltip>
+      ) },
+    { title: '关联账户册', key: 'coa', width: 210,
+      render: (_: any, r: any) => r.coa_code ? (
+        <Tag color="cyan">{r.coa_code}{r.coa_name ? ` · ${r.coa_name}` : ''}</Tag>
+      ) : <span style={{ color: '#bbb' }}>未关联</span> },
+    { title: '计量模型', key: 'model', width: 190,
       render: (_: any, r: any) => r.model_id
-        ? <Tag color="geekblue" icon={<ExperimentOutlined />}>{r.model_code} · {r.model_name}</Tag>
+        ? <Tag color="geekblue" icon={<ExperimentOutlined />}>{r.model_code || r.model_name}</Tag>
         : <span style={{ color: '#bbb' }}>未关联</span> },
-    { title: '账户册', key: 'coa', width: 140,
-      render: (_: any, r: any) => r.coa_code ? <Tag color="cyan">{r.coa_code}</Tag> : '-' },
-    { title: '数据日期', dataIndex: 'data_date', key: 'dd', width: 110 },
-    { title: '期数', dataIndex: 'horizon_months', key: 'h', width: 60,
-      render: (v: number) => `${v} 月` },
-    { title: '目标', dataIndex: 'target_count', key: 'tc', width: 60 },
-    { title: '执行', dataIndex: 'run_count', key: 'rc', width: 60 },
-    { title: '状态', dataIndex: 'status', key: 's', width: 90,
+    { title: '数据日期', dataIndex: 'data_date', key: 'dd', width: 130,
+      render: (v: string) => v
+        ? <Tag color="blue" icon={<CalendarOutlined />}>{String(v).substring(0, 10)}</Tag>
+        : '-' },
+    { title: '预测期', dataIndex: 'horizon_months', key: 'h', width: 90,
+      render: (v: number) => (v ? `${v} 月` : '-') },
+    { title: '运行数', dataIndex: 'run_count', key: 'rc', width: 80,
+      render: (v: number) => (v ?? 0) },
+    { title: '状态', dataIndex: 'status', key: 's', width: 100,
       render: (v: string) => v?.startsWith('PENDING') || v === 'RUNNING' || v === 'SUCCESS' || v === 'FAILED' || v === 'CANCELLED'
         ? <DictTag dictType="PRCP_RUN_STATUS" value={v} />
         : <DictTag dictType="PRCP_STATUS" value={v} /> },
-    { title: '操作', key: 'op', width: 160, render: (_: any, r: any) => (
-      <Space>
-        <Button size="small" icon={<AimOutlined />} onClick={() => setActiveSchemeId(r.id)}>选择</Button>
-        <Button size="small" icon={<EditOutlined />} onClick={() => onEditScheme(r)} />
-        <Popconfirm title="确认删除？" onConfirm={() => onDeleteScheme(r)}>
-          <Button size="small" icon={<DeleteOutlined />} danger />
+    { title: '操作', key: 'op', width: 260, fixed: 'right' as const, render: (_: any, r: any) => (
+      <Space size={2}>
+        <Button size="small" type="link" onClick={() => onEditScheme(r)}>详情</Button>
+        <Button size="small" type="link" onClick={() => { setActiveSchemeId(r.id); setActiveTab('targets') }}>目标设置</Button>
+        <Button size="small" type="link" style={{ color: '#0B6FF2' }}
+          onClick={() => onRunScheme(r)}>运行</Button>
+        <Popconfirm title="确认删除该方案？" onConfirm={() => onDeleteScheme(r)}>
+          <Button size="small" type="link" style={{ color: '#C9332B' }}>删除</Button>
         </Popconfirm>
       </Space>
     )},
@@ -380,140 +422,231 @@ const ReverseCalc: React.FC = () => {
     )},
   ]
 
+  // 方案列表（按关键字 + 状态过滤）
+  const filteredSchemes = useMemo(() => {
+    const kw = schemeKeyword.trim().toLowerCase()
+    return (schemes || []).filter((s: any) => {
+      if (schemeStatus && s.status !== schemeStatus) return false
+      if (!kw) return true
+      return (
+        String(s.scheme_code || '').toLowerCase().includes(kw) ||
+        String(s.scheme_name || '').toLowerCase().includes(kw)
+      )
+    })
+  }, [schemes, schemeKeyword, schemeStatus])
+
   const activeScheme = schemes.find(s => s.id === activeSchemeId)
 
   return (
     <div style={{ padding: 16 }}>
-      {/* 顶部 KPI */}
-      <Row gutter={16} style={{ marginBottom: 16 }}>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="反算方案" value={schemes.length} prefix={<AimOutlined style={{ color: '#534ab7' }} />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic title="目标约束（当前方案）" value={targets.length} prefix={<FunctionOutlined style={{ color: '#764ba2' }} />} />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="反算运行中"
-              value={runs.filter(r => r.status === 'RUNNING').length}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<RocketOutlined style={{ color: '#1890ff' }} />}
-            />
-          </Card>
-        </Col>
-        <Col span={6}>
-          <Card size="small">
-            <Statistic
-              title="已完成"
-              value={runs.filter(r => r.status === 'SUCCESS').length}
-              suffix={`/ ${runs.length}`}
-              valueStyle={{ color: '#52c41a' }}
-            />
-          </Card>
-        </Col>
-      </Row>
+      <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
+        type="card"
+        size="large"
+        items={[
+        // ============ Tab 1：测算方案 ============
+        {
+          key: 'schemes',
+          label: <span><AimOutlined /> 测算方案</span>,
+          children: (
+            <div>
+              {/* 概览 KPI */}
+              <Row gutter={12} style={{ marginBottom: 12 }}>
+                <Col span={6}>
+                  <Card size="small">
+                    <Statistic title="反算方案" value={schemes.length} prefix={<AimOutlined style={{ color: '#534ab7' }} />} />
+                  </Card>
+                </Col>
+                <Col span={6}>
+                  <Card size="small">
+                    <Statistic title="目标约束（当前方案）" value={targets.length} prefix={<FunctionOutlined style={{ color: '#764ba2' }} />} />
+                  </Card>
+                </Col>
+                <Col span={6}>
+                  <Card size="small">
+                    <Statistic
+                      title="反算运行中"
+                      value={runs.filter(r => r.status === 'RUNNING').length}
+                      valueStyle={{ color: '#1890ff' }}
+                      prefix={<RocketOutlined style={{ color: '#1890ff' }} />}
+                    />
+                  </Card>
+                </Col>
+                <Col span={6}>
+                  <Card size="small">
+                    <Statistic
+                      title="已完成"
+                      value={runs.filter(r => r.status === 'SUCCESS').length}
+                      suffix={`/ ${runs.length}`}
+                      valueStyle={{ color: '#52c41a' }}
+                    />
+                  </Card>
+                </Col>
+              </Row>
 
-      {/* 方案列表 */}
-      <Card
-        title={<span><AimOutlined /> 反算方案</span>}
-        extra={
-          <Space>
-            <Button icon={<ReloadOutlined />} onClick={loadSchemes}>刷新</Button>
-            <Button type="primary" icon={<PlusOutlined />} onClick={onCreateScheme}>新建方案</Button>
-          </Space>
-        }
-        style={{ marginBottom: 16 }}
-      >
-        <Table
-          rowKey="id"
-          columns={schemeColumns}
-          dataSource={schemes}
-          pagination={{ pageSize: 5 }}
-          size="small"
-          rowClassName={(r) => r.id === activeSchemeId ? 'ant-table-row-selected' : ''}
-          onRow={(r) => ({ onClick: () => setActiveSchemeId(r.id) })}
-        />
-      </Card>
+              {/* 工具栏 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <Button type="primary" icon={<PlusOutlined />} onClick={onCreateScheme}>新建方案</Button>
+                <Input
+                  placeholder="搜索方案编码 / 名称"
+                  allowClear
+                  value={schemeKeyword}
+                  onChange={(e) => setSchemeKeyword(e.target.value)}
+                  style={{ width: 240 }}
+                />
+                <Select
+                  placeholder="状态"
+                  allowClear
+                  value={schemeStatus}
+                  onChange={setSchemeStatus}
+                  options={SCHEME_STATUS_OPTIONS}
+                  style={{ width: 130 }}
+                />
+                <Button icon={<ReloadOutlined />} onClick={() => { loadSchemes(); loadRuns() }}>刷新</Button>
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8f959e' }}>
+                  共 {filteredSchemes.length} / {schemes.length} 个方案
+                </span>
+              </div>
 
-      {/* 选中方案后：目标 + 运行 */}
-      {activeSchemeId ? (
-            <Row gutter={16}>
-              {/* 左侧：目标指标 */}
-              <Col span={10}>
-                <Card
-                  title={
-                    <Space wrap>
-                      <FunctionOutlined />
-                      <span>目标指标（{targets.length}）</span>
-                      {activeScheme && <Tag color="purple">{activeScheme.scheme_code}</Tag>}
-                      {kpiScope?.filtered ? (
-                        <Tooltip
-                          title={`KPI 仅限：模型 ${kpiScope.model_code || kpiScope.model_id} → 指标方案 ${kpiScope.scheme_code || kpiScope.scheme_id}`}
-                        >
-                          <Tag color="geekblue" icon={<ExperimentOutlined />}>
-                            {kpiScope.model_code || `model#${kpiScope.model_id}`} → {kpiScope.scheme_code || `scheme#${kpiScope.scheme_id}`}
-                          </Tag>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip title="当前方案未关联计量模型，KPI 下拉显示全部">
+              <Table
+                rowKey="id"
+                columns={schemeColumns}
+                dataSource={filteredSchemes}
+                pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `共 ${t} 个方案` }}
+                size="small"
+                scroll={{ x: 1400 }}
+                rowClassName={(r) => r.id === activeSchemeId ? 'ant-table-row-selected' : ''}
+                onRow={(r) => ({ onDoubleClick: () => { setActiveSchemeId(r.id); setActiveTab('targets') } })}
+              />
+            </div>
+          ),
+        },
+
+        // ============ Tab 2：目标设置 ============
+        {
+          key: 'targets',
+          label: <span><FunctionOutlined /> 目标设置</span>,
+          children: (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <Select
+                  placeholder="选择测算方案"
+                  value={activeSchemeId ?? undefined}
+                  onChange={(v) => { setActiveSchemeId(v ?? null); setActiveTab('targets') }}
+                  options={schemes.map((s: any) => ({
+                    value: s.id,
+                    label: `${s.scheme_code} - ${s.scheme_name}`,
+                  }))}
+                  style={{ width: 360 }}
+                  showSearch
+                  optionFilterProp="label"
+                />
+                {activeScheme && (
+                  <>
+                    <Tag color={activeScheme.status === 'SUCCESS' ? 'green' : 'blue'}>
+                      {activeScheme.status}
+                    </Tag>
+                    <span style={{ fontSize: 12, color: '#646a73' }}>
+                      {activeScheme.scheme_name} · {activeScheme.horizon_months} 月 ·{' '}
+                      {activeScheme.model_code || activeScheme.model_name || '未关联模型'}
+                    </span>
+                  </>
+                )}
+                <span style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                  <Button icon={<ReloadOutlined />} disabled={!activeSchemeId}
+                    onClick={() => loadTargets(activeSchemeId)}>刷新</Button>
+                  <Button icon={<PlusOutlined />} disabled={!activeSchemeId} onClick={onCreateTarget}>新增目标</Button>
+                  <Button type="primary" icon={<ThunderboltOutlined />}
+                    disabled={!activeSchemeId || targets.length === 0}
+                    onClick={() => { setActiveTab('runs'); loadRuns() }}>开始测算</Button>
+                </span>
+              </div>
+
+              {!activeSchemeId ? (
+                <Card>
+                  <Empty description="请先选择测算方案，然后为目标 KPI 配置目标值、约束方式与权重" />
+                </Card>
+              ) : (
+                <>
+                  <Alert
+                    type="info" showIcon
+                    style={{ marginBottom: 12 }}
+                    message={
+                      <Space wrap>
+                        <span>目标配置完成后点击「开始测算」进入运行记录发起反算。</span>
+                        {kpiScope?.filtered ? (
+                          <Tooltip title={`KPI 仅限：模型 ${kpiScope.model_code || kpiScope.model_id} → 指标方案 ${kpiScope.scheme_code || kpiScope.scheme_id}`}>
+                            <Tag color="geekblue" icon={<ExperimentOutlined />}>
+                              {kpiScope.model_code || `model#${kpiScope.model_id}`} → {kpiScope.scheme_code || `scheme#${kpiScope.scheme_id}`}
+                            </Tag>
+                          </Tooltip>
+                        ) : (
                           <Tag color="default">未限定 KPI 范围</Tag>
-                        </Tooltip>
-                      )}
-                    </Space>
-                  }
-                  extra={
-                    <Space>
-                      <Button size="small" icon={<ReloadOutlined />} onClick={() => loadTargets(activeSchemeId)}>刷新</Button>
-                      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={onCreateTarget}>新增目标</Button>
-                    </Space>
-                  }
-                >
+                        )}
+                      </Space>
+                    }
+                  />
                   <Table
                     rowKey="id"
                     columns={targetColumns}
                     dataSource={targets}
                     pagination={false}
                     size="small"
+                    scroll={{ x: 800 }}
                   />
-                </Card>
-              </Col>
+                </>
+              )}
+            </div>
+          ),
+        },
 
-              {/* 右侧：反算运行 */}
-              <Col span={14}>
-                <Card
-                  title={<span><RocketOutlined /> 反算执行</span>}
-                  extra={
-                    <Space>
-                      <Button size="small" icon={<ReloadOutlined />} onClick={() => loadRuns(activeSchemeId)}>刷新</Button>
-                      <Button size="small" type="primary" icon={<PlusOutlined />} onClick={onCreateRun}>新建反算</Button>
-                    </Space>
-                  }
-                >
-                  <Alert
-                    type="info" showIcon
-                    style={{ marginBottom: 12 }}
-                    message="反算流程：选方案 → 填目标 → 启动反算 → 查看日志 → 查看结果（24 月 × N 节点预测值）"
-                  />
-                  <Table
-                    rowKey="id"
-                    columns={runColumns}
-                    dataSource={runs.filter(r => r.scheme_id === activeSchemeId)}
-                    pagination={{ pageSize: 5 }}
-                    size="small"
-                  />
-                </Card>
-              </Col>
-            </Row>
-          ) : (
-            <Card>
-              <Empty description="请先在上方表格中选择一个反算方案" />
-            </Card>
-          )}
+        // ============ Tab 3：测算结果（复用结果驾驶舱）============
+        {
+          key: 'result',
+          label: <span><ProfileOutlined /> 测算结果</span>,
+          children: (
+            <div>
+              <Alert
+                type="info" showIcon style={{ marginBottom: 12 }}
+                message="测算结果复用「结果驾驶舱」：可在其中切换组合方案 / 运行记录 / 预测月份 / 余额口径，查看目标达成、指标对比、余额分布与走势，并导出结果。"
+              />
+              {activeTab === 'result' && <ReverseDashboard />}
+            </div>
+          ),
+        },
+
+        // ============ Tab 4：运行记录 ============
+        {
+          key: 'runs',
+          label: <span><RocketOutlined /> 运行记录</span>,
+          children: (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <Button icon={<ReloadOutlined />} onClick={() => loadRuns(activeSchemeId)}>刷新</Button>
+                <Button type="primary" icon={<PlusOutlined />} disabled={!activeSchemeId} onClick={onCreateRun}>新建反算</Button>
+                {activeSchemeId && (
+                  <Tag color="blue" closable onClose={() => setActiveSchemeId(null)}>
+                    仅看：{activeScheme?.scheme_code}
+                  </Tag>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 12, color: '#8f959e' }}>
+                  共 {runs.length} 条运行记录
+                </span>
+              </div>
+              <Table
+                rowKey="id"
+                columns={runColumns}
+                dataSource={activeSchemeId ? runs.filter(r => r.scheme_id === activeSchemeId) : runs}
+                pagination={{ pageSize: 10, showSizeChanger: true }}
+                size="small"
+                scroll={{ x: 1200 }}
+              />
+            </div>
+          ),
+        },
+        ]}
+      />
 
       {/* 方案 Modal */}
       <Modal

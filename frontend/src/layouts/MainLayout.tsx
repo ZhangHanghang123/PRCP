@@ -26,7 +26,7 @@ const MainLayout: React.FC = () => {
   const selectedKey = location.pathname
 
   const menuItems = [
-    { key: '/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+    { key: '/dashboard', icon: <DashboardOutlined />, label: '结果驾驶舱' },
     { key: '/coa', icon: <PartitionOutlined />, label: '账户册维护' },
     { key: '/reports', icon: <FileDoneOutlined />, label: '报表表项管理' },
     { key: '/kpi', icon: <FunctionOutlined />, label: '指标管理' },
