@@ -85,6 +85,41 @@ const ScoreTag: React.FC<{ metricKey: string; kpiScores?: any[] }> = ({ metricKe
   )
 }
 
+// 基准日（基期）对比项 —— 显示在 KPI 卡右下角
+//   展示：基期值 + 相对变化（金额型给 %，比率型给 pp）
+const CompareTag: React.FC<{
+  current?: number | null
+  base?: number | null
+  basePeriod?: string | null
+  kind?: 'amount' | 'ratio'
+  /** 指标方向：higher=越高越好；lower=越低越好；none=规模类无好坏 */
+  direction?: 'higher' | 'lower' | 'none'
+}> = ({ current, base, basePeriod, kind = 'amount', direction = 'none' }) => {
+  if (current == null || base == null) return null
+  const diff = current - base
+  const isPP = kind === 'ratio'
+  const ratio = base !== 0 ? diff / Math.abs(base) : null
+  // 展示值：比率型用 pp 差，金额型用 % 差
+  const diffText = isPP
+    ? `${diff >= 0 ? '+' : ''}${diff.toFixed(2)}pp`
+    : (ratio != null ? `${diff >= 0 ? '+' : ''}${(ratio * 100).toFixed(2)}%` : '-')
+  // 颜色：按指标方向
+  let color = '#8f959e'
+  if (direction === 'higher') color = diff > 0 ? '#52c41a' : (diff < 0 ? '#f5222d' : '#8f959e')
+  else if (direction === 'lower') color = diff < 0 ? '#52c41a' : (diff > 0 ? '#f5222d' : '#8f959e')
+  else color = diff > 0 ? '#1890ff' : (diff < 0 ? '#fa8c16' : '#8f959e')
+  const baseText = isPP ? `${base.toFixed(2)}%` : fmtMoney(base)
+  const tip = `基期${basePeriod || ''}：${baseText}\n当前期较基期：${diffText}`
+  return (
+    <Tooltip title={tip}>
+      <div style={{ fontSize: 11, color: '#8f959e', lineHeight: 1.5, marginTop: 2 }}>
+        基期 <span style={{ color: '#646a73' }}>{baseText}</span>
+        <span style={{ color, fontWeight: 600, marginLeft: 6 }}>{diffText}</span>
+      </div>
+    </Tooltip>
+  )
+}
+
 const ReverseDashboard: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
   const [runs, setRuns] = useState<any[]>([])
@@ -523,6 +558,7 @@ const ReverseDashboard: React.FC = () => {
   }
 
   const k = data.kpi
+  const kb = (data as any).kpi_base || null
   const a = data.scheme_code
   const r = data.run_id
   const m = data.date_offset
@@ -612,13 +648,15 @@ const ReverseDashboard: React.FC = () => {
         </Row>
       </Card>
 
-      {/* KPI 区 — 纯 2 行 × 4 列 8 卡（雷达图已移走） */}
+      {/* KPI 区 — 2 行 × 4 列 8 卡，每卡右下角带基期对比项 */}
       <Row gutter={[12, 12]}>
         <Col xs={24} sm={12} md={8} lg={6}>
           <Card className="kpi-card" size="small">
             <Statistic title="资产余额" value={fmtMoney(k.asset_total)}
               valueStyle={{ color: '#1890ff' }}
               prefix={<RiseOutlined />} />
+            <CompareTag current={k.asset_total} base={kb?.asset_total}
+              basePeriod={kb?.period} kind="amount" direction="none" />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
@@ -626,6 +664,8 @@ const ReverseDashboard: React.FC = () => {
             <Statistic title="负债余额" value={fmtMoney(k.liability_total)}
               valueStyle={{ color: '#fa8c16' }}
               prefix={<FallOutlined />} />
+            <CompareTag current={k.liability_total} base={kb?.liability_total}
+              basePeriod={kb?.period} kind="amount" direction="none" />
           </Card>
         </Col>
         <Col xs={24} sm={12} md={8} lg={6}>
@@ -636,6 +676,9 @@ const ReverseDashboard: React.FC = () => {
               valueStyle={{ color: '#fa541c', fontSize: 22 }}
               prefix={<Tooltip title="境内各项人民币贷款（S010101*）下属节点按当前余额加权"><FundProjectionScreenOutlined /></Tooltip>}
             />
+            <CompareTag current={k.loan_weighted_rate == null ? null : k.loan_weighted_rate * 100}
+              base={kb?.loan_weighted_rate == null ? null : kb.loan_weighted_rate * 100}
+              basePeriod={kb?.period} kind="ratio" direction="none" />
           </Card>
         </Col>
         {/* ROE 净资产收益率 — 行 1 第 4 个卡位 */}
@@ -656,6 +699,8 @@ const ReverseDashboard: React.FC = () => {
               />
               <ScoreTag metricKey="ROE" kpiScores={data.kpi_scores} />
             </div>
+            <CompareTag current={k.metric_avg['ROE']} base={kb?.metric_avg?.['ROE']}
+              basePeriod={kb?.period} kind="ratio" direction="higher" />
           </Card>
         </Col>
         {/* 行 2：4 指标（CET1/LCR/NSFR/DELTA_EVE） */}
@@ -682,6 +727,9 @@ const ReverseDashboard: React.FC = () => {
                   />
                   <ScoreTag metricKey={mk} kpiScores={data.kpi_scores} />
                 </div>
+                <CompareTag current={v} base={kb?.metric_avg?.[mk]}
+                  basePeriod={kb?.period} kind="ratio"
+                  direction={mk === 'DELTA_EVE' ? 'lower' : 'higher'} />
               </Card>
             </Col>
           )

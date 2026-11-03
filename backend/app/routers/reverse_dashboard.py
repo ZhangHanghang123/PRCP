@@ -15,7 +15,7 @@
 - GET /reverse-dashboard/snapshot                 驾驶舱快照（一次拉全）
 """
 from datetime import date, datetime
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
@@ -834,6 +834,77 @@ async def snapshot(
         "metric_min": metric_min,
     }
 
+    # ============ 基准日（基期）对比值 ============
+    # 基期取反算结果的第 1 期（M1 = 基准月，与趋势图起点一致）
+    base_date_row = db.execute(text("""
+        SELECT data_date FROM prcp_data_reverse
+        WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+          AND offset_unit = 'M' AND date_offset = 1
+        ORDER BY data_date DESC LIMIT 1
+    """), {"sc": scheme_code, "rid": run_id}).first()
+    base_period_date = str(base_date_row[0]) if base_date_row else None
+
+    kpi_base: Dict[str, Any] = {"period": base_period_date}
+    if base_period_date:
+        # 余额类：取基期月份的 prcp_data_reverse
+        base_rows = db.execute(text("""
+            SELECT node_code, current_balance, weighted_rate
+            FROM prcp_data_reverse
+            WHERE scheme_code = :sc AND run_id = :rid AND is_deleted = 0
+              AND offset_unit = 'M' AND date_offset = 1
+        """), {"sc": scheme_code, "rid": run_id}).fetchall()
+        base_rev = {r[0]: {"current_balance": float(r[1] or 0), "weighted_rate": float(r[2] or 0)}
+                    for r in base_rows}
+
+        def _sum_cat(cat: str, src: Dict) -> float:
+            return sum(src[n["node_code"]]["current_balance"] for n in nodes
+                       if _classify(n["node_code"], n["path"]) == cat
+                       and _is_leaf(n["node_code"]) and n["node_code"] in src)
+
+        # 指标类：取基期月份的 prcp_metric_coefficient
+        base_metric_rows = db.execute(text("""
+            SELECT node_code, metric_type, current_value
+            FROM prcp_metric_coefficient
+            WHERE is_deleted = 0 AND data_date = :dd
+              AND node_code IN ({ph}) AND metric_type IN ({ph2})
+        """).format(
+            ph=",".join([f":n{i}" for i in range(len(nodes))]) if nodes else "NULL",
+            ph2=",".join([f":m{i}" for i in range(len(DEFAULT_METRIC_TYPES))]) if DEFAULT_METRIC_TYPES else "NULL",
+        ), {**{f"n{i}": n["node_code"] for i, n in enumerate(nodes)},
+            **{f"m{i}": m for i, m in enumerate(DEFAULT_METRIC_TYPES)},
+            "dd": base_period_date}).fetchall()
+        base_metric: Dict[str, Dict[str, float]] = {}
+        for r in base_metric_rows:
+            base_metric.setdefault(r[0], {})[r[1]] = float(r[2] or 0)
+
+        base_metric_avg: Dict[str, Optional[float]] = {}
+        for m in DEFAULT_METRIC_TYPES:
+            vals = [base_metric[n["node_code"]].get(m) for n in nodes
+                    if base_metric.get(n["node_code"], {}).get(m) is not None]
+            base_metric_avg[m] = round(sum(vals) / len(vals), 4) if vals else None
+
+        # 基期贷款加权平均利率
+        lw_num = lw_den = 0.0
+        for n in nodes:
+            nc = n["node_code"]
+            if not (nc.startswith("S01010101") or nc.startswith("S01010102") or
+                    nc.startswith("S01010103") or nc.startswith("S01010104") or
+                    nc.startswith("S01010105")):
+                continue
+            r = base_rev.get(nc)
+            if not r or abs(r["current_balance"]) < 0.01:
+                continue
+            lw_num += r["current_balance"] * r["weighted_rate"]
+            lw_den += r["current_balance"]
+
+        kpi_base.update({
+            "asset_total": round(_sum_cat("ASSET", base_rev), 2),
+            "liability_total": round(_sum_cat("LIABILITY", base_rev), 2),
+            "equity_total": round(_sum_cat("EQUITY", base_rev), 2),
+            "loan_weighted_rate": round(lw_num / lw_den, 6) if lw_den > 0 else None,
+            "metric_avg": base_metric_avg,
+        })
+
     # 指标评分（5 个 REG_* 指标）：按 prcp_kpi_value.score 聚合（基期数据日期 base_date）
     kpi_scores = []
     kpi_score_rows = db.execute(text("""
@@ -1058,6 +1129,7 @@ async def snapshot(
         "date_offset": date_offset,
         "data_date": data_date.isoformat() if isinstance(data_date, date) else str(data_date),
         "kpi": kpi,
+        "kpi_base": kpi_base,
         "kpi_scores": kpi_scores,
         "trend": trend,
         "category_distribution": category_distribution,
