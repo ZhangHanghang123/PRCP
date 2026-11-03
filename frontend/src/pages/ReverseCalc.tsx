@@ -308,35 +308,35 @@ const ReverseCalc: React.FC = () => {
   // ============================================================
   // 方案表格列（对齐 Java 版：编码/名称/关联账户册/计量模型/数据日期/预测期/运行数/状态/操作）
   const schemeColumns = [
-    { title: '编码', dataIndex: 'scheme_code', key: 'sc', width: 150,
+    { title: '编码', dataIndex: 'scheme_code', key: 'sc', width: 130,
       render: (v: string) => <strong style={{ color: '#534ab7' }}>{v}</strong> },
-    { title: '名称', dataIndex: 'scheme_name', key: 'sn', width: 220,
+    { title: '名称', dataIndex: 'scheme_name', key: 'sn', width: 200,
       render: (v: string, r: any) => (
         <Tooltip title={r.description || v}>
           <span>{v}</span>
         </Tooltip>
       ) },
-    { title: '关联账户册', key: 'coa', width: 210,
+    { title: '关联账户册', key: 'coa', width: 175,
       render: (_: any, r: any) => r.coa_code ? (
         <Tag color="cyan">{r.coa_name || r.coa_code}</Tag>
       ) : <span style={{ color: '#bbb' }}>未关联</span> },
-    { title: '计量模型', key: 'model', width: 190,
+    { title: '计量模型', key: 'model', width: 145,
       render: (_: any, r: any) => r.model_id
         ? <Tag color="geekblue" icon={<ExperimentOutlined />}>{r.model_code || r.model_name}</Tag>
         : <span style={{ color: '#bbb' }}>未关联</span> },
-    { title: '数据日期', dataIndex: 'data_date', key: 'dd', width: 130,
+    { title: '数据日期', dataIndex: 'data_date', key: 'dd', width: 120,
       render: (v: string) => v
         ? <Tag color="blue" icon={<CalendarOutlined />}>{String(v).substring(0, 10)}</Tag>
         : '-' },
-    { title: '预测期', dataIndex: 'horizon_months', key: 'h', width: 90,
+    { title: '预测期', dataIndex: 'horizon_months', key: 'h', width: 80,
       render: (v: number) => (v ? `${v} 月` : '-') },
-    { title: '运行数', dataIndex: 'run_count', key: 'rc', width: 80,
+    { title: '运行数', dataIndex: 'run_count', key: 'rc', width: 70,
       render: (v: number) => (v ?? 0) },
-    { title: '状态', dataIndex: 'status', key: 's', width: 100,
+    { title: '状态', dataIndex: 'status', key: 's', width: 90,
       render: (v: string) => v?.startsWith('PENDING') || v === 'RUNNING' || v === 'SUCCESS' || v === 'FAILED' || v === 'CANCELLED'
         ? <DictTag dictType="PRCP_RUN_STATUS" value={v} />
         : <DictTag dictType="PRCP_STATUS" value={v} /> },
-    { title: '操作', key: 'op', width: 260, fixed: 'right' as const, render: (_: any, r: any) => (
+    { title: '操作', key: 'op', width: 220, render: (_: any, r: any) => (
       <Space size={2}>
         <Button size="small" type="link" onClick={() => onEditScheme(r)}>详情</Button>
         <Button size="small" type="link" onClick={() => { setActiveSchemeId(r.id); setActiveTab('targets') }}>目标设置</Button>
@@ -515,7 +515,7 @@ const ReverseCalc: React.FC = () => {
                 dataSource={filteredSchemes}
                 pagination={{ pageSize: 10, showSizeChanger: true, showTotal: (t) => `共 ${t} 个方案` }}
                 size="small"
-                scroll={{ x: 1580 }}
+                scroll={{ x: 1210 }}
                 rowClassName={(r) => r.id === activeSchemeId ? 'ant-table-row-selected' : ''}
                 onRow={(r) => ({ onDoubleClick: () => { setActiveSchemeId(r.id); setActiveTab('targets') } })}
               />
