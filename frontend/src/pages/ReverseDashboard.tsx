@@ -656,7 +656,7 @@ const ReverseDashboard: React.FC = () => {
             title={<><FundProjectionScreenOutlined /> 5 指标 24 月趋势</>}
             extra={<Tag color="purple">平均口径</Tag>}
           >
-            <ReactECharts option={trendOpt} style={{ height: 340 }} />
+            <ReactECharts option={trendOpt} replaceMerge={['series']} style={{ height: 340 }} />
           </Card>
         </Col>
         <Col xs={24} lg={8}>
@@ -664,7 +664,7 @@ const ReverseDashboard: React.FC = () => {
             title={<><RadarChartOutlined /> 指标评分雷达图</>}
             bodyStyle={{ padding: 4 }}
           >
-            <ReactECharts option={radarOpt} style={{ height: 320 }} />
+            <ReactECharts option={radarOpt} replaceMerge={['series']} style={{ height: 320 }} />
           </Card>
         </Col>
       </Row>
@@ -736,10 +736,10 @@ const ReverseDashboard: React.FC = () => {
                 ⓘ 基准日为方案起点，固定不变；切换上方「预测月份」时本图不变。需看随月份变化的余额，请把「余额口径」切到「当月预测余额」。
               </div>
             )}
-            <ReactECharts option={distOpt} style={{ height: 240 }} />
+            <ReactECharts option={distOpt} replaceMerge={['series']} style={{ height: 240 }} />
             <Divider style={{ margin: '8px 0' }} />
             <div style={{ fontSize: 12, color: '#8f959e', marginBottom: 4 }}>金额分布</div>
-            <ReactECharts option={distBarOpt} style={{ height: 160 }} />
+            <ReactECharts option={distBarOpt} replaceMerge={['series']} style={{ height: 160 }} />
           </Card>
         </Col>
       </Row>
@@ -794,7 +794,7 @@ const ReverseDashboard: React.FC = () => {
                 {balanceMode === 'base' && '（基准日固定，不随预测月份变化）'}
               </span>
             </div>
-            <ReactECharts option={balanceBarOpt} style={{ height: Math.max(420, 22 * (data?.node_matrix?.filter((n: any) => n.is_leaf).length || 10)) }} />
+            <ReactECharts option={balanceBarOpt} replaceMerge={['series']} style={{ height: Math.max(420, 22 * (data?.node_matrix?.filter((n: any) => n.is_leaf).length || 10)) }} />
           </Card>
         </Col>
       </Row>
@@ -846,7 +846,7 @@ const ReverseDashboard: React.FC = () => {
                       ? `全部 ${trendData.nodes?.length || 0} 个末级节点的月末余额走势，颜色表示所属大类`
                       : `余额规模前 ${Math.min(trendTopN, trendData.nodes?.length || 0)} 个末级节点的月末余额走势，颜色表示所属大类`}
                 </div>
-                <ReactECharts option={balanceTrendOpt} style={{ height: trendHeight }} />
+                <ReactECharts option={balanceTrendOpt} replaceMerge={['series']} style={{ height: trendHeight }} />
               </>
             ) : (
               <Empty description="暂无走势数据" />
