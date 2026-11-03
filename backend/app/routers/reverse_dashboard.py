@@ -427,28 +427,35 @@ async def balance_export(
     for i in range(len(months)):
         ws.column_dimensions[_col_letter(6 + i)].width = 16
 
-    # ---- Sheet2：按层级汇总 ----
+    # ---- Sheet2：按层级汇总（层级 × 大类 交叉）----
+    #     每行 = 某大类下某层级的节点汇总（子树 roll-up 之和），
+    #     数值含义明确（不会出现资产+负债相加的无意义总数）
     ws_lv = wb.create_sheet("按层级汇总")
-    _write_header(ws_lv, ["层级", "节点数", "末级节点数"] + m_headers)
+    _write_header(ws_lv, ["大类", "层级", "节点数", "末级节点数"] + m_headers)
     ws_lv.row_dimensions[1].height = 32
-    levels = sorted(set(node_level.values()))
     r = 2
-    for lv in levels:
-        lv_nodes = [nc for nc in ordered if node_level.get(nc, 1) == lv]
-        lv_leaf = [nc for nc in lv_nodes if _is_leaf_of(nc)]
-        acc = [0.0] * len(months)
-        for nc in lv_nodes:
-            ser = rolled.get(nc) or [0.0] * len(months)
-            for i in range(len(acc)):
-                acc[i] += ser[i]
-        ws_lv.cell(row=r, column=1, value=f"L{lv}").font = Font(bold=True)
-        ws_lv.cell(row=r, column=2, value=len(lv_nodes))
-        ws_lv.cell(row=r, column=3, value=len(lv_leaf))
-        for i, v in enumerate(acc):
-            c = ws_lv.cell(row=r, column=4 + i, value=v)
-            c.number_format = NUM_FMT
-        r += 1
-    # 末级节点合计行
+    for cat in ["ASSET", "LIABILITY", "EQUITY", "OFF_BALANCE", "OTHER"]:
+        cat_nodes = [nc for nc in ordered if _classify(nc, node_paths.get(nc, "")) == cat]
+        if not cat_nodes:
+            continue
+        lv_set = sorted(set(node_level.get(nc, 1) for nc in cat_nodes))
+        for lv in lv_set:
+            lv_nodes = [nc for nc in cat_nodes if node_level.get(nc, 1) == lv]
+            lv_leaf = [nc for nc in lv_nodes if _is_leaf_of(nc)]
+            acc = [0.0] * len(months)
+            for nc in lv_nodes:
+                ser = rolled.get(nc) or [0.0] * len(months)
+                for i in range(len(acc)):
+                    acc[i] += ser[i]
+            ws_lv.cell(row=r, column=1, value=_CAT_LABEL[cat])
+            ws_lv.cell(row=r, column=2, value=f"L{lv}")
+            ws_lv.cell(row=r, column=3, value=len(lv_nodes))
+            ws_lv.cell(row=r, column=4, value=len(lv_leaf))
+            for i, v in enumerate(acc):
+                c = ws_lv.cell(row=r, column=5 + i, value=v)
+                c.number_format = NUM_FMT
+            r += 1
+    # 末级节点合计行 = 账户册总额
     all_leaf = [nc for nc in ordered if _is_leaf_of(nc)]
     acc = [0.0] * len(months)
     for nc in all_leaf:
@@ -456,16 +463,19 @@ async def balance_export(
         for i in range(len(acc)):
             acc[i] += ser[i]
     ws_lv.cell(row=r, column=1, value="末级合计").font = Font(bold=True)
-    ws_lv.cell(row=r, column=2, value=len(all_leaf)).font = Font(bold=True)
+    ws_lv.cell(row=r, column=2, value="全部")
+    ws_lv.cell(row=r, column=3, value=len(all_leaf)).font = Font(bold=True)
+    ws_lv.cell(row=r, column=4, value=len(all_leaf)).font = Font(bold=True)
     for i, v in enumerate(acc):
-        c = ws_lv.cell(row=r, column=4 + i, value=v)
+        c = ws_lv.cell(row=r, column=5 + i, value=v)
         c.number_format = NUM_FMT
         c.font = Font(bold=True)
-    ws_lv.column_dimensions["A"].width = 14
-    ws_lv.column_dimensions["B"].width = 10
-    ws_lv.column_dimensions["C"].width = 12
+    ws_lv.column_dimensions["A"].width = 12
+    ws_lv.column_dimensions["B"].width = 8
+    ws_lv.column_dimensions["C"].width = 10
+    ws_lv.column_dimensions["D"].width = 12
     for i in range(len(months)):
-        ws_lv.column_dimensions[_col_letter(4 + i)].width = 16
+        ws_lv.column_dimensions[_col_letter(5 + i)].width = 16
 
     # ---- Sheet3：末级节点大类汇总 ----
     ws2 = wb.create_sheet("末级节点大类汇总")
