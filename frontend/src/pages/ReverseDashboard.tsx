@@ -229,11 +229,14 @@ const ReverseDashboard: React.FC = () => {
           }<br/>节点数: ${cd.by_count[k] || 0}`
         },
       },
-      grid: { left: 60, right: 20, top: 24, bottom: 30 },
+      grid: { left: 60, right: 20, top: 42, bottom: 30 },
       xAxis: { type: 'category', data: labels.map((k) => CATEGORY_META[k]?.label || k) },
       yAxis: {
         type: 'value',
         name: '当前余额',
+        nameLocation: 'end',
+        nameGap: 14,
+        nameTextStyle: { align: 'right', color: '#8f959e', fontSize: 11 },
         axisLabel: {
           formatter: (v: number) => (v >= 1e12 ? `${(v / 1e12).toFixed(1)}万亿` : fmtMoney(v)),
         },
