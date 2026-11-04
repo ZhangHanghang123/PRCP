@@ -142,7 +142,8 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
   <div class="nav-t">目录</div>
   <a href="#s1" class="on">1 文档信息</a>
   <a href="#s2">2 需求背景与目标</a>
-  <a href="#s3">3 术语与口径定义</a>
+  <a href="#s2-4" class="l2">2.4 本次优化交付清单</a>
+    <a href="#s3">3 术语与口径定义</a>
   <a href="#s4">4 页面功能结构</a>
   <a href="#s5">5 数据来源与查询条件</a>
   <a href="#s5-1" class="l2">5.1 数据表清单</a>
@@ -160,8 +161,21 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
 <div class="hd">
   <h1>PRCP 组合反算结果优化 · 需求设计文档</h1>
   <div class="sub">组合反算 · 结果驾驶舱（/prcp/dashboard）指标展示与导出能力建设</div>
+  <div style="font-size:12.5px;color:#646a73;background:#f7f8fa;border:1px solid var(--line);
+              border-radius:8px;padding:10px 14px;margin-bottom:12px;line-height:1.9">
+    <b style="color:var(--txt)">本次优化交付：</b>
+    <span class="tag tag-g">新增</span> 目标达成进度展示模块 ·
+    <span class="tag tag-o">调整</span> 当前余额分布展示数据 ·
+    <span class="tag tag-g">新增</span> 基准日当前余额柱状图 ·
+    <span class="tag tag-g">新增</span> 末级账户册余额走势 ·
+    <span class="tag tag-g">新增</span> 余额口径切换 · 导出结果 · KPI 基期对比 ·
+    <span class="tag tag-o">调整</span> 组合反算 Tab 化 ·
+    <span class="tag tag-r">修复</span> 末级判定 / 图表联动 / 月份范围
+    <span style="color:#8f959e">（共 11 项，明细见 2.4 节）</span>
+  </div>
   <div style="margin-bottom:12px">
-    <span class="tag tag-b">11 项功能需求</span>
+    <span class="tag tag-b">11 项交付</span>
+    <span class="tag tag-y">10 项功能需求</span>
     <span class="tag tag-g">9 张数据表</span>
     <span class="tag tag-o">4 个接口</span>
     <span class="tag tag-p">1 套口径体系</span>
@@ -170,7 +184,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
   <div class="meta">
     <div>产品 <b>组合反算平台 / PRCP</b></div>
     <div>模块 <b>结果驾驶舱</b></div>
-    <div>版本 <b>v1.0</b></div>
+    <div>版本 <b>v1.1</b></div>
     <div>日期 <b>2026-11-03</b></div>
     <div>作者 <b>产品/研发联合</b></div>
   </div>
@@ -202,6 +216,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
       <thead><tr><th style="width:90px">版本</th><th style="width:100px">日期</th><th style="width:150px">修订人</th><th>说明</th></tr></thead>
       <tbody>
         <tr><td>v1.0</td><td>2026-11-03</td><td>产品/研发</td><td>首次发布，覆盖组合反算结果驾驶舱当日全部优化项</td></tr>
+        <tr><td>v1.1</td><td>2026-11-04</td><td>产品/研发</td><td>新增 <b>2.4 本次优化交付清单</b>（11 项，标注新增/调整/修复）；统一 FR 命名与业务表述；补入 FR-09 组合反算 Tab 化、FR-10 预测月份范围回落</td></tr>
       </tbody>
     </table>
     </div>
@@ -292,6 +307,81 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
     </table>
     </div>
 
+    <h3 id="s2-4">2.4 本次优化交付清单</h3>
+    <p>下表按<b>用户可见的功能变化</b>汇总，每项标注类型（新增 / 调整 / 修复）与关联的详细需求编号。
+    详细的查询条件见第 5 章，验收标准见第 7 章。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:52px">#</th><th style="width:210px">功能项</th>
+        <th style="width:70px">类型</th><th style="width:120px">页面位置</th>
+        <th style="width:80px">关联 FR</th><th>数据来源</th>
+      </tr></thead>
+      <tbody>
+        <tr><td class="num">1</td>
+            <td><b>目标达成进度展示模块</b><br><span style="font-size:11.5px;color:#8f959e">目标 / 真实指标 / 当前完成率 / M12 完成率</span></td>
+            <td><span class="tag tag-g">新增</span></td>
+            <td>KPI 区<b>上方</b>独立模块</td><td>FR-06</td>
+            <td><code>prcp_reverse_target</code>（目标）<br><code>prcp_metric_coefficient</code>（实际）</td></tr>
+        <tr><td class="num">2</td>
+            <td><b>当前余额分布</b> —— 展示数据调整<br><span style="font-size:11.5px;color:#8f959e">由「预测月余额」改为「基准日当前余额」汇总</span></td>
+            <td><span class="tag tag-o">调整</span></td>
+            <td>分析区（饼图 + 金额柱状图）</td><td>FR-01</td>
+            <td><code>prcp_data_basic</code>（基准日）<br>叶子节点口径汇总</td></tr>
+        <tr><td class="num">3</td>
+            <td><b>基准日当前余额柱状图</b><br><span style="font-size:11.5px;color:#8f959e">仅展示末级节点，横向条形</span></td>
+            <td><span class="tag tag-g">新增</span></td>
+            <td>节点区</td><td>FR-02</td>
+            <td><code>prcp_data_basic</code> / <code>prcp_data_reverse</code></td></tr>
+        <tr><td class="num">4</td>
+            <td><b>末级账户册余额走势</b><br><span style="font-size:11.5px;color:#8f959e">测算期每月月末余额，按大类 / 按节点明细</span></td>
+            <td><span class="tag tag-g">新增</span></td>
+            <td>节点区（最下方）</td><td>FR-03</td>
+            <td><code>prcp_data_reverse</code>（24 个月全序列）</td></tr>
+        <tr><td class="num">5</td>
+            <td><b>余额口径切换</b><br><span style="font-size:11.5px;color:#8f959e">基准日当前余额 / 当月预测余额</span></td>
+            <td><span class="tag tag-g">新增</span></td>
+            <td>控件区（全页联动）</td><td>FR-01b</td>
+            <td>两套数据源切换</td></tr>
+        <tr><td class="num">6</td>
+            <td><b>导出结果</b><br><span style="font-size:11.5px;color:#8f959e">xlsx · 账户册树 + 层级汇总 + 大类汇总 + 口径说明</span></td>
+            <td><span class="tag tag-g">新增</span></td>
+            <td>控件区按钮</td><td>FR-04</td>
+            <td>4 张表联合</td></tr>
+        <tr><td class="num">7</td>
+            <td><b>KPI 基期对比项</b><br><span style="font-size:11.5px;color:#8f959e">每卡右下角：基期值 + 变化</span></td>
+            <td><span class="tag tag-g">新增</span></td>
+            <td>KPI 区 8 张卡</td><td>FR-05</td>
+            <td><code>prcp_data_reverse</code> / <code>prcp_metric_coefficient</code></td></tr>
+        <tr><td class="num">8</td>
+            <td><b>组合反算模块 Tab 化</b><br><span style="font-size:11.5px;color:#8f959e">测算方案 / 目标设置 / 测算结果 / 运行记录</span></td>
+            <td><span class="tag tag-o">调整</span></td>
+            <td>组合反算页</td><td>FR-09</td>
+            <td>—（布局重构）</td></tr>
+        <tr><td class="num">9</td>
+            <td><b>末级节点判定修复</b><br><span style="font-size:11.5px;color:#8f959e">3 个方案原返回空数据</span></td>
+            <td><span class="tag tag-r">修复</span></td>
+            <td>全局</td><td>FR-07</td>
+            <td><code>prcp_data_basic.is_leaf</code> + path 推断</td></tr>
+        <tr><td class="num">10</td>
+            <td><b>图表联动修复</b><br><span style="font-size:11.5px;color:#8f959e">切换下拉后残留旧 series</span></td>
+            <td><span class="tag tag-r">修复</span></td>
+            <td>全局 6 处图表</td><td>FR-08</td>
+            <td>—</td></tr>
+        <tr><td class="num">11</td>
+            <td><b>预测月份按 Run 范围回落</b><br><span style="font-size:11.5px;color:#8f959e">月份数少的方案不再 404</span></td>
+            <td><span class="tag tag-r">修复</span></td>
+            <td>结果驾驶舱</td><td>FR-10</td>
+            <td><code>prcp_data_reverse</code> 月份范围</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b">
+      <b>本次优化的主线</b>：把「结果驾驶舱」从<b>只能看预测月结果</b>，扩展为
+      <b>能同时看「现状（基准日）」与「预测（当月）」两套口径</b>，并把节点级、层级级、目标级
+      三种粒度的信息都补齐 —— 此前只有大类占比和孤立 KPI 数值。
+    </div>
+
     <div class="note warn">
       <b>⚠️ 基准日 vs 基期 —— 两个不同的日期</b>
       <ul style="margin:8px 0 0">
@@ -318,7 +408,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
         </div></div>
       <div class="pm-row"><div class="pm-lab">目标达成</div>
         <div class="pm-box green">
-          <b>目标达成进度</b>（新增）— 指标 / 目标 / 实际 / 进度条 / 当前完成率 / M12 完成率
+          <b>目标达成进度</b>（新增模块）— 指标 / 目标 / 实际 / 进度条 / 当前完成率 / M12 完成率
         </div></div>
       <div class="pm-row"><div class="pm-lab">KPI 区</div>
         <div class="pm-box orange">
@@ -327,11 +417,11 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
         </div></div>
       <div class="pm-row"><div class="pm-lab">分析区</div>
         <div class="pm-box purple">
-          5 指标 24 月趋势 ｜ 指标评分雷达图 ｜ Top 10 节点 ｜ <b>当前余额分布</b>（饼图 + 金额分布柱状图）
+          5 指标 24 月趋势 ｜ 指标评分雷达图 ｜ Top 10 节点 ｜ <b>当前余额分布</b>（展示数据已调整：基准日当前余额）（饼图 + 金额分布柱状图）
         </div></div>
       <div class="pm-row"><div class="pm-lab">节点区</div>
         <div class="pm-box cyan">
-          <b>当前余额柱状图</b>（末级节点，横向条形）｜ <b>末级账户册余额走势</b>（新增，按大类 / 按节点明细）
+          <b>基准日当前余额柱状图</b>（新增，仅末级节点，横向条形）<br><b>末级账户册余额走势</b>（新增，按大类汇总 / 按节点明细 Top N）
         </div></div>
     </div>
 
@@ -736,7 +826,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
     <span class="tag tag-g">11 项</span></div>
   <div class="sec-b">
 
-    <h4><span class="fr">FR-01</span>当前余额分布（基准日口径）</h4>
+    <h4><span class="fr">FR-01</span>当前余额分布 —— 展示数据调整为基准日当前余额</h4>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
@@ -763,7 +853,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
     </table>
     </div>
 
-    <h4><span class="fr">FR-02</span>末级节点当前余额柱状图</h4>
+    <h4><span class="fr">FR-02</span>基准日当前余额柱状图（仅末级节点）</h4>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
@@ -776,7 +866,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
     </table>
     </div>
 
-    <h4><span class="fr">FR-03</span>末级账户册余额走势</h4>
+    <h4><span class="fr">FR-03</span>末级账户册余额走势（测算期每月月末余额）</h4>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
@@ -820,7 +910,7 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
     </table>
     </div>
 
-    <h4><span class="fr">FR-06</span>目标达成进度行</h4>
+    <h4><span class="fr">FR-06</span>目标达成进度展示模块</h4>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
@@ -853,6 +943,33 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
         <tr><td><b>问题</b></td><td>ECharts <code>setOption</code> 默认 merge 模式，series 数量变化时旧 series 残留（切「全部」→「Top 10」后仍有 26 条多余线，tooltip 出现重复项）</td></tr>
         <tr><td><b>方案</b></td><td>全部 6 处 <code>&lt;ReactECharts&gt;</code> 加 <code>replaceMerge={['series']}</code>（比 <code>notMerge</code> 保留过渡动画）</td></tr>
         <tr><td><b>验收</b></td><td>下拉切换后 series 数量 = 期望值（10 → 36 → 10 → 5）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-09</span>组合反算模块 Tab 化改造（对齐 Java 版）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>需求</b></td><td>组合反算页由纵向堆叠改为 4 个页签，页面布局对齐 Java 版 <code>prcp-vue/src/views/reverse/Index.vue</code></td></tr>
+        <tr><td><b>页签</b></td><td>测算方案 ｜ 目标设置 ｜ <b>测算结果（复用结果驾驶舱）</b> ｜ 运行记录</td></tr>
+        <tr><td><b>方案表列</b></td><td>编码 ｜ 名称 ｜ 关联账户册 ｜ 计量模型 ｜ 数据日期 ｜ 预测期 ｜ 运行数 ｜ 状态 ｜ 操作；操作项为「详情 ｜ 目标设置 ｜ 运行 ｜ 删除」链接式</td></tr>
+        <tr><td><b>数据源</b></td><td>不涉及新表，复用既有 <code>/reverse/*</code> 接口与结果驾驶舱组件</td></tr>
+        <tr><td><b>联动</b></td><td>进入页面自动选中第一条方案；「测算结果」页签的驾驶舱跟随选中方案（<code>initialSchemeCode</code>）</td></tr>
+        <tr><td><b>验收</b></td><td>4 个页签均可独立打开且有数据；跨页签方案联动生效</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4><span class="fr">FR-10</span>预测月份按 Run 实际范围回落</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:110px">项</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><b>问题</b></td><td><code>date_offset</code> 取自后端 <code>options.default</code>（默认方案 2026 的最大 offset=24）。但各 Run 月份数不同，<code>REV_NLS_REG</code> 仅 12 个月 → 请求 <code>snapshot?date_offset=24</code> 返回 <b>404</b>，驾驶舱整页空白</td></tr>
+        <tr><td><b>方案</b></td><td><code>date_offset</code> 改由「run 变化 → 加载 dates」effect 按该 Run 实际月份范围决定；当前月份超范围时落到最后一个可用月份</td></tr>
+        <tr><td><b>验收</b></td><td>2026 → M24；REV_NLS_REG → M12；切换方案后无失败请求</td></tr>
       </tbody>
     </table>
     </div>
@@ -1052,9 +1169,9 @@ code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:no
 </div>
 
 <div class="foot">
-  PRCP 组合反算结果优化 · 需求设计文档 v1.0<br>
-  11 项功能需求 · 9 张数据表 · 4 个接口 · 1 套口径体系<br>
-  生成时间 2026-11-03
+  PRCP 组合反算结果优化 · 需求设计文档 v1.1<br>
+  11 项交付 · 10 项功能需求 · 9 张数据表 · 4 个接口 · 1 套口径体系<br>
+  生成时间 2026-11-03　修订 2026-11-04
 </div>
 
 </div>
