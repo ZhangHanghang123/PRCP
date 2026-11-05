@@ -252,14 +252,14 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
           <Card
             title={<span><FunctionOutlined /> 方案指标</span>}
             extra={<Tag color="purple">{defs.length} 个</Tag>}
-            bodyStyle={{ padding: 8 }}
-            style={{ height: 'calc(100vh - 320px)', minHeight: 480 }}
+            styles={{ body: { padding: 8, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' } }}
+            style={{ height: 'calc(100vh - 320px)', minHeight: 480, display: 'flex', flexDirection: 'column' }}
           >
             <Input.Search
               placeholder="搜索编码 / 名称"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              style={{ marginBottom: 8 }}
+              style={{ marginBottom: 8, flex: 'none' }}
               allowClear
             />
             {filteredDefs.length === 0 ? (
@@ -268,7 +268,10 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
                 description={defs.length === 0 ? '当前方案还没有指标定义' : '无匹配结果'}
               />
             ) : (
-              <div style={{ overflowY: 'auto', height: 'calc(100% - 60px)' }}>
+              /* flex:1 + minHeight:0 是滚动容器生效的必要条件：
+                 前者占满剩余高度，后者允许子项在 flex 布局中收缩，
+                 否则 overflowY:auto 的容器会被内容撑开而不出滚动条 */
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
                 {filteredDefs.map((d) => (
                   <div
                     key={d.id}
@@ -336,12 +339,21 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
                   </Tooltip>
                 </Space>
               }
-              bodyStyle={{ padding: 16 }}
+              styles={{
+                body: {
+                  padding: 16,
+                  height: '100%',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                },
+              }}
+              style={{ height: 'calc(100vh - 320px)', minHeight: 480, display: 'flex', flexDirection: 'column' }}
             >
               <Alert
                 type="info"
                 showIcon
-                style={{ marginBottom: 12 }}
+                style={{ marginBottom: 12, flex: 'none' }}
                 message="试算功能已迁移到【指标维护】页"
                 description={
                   <div>
@@ -360,13 +372,14 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
               />
 
               {/* 规则列表 */}
+              <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
               <Table
                 size="small"
                 rowKey="id"
                 dataSource={rules}
                 columns={ruleCols}
                 scroll={{ x: 900 }}
-                pagination={{ pageSize: 10 }}
+                pagination={{ pageSize: 10, size: 'small', showSizeChanger: false }}
                 expandable={{
                   expandedRowRender: (r) => (
                     <div style={{ padding: '8px 12px', background: '#fafafa', borderRadius: 4 }}>
@@ -429,6 +442,7 @@ const KpiScore: React.FC<Props> = ({ activeScheme, currentScheme }) => {
                   ),
                 }}
               />
+              </div>
             </Card>
           )}
         </Col>
