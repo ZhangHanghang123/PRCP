@@ -12,7 +12,7 @@
 """
 import openpyxl
 
-P = r"C:\银行经营\PRCP\docs\v2\评分标准_v14_锚点重标定.xlsx"
+P = r"C:\银行经营\PRCP\docs\v2\评分标准_v14.3_EVE区间重设.xlsx"
 wb = openpyxl.load_workbook(P, data_only=True)
 ws = wb["0-500分评分标准"]
 ws2 = wb["中信银行得分"]
@@ -22,6 +22,15 @@ BLOCK = {nm: (5 + 23 * i, 27 + 23 * i) for i, nm in enumerate(ORDER)}
 
 
 def pct(t):
+    """把单元格值转成【小数单位】（1.4422 表示 144.22%）。
+
+    注意：D/E 列用 0.0000% 数字格式存小数，openpyxl 读出的裸数已是小数；
+    而 F/K 列是 'xx pp' 文本，存的是百分点（144.22pp 表示 144.22%）。
+    因此：
+      - 裸数值/无单位字符串 → 原值即小数，直接返回
+      - 带 '%'  → 除以 100
+      - 带 'pp' → 除以 100（144.22pp → 1.4422）
+    """
     if t is None:
         return None
     if isinstance(t, (int, float)):
@@ -32,7 +41,7 @@ def pct(t):
     if t.endswith("pp"):
         return float(t[:-2]) / 100
     try:
-        return float(t) / 100
+        return float(t)          # 已是小数单位，不再除 100
     except Exception:
         return None
 
@@ -50,7 +59,7 @@ def num(t):
 
 ok_all = True
 print("=" * 104)
-print("v14 评分标准 · 独立回读校验")
+print("v14.1 评分标准 · 独立回读校验")
 print("=" * 104)
 
 # ---- 得分页实测值 ----

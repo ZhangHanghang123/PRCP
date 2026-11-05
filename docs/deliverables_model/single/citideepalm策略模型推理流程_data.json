@@ -1,0 +1,164 @@
+{
+  "flows": [
+    {
+      "title": "citideepalm策略模型推理流程",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "加载模型",
+          "items": [
+            {
+              "action": "读取策略权重 mm_policy_weights.pt",
+              "owner": "推理引擎",
+              "remark": "export_prcp_mm_deploy"
+            },
+            {
+              "action": "读取收益率 PCA 状态 mm_yield_pca.pt",
+              "owner": "推理引擎",
+              "remark": "policy_pca_version 校验"
+            },
+            {
+              "action": "校验 manifest：维度/摘要哈希/决策档布局",
+              "owner": "推理引擎",
+              "remark": "policy_schema_hash"
+            },
+            {
+              "action": "固定推理系数 τ=0.0925、γ=5.25",
+              "owner": "推理引擎",
+              "remark": "★推理不再采样"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "情景输入",
+          "items": [
+            {
+              "action": "加载 ESG 情景包：市场收益率路径",
+              "owner": "ESG场景工厂",
+              "remark": "HJM 5 因子"
+            },
+            {
+              "action": "取策略输入 PCA 3 因子（180 月）",
+              "owner": "ESG场景工厂",
+              "remark": "policy_pca_3f"
+            },
+            {
+              "action": "加载 T0 账户工作簿与训练账户配置",
+              "owner": "账户引擎",
+              "remark": "training_accounts.json"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "账户账本推演",
+          "items": [
+            {
+              "action": "run_account_rollout 逐月推进（推理模式）",
+              "owner": "账户引擎",
+              "remark": "★train=False 不建梯度图"
+            },
+            {
+              "action": "策略网络推理决策：65 期限档配置",
+              "owner": "策略网络",
+              "remark": "provider(tau, gamma 固定)"
+            },
+            {
+              "action": "按决策重配资产，生成现金流与余额",
+              "owner": "账户引擎",
+              "remark": "决策档受 T0 权重约束"
+            },
+            {
+              "action": "记录每月后置状态供指标计算",
+              "owner": "账户引擎",
+              "remark": "post 状态"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "指标计算",
+          "items": [
+            {
+              "action": "LCR：HQLA ÷ 净流出（流入 75% 封顶）",
+              "owner": "指标计算模块",
+              "remark": "calculate_lcr_nsfr_indicators"
+            },
+            {
+              "action": "NSFR：ASF ÷ RSF × 调整系数",
+              "owner": "指标计算模块",
+              "remark": "engine_params_real.json"
+            },
+            {
+              "action": "EVE：六情景 ΔEVE 绝对值比率",
+              "owner": "指标计算模块",
+              "remark": "delta_eve_from_cashflows"
+            },
+            {
+              "action": "CAR：CET1 资本 ÷ 风险加权资产",
+              "owner": "指标计算模块",
+              "remark": "★四项规则指标"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "指标评分",
+          "items": [
+            {
+              "action": "四项指标映射为 0~500 分（分段插值）",
+              "owner": "指标评分模块",
+              "remark": "map_indicator_tensors"
+            },
+            {
+              "action": "等权加权得综合分：各 0.25",
+              "owner": "指标评分模块",
+              "remark": "weighted_score_tensor"
+            },
+            {
+              "action": "计算距离 500 分的二次惩罚",
+              "owner": "指标评分模块",
+              "remark": "score_penalty_tensor"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "结果输出",
+          "items": [
+            {
+              "action": "输出各情景期末权益与 ROE",
+              "owner": "推理引擎",
+              "remark": "final_equity / roe_after_dividend"
+            },
+            {
+              "action": "导出月度台账明细供核对",
+              "owner": "推理引擎",
+              "remark": "monthly_ledger_export"
+            },
+            {
+              "action": "★回传 PRCP：预测业务量 → 指标计量",
+              "owner": "PRCP平台",
+              "remark": "prcp_model_train_result"
+            },
+            {
+              "action": "★PRCP 指标评分再算分 → 目标达成校验",
+              "owner": "PRCP平台",
+              "remark": "prcp_kpi_value.score"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "推理引擎",
+        "ESG场景工厂",
+        "账户引擎",
+        "策略网络",
+        "指标计算模块",
+        "指标评分模块",
+        "PRCP平台"
+      ]
+    }
+  ]
+}

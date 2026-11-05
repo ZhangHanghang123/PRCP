@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>流程图预览 - 模型反算主链路 / 新业务现金流逐月滚动 / 指标计量计算链路 / 指标评分计算链路 / citideepalm策略模型训练流程 / citideepalm策略模型推理流程</title>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 24px; background: #f1f5f9; color: #1f2937;
+         font-family: "Microsoft YaHei", "PingFang SC", "SimSun", sans-serif; }
+  .wrap { max-width: 1600px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 6px; color: #0f172a; }
+  .meta { font-size: 12px; color: #64748b; margin-bottom: 16px; }
+  .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+           padding: 16px; overflow: auto; box-shadow: 0 1px 3px rgba(15,23,42,.06); }
+  .card + .card { margin-top: 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: #334155; font-weight: 600; }
+  svg { max-width: 100%; height: auto; display: block; }
+  footer { font-size: 12px; color: #94a3b8; margin-top: 16px; text-align: center; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    .card { box-shadow: none; border: none; padding: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>流程图预览</h1>
+  <div class="meta">6 个流程 · 32 个阶段 · 107 个操作项 · 生成于 2026-11-05</div>
+  <div class="card">
+    <h2>模型反算主链路 / 新业务现金流逐月滚动 / 指标计量计算链路 / 指标评分计算链路 / citideepalm策略模型训练流程 / citideepalm策略模型推理流程</h2>
+    <svg xmlns="http://www.w3.org/2000/svg" width="1632.0" height="6536.0" viewBox="0 0 1632.0 6536.0">
+  <defs><marker id="arrowhead" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto" markerUnits="userSpaceOnUse"><path d="M1 1 L7 4 L1 7 Z" fill="#64748B" /></marker></defs>
+  <g transform="translate(0,0)">
+<rect x="38.4" y="17.3" width="1555.2" height="61.4" fill="#1E3A8A" stroke="none" stroke-width="1" rx="4.8" />
+<text x="816.0" y="48.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="16.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">模型反算主链路</text>
+<text x="816.0" y="96.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="middle">流程阶段：模型建模 → 训练取数 → 算法求解 → 结果落库 → 预测值回流</text>
+<text x="78.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#475569" font-weight="bold" text-anchor="start" dominant-baseline="middle">责任人：</text>
+<rect x="163.2" y="121.0" width="74.9" height="26.9" fill="#2563EB" stroke="none" stroke-width="1" rx="13.4" />
+<text x="200.6" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">业务人员</text>
+<rect x="257.3" y="121.0" width="74.9" height="26.9" fill="#EA580C" stroke="none" stroke-width="1" rx="13.4" />
+<text x="294.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">训练引擎</text>
+<rect x="351.4" y="121.0" width="97.9" height="26.9" fill="#16A34A" stroke="none" stroke-width="1" rx="13.4" />
+<text x="400.3" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标计量引擎</text>
+<rect x="468.5" y="121.0" width="97.9" height="26.9" fill="#7C3AED" stroke="none" stroke-width="1" rx="13.4" />
+<text x="517.4" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标评分引擎</text>
+<rect x="585.6" y="121.0" width="69.1" height="26.9" fill="#0891B2" stroke="none" stroke-width="1" rx="13.4" />
+<text x="620.2" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">系统</text>
+<rect x="38.4" y="220.8" width="306.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="38.4,163.2 324.9,163.2 344.8,188.2 324.9,213.1 38.4,213.1" fill="#334155" />
+<text x="185.9" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP1 模型建模</text>
+<rect x="350.6" y="220.8" width="306.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="350.6,163.2 637.1,163.2 657.0,188.2 637.1,213.1 350.6,213.1" fill="#334155" />
+<text x="498.0" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP2 训练取数</text>
+<rect x="662.8" y="220.8" width="306.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="662.8,163.2 949.2,163.2 969.2,188.2 949.2,213.1 662.8,213.1" fill="#334155" />
+<text x="810.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP3 算法求解</text>
+<rect x="975.0" y="220.8" width="306.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="975.0,163.2 1261.4,163.2 1281.4,188.2 1261.4,213.1 975.0,213.1" fill="#334155" />
+<text x="1122.4" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP4 结果落库</text>
+<rect x="1287.2" y="220.8" width="306.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1287.2,163.2 1573.6,163.2 1593.6,188.2 1573.6,213.1 1287.2,213.1" fill="#334155" />
+<text x="1434.6" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP5 预测值回流</text>
+<rect x="59.5" y="247.7" width="264.2" height="79.7" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="191.6" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">配置算法类型与业务域，关联指标方案</text>
+<text x="191.6" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：业务人员</text>
+<text x="191.6" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_model.kpi_scheme_id</text>
+<rect x="59.5" y="361.9" width="264.2" height="79.7" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="191.6" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">创建模型版本，复制参数快照</text>
+<text x="191.6" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：业务人员</text>
+<text x="191.6" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_model_version</text>
+<rect x="59.5" y="476.2" width="264.2" height="79.7" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="191.6" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">挂载超参与关联指标 kpi_id</text>
+<text x="191.6" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：业务人员</text>
+<text x="191.6" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_model_param</text>
+<rect x="59.5" y="590.4" width="264.2" height="79.7" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="191.6" y="598.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">发起训练任务：指定窗口与账户册方案</text>
+<text x="191.6" y="615.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：业务人员</text>
+<text x="191.6" y="630.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_model_train</text>
+<rect x="371.7" y="247.7" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="503.8" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">读取余额序列 prcp_data_balance 月度快照</text>
+<text x="503.8" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="503.8" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_data_balance</text>
+<rect x="371.7" y="361.9" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="503.8" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">读取 ESG 曲线计划作为情景特征</text>
+<text x="503.8" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="503.8" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_esg_curve_point</text>
+<rect x="371.7" y="476.2" width="264.2" height="95.0" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="503.8" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">参数 formula 派生特征（余额/指标值/</text>
+<text x="503.8" y="498.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">折算系数）</text>
+<text x="503.8" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="503.8" y="530.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">param.formula 通道</text>
+<rect x="683.9" y="247.7" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按 model_type 三选一，分支求解</text>
+<text x="816.0" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="816.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">三类算法并行可选</text>
+<rect x="683.9" y="361.9" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">分支A 非线性方程求解 Newton/SLSQP</text>
+<text x="816.0" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="816.0" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">NONLINEAR_SOLVER</text>
+<rect x="683.9" y="476.2" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">分支B 蚁群组合优化 群体智能寻优</text>
+<text x="816.0" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="816.0" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">ANT_COLONY</text>
+<rect x="683.9" y="590.4" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="598.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">分支C DNN 回归 奖励=指标方案评分</text>
+<text x="816.0" y="615.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="816.0" y="630.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">DNN_NEURAL_NETWORK</text>
+<rect x="996.1" y="247.7" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="1128.2" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">写预测值 predicted 与置信区间 CI</text>
+<text x="1128.2" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="1128.2" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_model_train_result</text>
+<rect x="996.1" y="361.9" width="264.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="1128.2" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">汇总项 rpt_item_code=SUMMARY 衔接报表</text>
+<text x="1128.2" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练引擎</text>
+<text x="1128.2" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">rpt_item_id=0</text>
+<rect x="1308.3" y="247.7" width="264.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="1440.4" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">指标计量用预测值替代实测值算未来指标</text>
+<text x="1440.4" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="1440.4" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value</text>
+<rect x="1308.3" y="361.9" width="264.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1440.4" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">指标评分对未来值打分 → 趋势预警</text>
+<text x="1440.4" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1440.4" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value.score</text>
+<rect x="1308.3" y="476.2" width="264.2" height="79.7" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="1440.4" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">待补：回写 prcp_kpi_value 未来期次</text>
+<text x="1440.4" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：系统</text>
+<text x="1440.4" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★当前能力缺口（未实现）</text>
+<line x1="191.6" y1="328.4" x2="191.6" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="191.6" y1="442.6" x2="191.6" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="191.6" y1="556.8" x2="191.6" y2="589.4" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="503.8" y1="328.4" x2="503.8" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="503.8" y1="442.6" x2="503.8" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="816.0" y1="328.4" x2="816.0" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="816.0" y1="442.6" x2="816.0" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="816.0" y1="556.8" x2="816.0" y2="589.4" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1128.2" y1="328.4" x2="1128.2" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1440.4" y1="328.4" x2="1440.4" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1440.4" y1="442.6" x2="1440.4" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="323.7" y1="671.1" x2="347.7" y2="671.1" stroke="#64748B" stroke-width="1.3" />
+<line x1="347.7" y1="671.1" x2="347.7" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="347.7" y1="246.7" x2="371.7" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="635.9" y1="572.2" x2="659.9" y2="572.2" stroke="#64748B" stroke-width="1.3" />
+<line x1="659.9" y1="572.2" x2="659.9" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="659.9" y1="246.7" x2="683.9" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="948.1" y1="671.1" x2="972.1" y2="671.1" stroke="#64748B" stroke-width="1.3" />
+<line x1="972.1" y1="671.1" x2="972.1" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="972.1" y1="246.7" x2="996.1" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1260.3" y1="442.6" x2="1284.3" y2="442.6" stroke="#64748B" stroke-width="1.3" />
+<line x1="1284.3" y1="442.6" x2="1284.3" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1284.3" y1="246.7" x2="1308.3" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<text x="192.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="start" dominant-baseline="middle">来源：《模型反算主链路》</text>
+<text x="1440.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="end" dominant-baseline="middle">绘制日期：2026-11-05</text>
+</g>
+<g transform="translate(0,1096.0)">
+<rect x="38.4" y="17.3" width="1555.2" height="61.4" fill="#1E3A8A" stroke="none" stroke-width="1" rx="4.8" />
+<text x="816.0" y="48.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="16.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">新业务现金流逐月滚动</text>
+<text x="816.0" y="96.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="middle">流程阶段：初始状态 → 年目标增量 → 当月投放 → 期限落桶 → 指标重算 → 排期汇总</text>
+<text x="78.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#475569" font-weight="bold" text-anchor="start" dominant-baseline="middle">责任人：</text>
+<rect x="163.2" y="121.0" width="109.4" height="26.9" fill="#DB2777" stroke="none" stroke-width="1" rx="13.4" />
+<text x="217.9" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">新业务模拟引擎</text>
+<rect x="38.4" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="38.4,163.2 272.8,163.2 292.8,188.2 272.8,213.1 38.4,213.1" fill="#334155" />
+<text x="159.8" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP1 初始状态</text>
+<rect x="298.6" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="298.6,163.2 533.0,163.2 553.0,188.2 533.0,213.1 298.6,213.1" fill="#334155" />
+<text x="420.0" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP2 年目标增量</text>
+<rect x="558.7" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="558.7,163.2 793.2,163.2 813.1,188.2 793.2,213.1 558.7,213.1" fill="#334155" />
+<text x="680.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP3 当月投放</text>
+<rect x="818.9" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="818.9,163.2 1053.3,163.2 1073.3,188.2 1053.3,213.1 818.9,213.1" fill="#334155" />
+<text x="940.3" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP4 期限落桶</text>
+<rect x="1079.0" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1079.0,163.2 1313.5,163.2 1333.4,188.2 1313.5,213.1 1079.0,213.1" fill="#334155" />
+<text x="1200.5" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP5 指标重算</text>
+<rect x="1339.2" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1339.2,163.2 1573.6,163.2 1593.6,188.2 1573.6,213.1 1339.2,213.1" fill="#334155" />
+<text x="1460.6" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP6 排期汇总</text>
+<rect x="59.5" y="247.7" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="165.6" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">取基准日状态：余额/均值/</text>
+<text x="165.6" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">加权利率/月息</text>
+<text x="165.6" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="165.6" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">get_initial_state</text>
+<rect x="59.5" y="377.3" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="165.6" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">判定节点是否测算：</text>
+<text x="165.6" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">is_model_calc</text>
+<text x="165.6" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="165.6" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">1=模型 2=非模型</text>
+<rect x="319.7" y="247.7" width="212.2" height="79.7" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="425.8" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type1/3 目标=B×参数%/100</text>
+<text x="425.8" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="425.8" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">compute_year_target</text>
+<rect x="319.7" y="361.9" width="212.2" height="79.7" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="425.8" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type2 目标=参数×单位换算</text>
+<text x="425.8" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="425.8" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">万元 1e4 / 亿元 1e8</text>
+<rect x="319.7" y="476.2" width="212.2" height="110.4" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="425.8" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type4</text>
+<text x="425.8" y="498.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 目标=年末余额−年初余额（可为负</text>
+<text x="425.8" y="513.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">）</text>
+<text x="425.8" y="530.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="425.8" y="545.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">余额锚定=缩表</text>
+<rect x="579.8" y="247.7" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按节奏权重分摊：add=年目标×w[m</text>
+<text x="685.9" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">]/100</text>
+<text x="685.9" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="685.9" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">12月权重，跨年复用</text>
+<rect x="579.8" y="377.3" width="212.2" height="79.7" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">快照计划到期额（take_due 之前）</text>
+<text x="685.9" y="402.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="685.9" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">peek_due</text>
+<rect x="579.8" y="491.5" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="499.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">取走当月到期额并清零：release=</text>
+<text x="685.9" y="514.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">rem_m[k]</text>
+<text x="685.9" y="531.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="685.9" y="546.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">take_due</text>
+<rect x="579.8" y="621.1" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="629.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type1/2 回补到期：month_new=</text>
+<text x="685.9" y="643.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">release+add</text>
+<text x="685.9" y="661.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="685.9" y="675.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">净增长口径</text>
+<rect x="579.8" y="750.7" width="212.2" height="79.7" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="758.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type3/4 不回补：month_new=add</text>
+<text x="685.9" y="776.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="685.9" y="790.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">毛投放口径</text>
+<rect x="840.0" y="247.7" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按期限占比拆分：amount_v=</text>
+<text x="946.1" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">month_new×pct/100</text>
+<text x="946.1" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="946.1" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">apply_term_split</text>
+<rect x="840.0" y="377.3" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">原始期限桶只进不出：orig_mv +=</text>
+<text x="946.1" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">amount_v</text>
+<text x="946.1" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="946.1" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">记录投放时原始期限</text>
+<rect x="840.0" y="506.9" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="514.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">绝对到期月直落：rem_m{k+v} +=</text>
+<text x="946.1" y="529.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">amount_v</text>
+<text x="946.1" y="546.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="946.1" y="561.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">v2.2 取消整体前移</text>
+<rect x="840.0" y="636.5" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="644.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">超 60 月归档长端：</text>
+<text x="946.1" y="659.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">y10/y15/y20/y30</text>
+<text x="946.1" y="676.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="946.1" y="691.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">_due_key</text>
+<rect x="1100.2" y="247.7" width="212.2" height="79.7" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">余额：new_current = B + add</text>
+<text x="1206.2" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="1206.2" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">分支A 不测算则不变</text>
+<rect x="1100.2" y="361.9" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">均值：new_avg = avg_balance +</text>
+<text x="1206.2" y="384.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">add/2</text>
+<text x="1206.2" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="1206.2" y="416.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">投放期中点法</text>
+<rect x="1100.2" y="491.5" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="499.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">加权利率：加权平均后除以 avg+</text>
+<text x="1206.2" y="514.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">month_new</text>
+<text x="1206.2" y="531.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="1206.2" y="546.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★利率单位需统一</text>
+<rect x="1100.2" y="621.1" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="629.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">月息：new_interest = new_avg ×</text>
+<text x="1206.2" y="643.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">new_wr / 12</text>
+<text x="1206.2" y="661.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="1206.2" y="675.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">月息=均值×加权利率/12</text>
+<rect x="1360.3" y="247.7" width="212.2" height="110.4" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1466.4" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">累加 60</text>
+<text x="1466.4" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 月完整到期排期（存量+全部投放</text>
+<text x="1466.4" y="284.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">）</text>
+<text x="1466.4" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="1466.4" y="316.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">accumulate_plan</text>
+<rect x="1360.3" y="392.6" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1466.4" y="400.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">写回结果行：每格都有值，形成时</text>
+<text x="1466.4" y="415.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">间轴</text>
+<text x="1466.4" y="432.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：新业务模拟引擎</text>
+<text x="1466.4" y="447.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">apply_final_plan</text>
+<line x1="165.6" y1="343.7" x2="165.6" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="425.8" y1="328.4" x2="425.8" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="425.8" y1="442.6" x2="425.8" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="343.7" x2="685.9" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="458.0" x2="685.9" y2="490.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="587.6" x2="685.9" y2="620.1" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="717.2" x2="685.9" y2="749.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="946.1" y1="343.7" x2="946.1" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="946.1" y1="473.3" x2="946.1" y2="505.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="946.1" y1="602.9" x2="946.1" y2="635.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1206.2" y1="328.4" x2="1206.2" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1206.2" y1="458.0" x2="1206.2" y2="490.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1206.2" y1="587.6" x2="1206.2" y2="620.1" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1466.4" y1="359.1" x2="1466.4" y2="391.6" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="271.7" y1="473.3" x2="295.7" y2="473.3" stroke="#64748B" stroke-width="1.3" />
+<line x1="295.7" y1="473.3" x2="295.7" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="295.7" y1="246.7" x2="319.7" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="531.8" y1="587.6" x2="555.8" y2="587.6" stroke="#64748B" stroke-width="1.3" />
+<line x1="555.8" y1="587.6" x2="555.8" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="555.8" y1="246.7" x2="579.8" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="792.0" y1="831.4" x2="816.0" y2="831.4" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="831.4" x2="816.0" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="246.7" x2="840.0" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1052.2" y1="732.5" x2="1076.2" y2="732.5" stroke="#64748B" stroke-width="1.3" />
+<line x1="1076.2" y1="732.5" x2="1076.2" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1076.2" y1="246.7" x2="1100.2" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1312.3" y1="717.2" x2="1336.3" y2="717.2" stroke="#64748B" stroke-width="1.3" />
+<line x1="1336.3" y1="717.2" x2="1336.3" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1336.3" y1="246.7" x2="1360.3" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<text x="192.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="start" dominant-baseline="middle">来源：《新业务现金流逐月滚动》</text>
+<text x="1440.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="end" dominant-baseline="middle">绘制日期：2026-11-05</text>
+</g>
+<g transform="translate(0,2192.0)">
+<rect x="38.4" y="17.3" width="1555.2" height="61.4" fill="#1E3A8A" stroke="none" stroke-width="1" rx="4.8" />
+<text x="816.0" y="48.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="16.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标计量计算链路</text>
+<text x="816.0" y="96.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="middle">流程阶段：取指标定义 → 准备上下文 → 逐项求值 → 结果落库</text>
+<text x="78.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#475569" font-weight="bold" text-anchor="start" dominant-baseline="middle">责任人：</text>
+<rect x="163.2" y="121.0" width="97.9" height="26.9" fill="#16A34A" stroke="none" stroke-width="1" rx="13.4" />
+<text x="212.2" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标计量引擎</text>
+<rect x="38.4" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="38.4,163.2 402.9,163.2 422.9,188.2 402.9,213.1 38.4,213.1" fill="#334155" />
+<text x="224.9" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP1 取指标定义</text>
+<rect x="428.6" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="428.6,163.2 793.2,163.2 813.1,188.2 793.2,213.1 428.6,213.1" fill="#334155" />
+<text x="615.1" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP2 准备上下文</text>
+<rect x="818.9" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="818.9,163.2 1183.4,163.2 1203.4,188.2 1183.4,213.1 818.9,213.1" fill="#334155" />
+<text x="1005.4" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP3 逐项求值</text>
+<rect x="1209.1" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1209.1,163.2 1573.6,163.2 1593.6,188.2 1573.6,213.1 1209.1,213.1" fill="#334155" />
+<text x="1395.6" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP4 结果落库</text>
+<rect x="59.5" y="247.7" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="230.6" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按模型关联的 kpi_scheme_id 取指标方案</text>
+<text x="230.6" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="230.6" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_scheme</text>
+<rect x="59.5" y="361.9" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="230.6" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">逐条加载指标定义：公式或函数脚本</text>
+<text x="230.6" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="230.6" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_definition</text>
+<rect x="59.5" y="476.2" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="230.6" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">加载折算系数与运算符参数</text>
+<text x="230.6" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="230.6" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_*_param</text>
+<rect x="449.8" y="247.7" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="620.9" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">注入完整业务表：current/adjusted/delta</text>
+<text x="620.9" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="620.9" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_data_basic</text>
+<rect x="449.8" y="361.9" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="620.9" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">注入同方案其他指标的该期值 ctx</text>
+<text x="620.9" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="620.9" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★ctx 互引用</text>
+<rect x="449.8" y="476.2" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="620.9" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">实测值或模型预测值（未来期次）</text>
+<text x="620.9" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="620.9" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value</text>
+<rect x="840.0" y="247.7" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type=1 公式引擎：evaluate(formula, ctx)</text>
+<text x="1011.1" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="1011.1" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value</text>
+<rect x="840.0" y="361.9" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">type=2 函数执行器：run_function_kpi(...)</text>
+<text x="1011.1" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="1011.1" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">指标函数脚本</text>
+<rect x="840.0" y="476.2" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按期次循环：24 期逐月计算</text>
+<text x="1011.1" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="1011.1" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">current / adjusted</text>
+<rect x="1230.2" y="247.7" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="1401.4" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">写指标值：指标编码 + 期次 + 当前值</text>
+<text x="1401.4" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="1401.4" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value</text>
+<rect x="1230.2" y="361.9" width="342.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="1401.4" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">记录 delta 变化供对比展示</text>
+<text x="1401.4" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计量引擎</text>
+<text x="1401.4" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">adjusted − current</text>
+<line x1="230.6" y1="328.4" x2="230.6" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="230.6" y1="442.6" x2="230.6" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="620.9" y1="328.4" x2="620.9" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="620.9" y1="442.6" x2="620.9" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1011.1" y1="328.4" x2="1011.1" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1011.1" y1="442.6" x2="1011.1" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1401.4" y1="328.4" x2="1401.4" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="401.8" y1="556.8" x2="425.8" y2="556.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="425.8" y1="556.8" x2="425.8" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="425.8" y1="246.7" x2="449.8" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="792.0" y1="556.8" x2="816.0" y2="556.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="556.8" x2="816.0" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="246.7" x2="840.0" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1182.2" y1="556.8" x2="1206.2" y2="556.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="1206.2" y1="556.8" x2="1206.2" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1206.2" y1="246.7" x2="1230.2" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<text x="192.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="start" dominant-baseline="middle">来源：《指标计量计算链路》</text>
+<text x="1440.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="end" dominant-baseline="middle">绘制日期：2026-11-05</text>
+</g>
+<g transform="translate(0,3288.0)">
+<rect x="38.4" y="17.3" width="1555.2" height="61.4" fill="#1E3A8A" stroke="none" stroke-width="1" rx="4.8" />
+<text x="816.0" y="48.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="16.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标评分计算链路</text>
+<text x="816.0" y="96.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="middle">流程阶段：取评分规则 → 取待评价值 → 区间命中 → 出分落库</text>
+<text x="78.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#475569" font-weight="bold" text-anchor="start" dominant-baseline="middle">责任人：</text>
+<rect x="163.2" y="121.0" width="97.9" height="26.9" fill="#7C3AED" stroke="none" stroke-width="1" rx="13.4" />
+<text x="212.2" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标评分引擎</text>
+<rect x="38.4" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="38.4,163.2 402.9,163.2 422.9,188.2 402.9,213.1 38.4,213.1" fill="#334155" />
+<text x="224.9" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP1 取评分规则</text>
+<rect x="428.6" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="428.6,163.2 793.2,163.2 813.1,188.2 793.2,213.1 428.6,213.1" fill="#334155" />
+<text x="615.1" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP2 取待评价值</text>
+<rect x="818.9" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="818.9,163.2 1183.4,163.2 1203.4,188.2 1183.4,213.1 818.9,213.1" fill="#334155" />
+<text x="1005.4" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP3 区间命中</text>
+<rect x="1209.1" y="220.8" width="384.5" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1209.1,163.2 1573.6,163.2 1593.6,188.2 1573.6,213.1 1209.1,213.1" fill="#334155" />
+<text x="1395.6" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="11.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP4 出分落库</text>
+<rect x="59.5" y="247.7" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="230.6" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按指标取评分规则：算法/满分/方向</text>
+<text x="230.6" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="230.6" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_score_rule</text>
+<rect x="59.5" y="361.9" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="230.6" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">加载评分分段：区间→分数映射</text>
+<text x="230.6" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="230.6" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_score_segment</text>
+<rect x="59.5" y="476.2" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="230.6" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">higher_is_better 决定优劣方向</text>
+<text x="230.6" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="230.6" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">评分方向</text>
+<rect x="449.8" y="247.7" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="620.9" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">value 可以是实测值 / 模型预测值 / 情景值</text>
+<text x="620.9" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="620.9" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★语义与来源无关</text>
+<rect x="449.8" y="361.9" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="620.9" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">蒙特卡洛可取三值：悲观/中性/乐观</text>
+<text x="620.9" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="620.9" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">conf_low / predicted / conf_high</text>
+<rect x="840.0" y="247.7" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">PIECEWISE：按 [min,max) 命中分段</text>
+<text x="1011.1" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1011.1" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">监管档位指标</text>
+<rect x="840.0" y="361.9" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">LINEAR：按锚点对 (x,score) 插值</text>
+<text x="1011.1" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1011.1" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">平滑指标</text>
+<rect x="840.0" y="476.2" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">段内插值：score_min+(x−min)/(max−min)×Δscore</text>
+<text x="1011.1" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1011.1" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">score_min 空则阶梯</text>
+<rect x="840.0" y="590.4" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1011.1" y="598.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">LINEAR 超端点做 clamp 截断</text>
+<text x="1011.1" y="615.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1011.1" y="630.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">y1+(x−x1)/(x2−x1)×(y2−y1)</text>
+<rect x="1230.2" y="247.7" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1401.4" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">写 score 到指标值行（与 current_value 同行）</text>
+<text x="1401.4" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1401.4" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value.score</text>
+<rect x="1230.2" y="361.9" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1401.4" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">DNN 训练时评分作为奖励函数驱动收敛</text>
+<text x="1401.4" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1401.4" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★指标↔模型闭环</text>
+<rect x="1230.2" y="476.2" width="342.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1401.4" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">未来期次评分对比当前 → 趋势预警</text>
+<text x="1401.4" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分引擎</text>
+<text x="1401.4" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">风险幅度</text>
+<line x1="230.6" y1="328.4" x2="230.6" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="230.6" y1="442.6" x2="230.6" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="620.9" y1="328.4" x2="620.9" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1011.1" y1="328.4" x2="1011.1" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1011.1" y1="442.6" x2="1011.1" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1011.1" y1="556.8" x2="1011.1" y2="589.4" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1401.4" y1="328.4" x2="1401.4" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1401.4" y1="442.6" x2="1401.4" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="401.8" y1="556.8" x2="425.8" y2="556.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="425.8" y1="556.8" x2="425.8" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="425.8" y1="246.7" x2="449.8" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="792.0" y1="442.6" x2="816.0" y2="442.6" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="442.6" x2="816.0" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="246.7" x2="840.0" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1182.2" y1="671.1" x2="1206.2" y2="671.1" stroke="#64748B" stroke-width="1.3" />
+<line x1="1206.2" y1="671.1" x2="1206.2" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1206.2" y1="246.7" x2="1230.2" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<text x="192.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="start" dominant-baseline="middle">来源：《指标评分计算链路》</text>
+<text x="1440.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="end" dominant-baseline="middle">绘制日期：2026-11-05</text>
+</g>
+<g transform="translate(0,4384.0)">
+<rect x="38.4" y="17.3" width="1555.2" height="61.4" fill="#1E3A8A" stroke="none" stroke-width="1" rx="4.8" />
+<text x="816.0" y="48.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="16.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">citideepalm策略模型训练流程</text>
+<text x="816.0" y="96.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="middle">流程阶段：场景准备 → 系数采样 → 账户账本推演 → 指标计算 → 指标评分 → 损失计算 → 验证评估</text>
+<text x="78.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#475569" font-weight="bold" text-anchor="start" dominant-baseline="middle">责任人：</text>
+<rect x="163.2" y="121.0" width="109.4" height="26.9" fill="#CA8A04" stroke="none" stroke-width="1" rx="13.4" />
+<text x="217.9" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">ESG场景工厂</text>
+<rect x="291.8" y="121.0" width="74.9" height="26.9" fill="#475569" stroke="none" stroke-width="1" rx="13.4" />
+<text x="329.3" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">账户引擎</text>
+<rect x="385.9" y="121.0" width="86.4" height="26.9" fill="#2563EB" stroke="none" stroke-width="1" rx="13.4" />
+<text x="429.1" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">训练调度器</text>
+<rect x="491.5" y="121.0" width="74.9" height="26.9" fill="#EA580C" stroke="none" stroke-width="1" rx="13.4" />
+<text x="529.0" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">策略网络</text>
+<rect x="585.6" y="121.0" width="97.9" height="26.9" fill="#16A34A" stroke="none" stroke-width="1" rx="13.4" />
+<text x="634.6" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标计算模块</text>
+<rect x="702.7" y="121.0" width="97.9" height="26.9" fill="#7C3AED" stroke="none" stroke-width="1" rx="13.4" />
+<text x="751.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标评分模块</text>
+<rect x="38.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="38.4,163.2 235.7,163.2 255.6,188.2 235.7,213.1 38.4,213.1" fill="#334155" />
+<text x="141.3" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP1 场景准备</text>
+<rect x="261.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="261.4,163.2 458.7,163.2 478.6,188.2 458.7,213.1 261.4,213.1" fill="#334155" />
+<text x="364.3" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP2 系数采样</text>
+<rect x="484.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="484.4,163.2 681.7,163.2 701.6,188.2 681.7,213.1 484.4,213.1" fill="#334155" />
+<text x="587.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP3 账户账本推演</text>
+<rect x="707.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="707.4,163.2 904.6,163.2 924.6,188.2 904.6,213.1 707.4,213.1" fill="#334155" />
+<text x="810.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP4 指标计算</text>
+<rect x="930.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="930.4,163.2 1127.6,163.2 1147.6,188.2 1127.6,213.1 930.4,213.1" fill="#334155" />
+<text x="1033.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP5 指标评分</text>
+<rect x="1153.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1153.4,163.2 1350.6,163.2 1370.6,188.2 1350.6,213.1 1153.4,213.1" fill="#334155" />
+<text x="1256.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP6 损失计算</text>
+<rect x="1376.4" y="220.8" width="217.2" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1376.4,163.2 1573.6,163.2 1593.6,188.2 1573.6,213.1 1376.4,213.1" fill="#334155" />
+<text x="1479.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP7 验证评估</text>
+<rect x="59.5" y="247.7" width="175.0" height="95.0" fill="#FEF9C3" stroke="#CA8A04" stroke-width="1.4" rx="6.7" />
+<text x="147.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">生成 ESG 情景包：HJM 5</text>
+<text x="147.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 因子 × 情景 × 期限</text>
+<text x="147.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：ESG场景工厂</text>
+<text x="147.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">hjm_5f_*.pt</text>
+<rect x="59.5" y="377.3" width="175.0" height="95.0" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="147.0" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">读取 T0 账户工作簿：余额/</text>
+<text x="147.0" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">期限/权重</text>
+<text x="147.0" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="147.0" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">engine/data/t0/</text>
+<rect x="59.5" y="506.9" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="147.0" y="514.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">切分训练集:验证集 = 95:5</text>
+<text x="147.0" y="529.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">（固定种子）</text>
+<text x="147.0" y="546.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="147.0" y="561.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">种子 20261025</text>
+<rect x="59.5" y="636.5" width="175.0" height="79.7" fill="#FEF9C3" stroke="#CA8A04" stroke-width="1.4" rx="6.7" />
+<text x="147.0" y="644.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">冻结策略 PCA 3 因子状态</text>
+<text x="147.0" y="662.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：ESG场景工厂</text>
+<text x="147.0" y="676.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">policy_pca_3f.npz</text>
+<rect x="282.5" y="247.7" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="370.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按情景采样 τ：目标增长率</text>
+<text x="370.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">0.075~0.11</text>
+<text x="370.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="370.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">sample_training_coefficients</text>
+<rect x="282.5" y="377.3" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="370.0" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按情景采样 γ：评分损失权重</text>
+<text x="370.0" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 0.5~10</text>
+<text x="370.0" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="370.0" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★验证取 τ=0.0925 γ=5.25</text>
+<rect x="282.5" y="506.9" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="370.0" y="514.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">采样经营成本 / 增长 /</text>
+<text x="370.0" y="529.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 派息比例</text>
+<text x="370.0" y="546.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="370.0" y="561.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">派息 30.7% 准备金 6%/1.6%</text>
+<rect x="505.5" y="247.7" width="175.0" height="95.0" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="593.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">run_account_rollout</text>
+<text x="593.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 逐月推进 360 月网格</text>
+<text x="593.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="593.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_alm.ledger</text>
+<rect x="505.5" y="377.3" width="175.0" height="95.0" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="593.0" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">策略网络输出决策：65</text>
+<text x="593.0" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 期限档配置分布</text>
+<text x="593.0" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：策略网络</text>
+<text x="593.0" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">AccountPolicy / AccountHead</text>
+<rect x="505.5" y="506.9" width="175.0" height="95.0" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="593.0" y="514.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按决策档重配资产，产生现</text>
+<text x="593.0" y="529.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">金流与余额</text>
+<text x="593.0" y="546.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="593.0" y="561.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★决策档受 T0 权重约束</text>
+<rect x="505.5" y="636.5" width="175.0" height="95.0" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="593.0" y="644.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">记录每月后置状态：余额/</text>
+<text x="593.0" y="659.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">现金/权益/现金流</text>
+<text x="593.0" y="676.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="593.0" y="691.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">post 状态供指标计算</text>
+<rect x="728.5" y="247.7" width="175.0" height="125.8" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">LCR：HQLA</text>
+<text x="816.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> ÷ 净流出（流入按 75</text>
+<text x="816.0" y="284.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">% 封顶）</text>
+<text x="816.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="816.0" y="316.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">calculate_lcr_nsfr_indicator</text>
+<text x="816.0" y="328.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">s</text>
+<rect x="728.5" y="408.0" width="175.0" height="95.0" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="416.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">NSFR：ASF ÷ RSF</text>
+<text x="816.0" y="430.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> × 最终调整系数</text>
+<text x="816.0" y="448.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="816.0" y="462.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">nsfr_final_adjustment_factor</text>
+<rect x="728.5" y="537.6" width="175.0" height="95.0" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="545.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">EVE：六情景冲击下 ΔEVE</text>
+<text x="816.0" y="560.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 绝对值比率</text>
+<text x="816.0" y="577.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="816.0" y="592.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">delta_eve_from_cashflows</text>
+<rect x="728.5" y="667.2" width="175.0" height="95.0" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="816.0" y="675.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">CAR：CET1</text>
+<text x="816.0" y="689.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 资本 ÷ 风险加权资产</text>
+<text x="816.0" y="707.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="816.0" y="721.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★CAR 为规则指标</text>
+<rect x="951.5" y="247.7" width="175.0" height="95.0" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1039.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">四项原始指标映射为 0~500</text>
+<text x="1039.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 分（分段插值）</text>
+<text x="1039.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分模块</text>
+<text x="1039.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">map_indicator_tensors</text>
+<rect x="951.5" y="377.3" width="175.0" height="110.4" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1039.0" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">四指标等权加权：</text>
+<text x="1039.0" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">LCR/NSFR/EVE/CAR 各</text>
+<text x="1039.0" y="414.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">0.25</text>
+<text x="1039.0" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分模块</text>
+<text x="1039.0" y="446.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">weighted_score_tensor</text>
+<rect x="951.5" y="522.2" width="175.0" height="110.4" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1039.0" y="530.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">距离最优 500</text>
+<text x="1039.0" y="544.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 分的二次惩罚 ((500−q)</text>
+<text x="1039.0" y="559.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">/40)²</text>
+<text x="1039.0" y="576.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分模块</text>
+<text x="1039.0" y="591.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">score_penalty_tensor</text>
+<rect x="1174.5" y="247.7" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1262.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">目标损失：未达目标权益的</text>
+<text x="1262.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">缺口平方</text>
+<text x="1262.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1262.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">target_loss</text>
+<rect x="1174.5" y="377.3" width="175.0" height="79.7" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1262.0" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">评分惩罚损失：γ × 月均惩罚</text>
+<text x="1262.0" y="402.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1262.0" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">rule_penalty_loss</text>
+<rect x="1174.5" y="491.5" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1262.0" y="499.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">总损失 = 目标损失 + 评分惩</text>
+<text x="1262.0" y="514.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">罚损失</text>
+<text x="1262.0" y="531.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1262.0" y="546.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">compute_account_objective</text>
+<rect x="1174.5" y="621.1" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1262.0" y="629.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">反向传播更新策略网络参数</text>
+<text x="1262.0" y="643.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">（梯度裁剪）</text>
+<text x="1262.0" y="661.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1262.0" y="675.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">lr 0.02 / 梯度裁剪 0.2</text>
+<rect x="1174.5" y="750.7" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1262.0" y="758.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">早停与最优权重保存（耐心 5</text>
+<text x="1262.0" y="773.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 轮）</text>
+<text x="1262.0" y="790.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1262.0" y="805.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★早停耐心 5</text>
+<rect x="1397.5" y="247.7" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1485.0" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">验证集逐月推演并重新计算</text>
+<text x="1485.0" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">指标与评分</text>
+<text x="1485.0" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1485.0" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★验证同样走指标+评分</text>
+<rect x="1397.5" y="377.3" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1485.0" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">对比 growth_loss /</text>
+<text x="1485.0" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">rule_loss / total_loss</text>
+<text x="1485.0" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1485.0" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">objective 三分量</text>
+<rect x="1397.5" y="506.9" width="175.0" height="95.0" fill="#EAF1FE" stroke="#2563EB" stroke-width="1.4" rx="6.7" />
+<text x="1485.0" y="514.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">导出模型包：策略权重 +</text>
+<text x="1485.0" y="529.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">PCA 状态 + manifest</text>
+<text x="1485.0" y="546.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：训练调度器</text>
+<text x="1485.0" y="561.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">export_prcp_mm_deploy</text>
+<line x1="147.0" y1="343.7" x2="147.0" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="147.0" y1="473.3" x2="147.0" y2="505.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="147.0" y1="602.9" x2="147.0" y2="635.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="370.0" y1="343.7" x2="370.0" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="370.0" y1="473.3" x2="370.0" y2="505.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="593.0" y1="343.7" x2="593.0" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="593.0" y1="473.3" x2="593.0" y2="505.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="593.0" y1="602.9" x2="593.0" y2="635.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="816.0" y1="374.4" x2="816.0" y2="407.0" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="816.0" y1="504.0" x2="816.0" y2="536.6" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="816.0" y1="633.6" x2="816.0" y2="666.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1039.0" y1="343.7" x2="1039.0" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1039.0" y1="488.7" x2="1039.0" y2="521.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1262.0" y1="343.7" x2="1262.0" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1262.0" y1="458.0" x2="1262.0" y2="490.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1262.0" y1="587.6" x2="1262.0" y2="620.1" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1262.0" y1="717.2" x2="1262.0" y2="749.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1485.0" y1="343.7" x2="1485.0" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1485.0" y1="473.3" x2="1485.0" y2="505.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="234.5" y1="717.2" x2="258.5" y2="717.2" stroke="#64748B" stroke-width="1.3" />
+<line x1="258.5" y1="717.2" x2="258.5" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="258.5" y1="246.7" x2="282.5" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="457.5" y1="602.9" x2="481.5" y2="602.9" stroke="#64748B" stroke-width="1.3" />
+<line x1="481.5" y1="602.9" x2="481.5" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="481.5" y1="246.7" x2="505.5" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="680.5" y1="732.5" x2="704.5" y2="732.5" stroke="#64748B" stroke-width="1.3" />
+<line x1="704.5" y1="732.5" x2="704.5" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="704.5" y1="246.7" x2="728.5" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="903.5" y1="763.2" x2="927.5" y2="763.2" stroke="#64748B" stroke-width="1.3" />
+<line x1="927.5" y1="763.2" x2="927.5" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="927.5" y1="246.7" x2="951.5" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1126.5" y1="633.6" x2="1150.5" y2="633.6" stroke="#64748B" stroke-width="1.3" />
+<line x1="1150.5" y1="633.6" x2="1150.5" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1150.5" y1="246.7" x2="1174.5" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1349.5" y1="846.8" x2="1373.5" y2="846.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="1373.5" y1="846.8" x2="1373.5" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1373.5" y1="246.7" x2="1397.5" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<text x="192.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="start" dominant-baseline="middle">来源：《citideepalm策略模型训练流程》</text>
+<text x="1440.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="end" dominant-baseline="middle">绘制日期：2026-11-05</text>
+</g>
+<g transform="translate(0,5480.0)">
+<rect x="38.4" y="17.3" width="1555.2" height="61.4" fill="#1E3A8A" stroke="none" stroke-width="1" rx="4.8" />
+<text x="816.0" y="48.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="16.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">citideepalm策略模型推理流程</text>
+<text x="816.0" y="96.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="middle">流程阶段：加载模型 → 情景输入 → 账户账本推演 → 指标计算 → 指标评分 → 结果输出</text>
+<text x="78.7" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.0" fill="#475569" font-weight="bold" text-anchor="start" dominant-baseline="middle">责任人：</text>
+<rect x="163.2" y="121.0" width="74.9" height="26.9" fill="#0891B2" stroke="none" stroke-width="1" rx="13.4" />
+<text x="200.6" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">推理引擎</text>
+<rect x="257.3" y="121.0" width="109.4" height="26.9" fill="#CA8A04" stroke="none" stroke-width="1" rx="13.4" />
+<text x="312.0" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">ESG场景工厂</text>
+<rect x="385.9" y="121.0" width="74.9" height="26.9" fill="#475569" stroke="none" stroke-width="1" rx="13.4" />
+<text x="423.4" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">账户引擎</text>
+<rect x="480.0" y="121.0" width="74.9" height="26.9" fill="#EA580C" stroke="none" stroke-width="1" rx="13.4" />
+<text x="517.4" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">策略网络</text>
+<rect x="574.1" y="121.0" width="97.9" height="26.9" fill="#16A34A" stroke="none" stroke-width="1" rx="13.4" />
+<text x="623.0" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标计算模块</text>
+<rect x="691.2" y="121.0" width="97.9" height="26.9" fill="#7C3AED" stroke="none" stroke-width="1" rx="13.4" />
+<text x="740.2" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">指标评分模块</text>
+<rect x="808.3" y="121.0" width="97.9" height="26.9" fill="#DB2777" stroke="none" stroke-width="1" rx="13.4" />
+<text x="857.3" y="134.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">PRCP平台</text>
+<rect x="38.4" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="38.4,163.2 272.8,163.2 292.8,188.2 272.8,213.1 38.4,213.1" fill="#334155" />
+<text x="159.8" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP1 加载模型</text>
+<rect x="298.6" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="298.6,163.2 533.0,163.2 553.0,188.2 533.0,213.1 298.6,213.1" fill="#334155" />
+<text x="420.0" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP2 情景输入</text>
+<rect x="558.7" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="558.7,163.2 793.2,163.2 813.1,188.2 793.2,213.1 558.7,213.1" fill="#334155" />
+<text x="680.2" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP3 账户账本推演</text>
+<rect x="818.9" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="818.9,163.2 1053.3,163.2 1073.3,188.2 1053.3,213.1 818.9,213.1" fill="#334155" />
+<text x="940.3" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP4 指标计算</text>
+<rect x="1079.0" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1079.0,163.2 1313.5,163.2 1333.4,188.2 1313.5,213.1 1079.0,213.1" fill="#334155" />
+<text x="1200.5" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP5 指标评分</text>
+<rect x="1339.2" y="220.8" width="254.4" height="756.5" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="0.7" rx="7.7" />
+<polygon points="1339.2,163.2 1573.6,163.2 1593.6,188.2 1573.6,213.1 1339.2,213.1" fill="#334155" />
+<text x="1460.6" y="188.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="10.0" fill="#FFFFFF" font-weight="bold" text-anchor="middle" dominant-baseline="middle">STEP6 结果输出</text>
+<rect x="59.5" y="247.7" width="212.2" height="95.0" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="165.6" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">读取策略权重</text>
+<text x="165.6" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">mm_policy_weights.pt</text>
+<text x="165.6" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：推理引擎</text>
+<text x="165.6" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">export_prcp_mm_deploy</text>
+<rect x="59.5" y="377.3" width="212.2" height="95.0" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="165.6" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">读取收益率 PCA 状态</text>
+<text x="165.6" y="399.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">mm_yield_pca.pt</text>
+<text x="165.6" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：推理引擎</text>
+<text x="165.6" y="431.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">policy_pca_version 校验</text>
+<rect x="59.5" y="506.9" width="212.2" height="95.0" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="165.6" y="514.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">校验 manifest：维度/摘要哈希/</text>
+<text x="165.6" y="529.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">决策档布局</text>
+<text x="165.6" y="546.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：推理引擎</text>
+<text x="165.6" y="561.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">policy_schema_hash</text>
+<rect x="59.5" y="636.5" width="212.2" height="79.7" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="165.6" y="644.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">固定推理系数 τ=0.0925、γ=5.25</text>
+<text x="165.6" y="662.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：推理引擎</text>
+<text x="165.6" y="676.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★推理不再采样</text>
+<rect x="319.7" y="247.7" width="212.2" height="79.7" fill="#FEF9C3" stroke="#CA8A04" stroke-width="1.4" rx="6.7" />
+<text x="425.8" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">加载 ESG 情景包：市场收益率路径</text>
+<text x="425.8" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：ESG场景工厂</text>
+<text x="425.8" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">HJM 5 因子</text>
+<rect x="319.7" y="361.9" width="212.2" height="79.7" fill="#FEF9C3" stroke="#CA8A04" stroke-width="1.4" rx="6.7" />
+<text x="425.8" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">取策略输入 PCA 3 因子（180 月）</text>
+<text x="425.8" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：ESG场景工厂</text>
+<text x="425.8" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">policy_pca_3f</text>
+<rect x="319.7" y="476.2" width="212.2" height="79.7" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="425.8" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">加载 T0 账户工作簿与训练账户配置</text>
+<text x="425.8" y="501.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="425.8" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">training_accounts.json</text>
+<rect x="579.8" y="247.7" width="212.2" height="95.0" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">run_account_rollout</text>
+<text x="685.9" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 逐月推进（推理模式）</text>
+<text x="685.9" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="685.9" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★train=False 不建梯度图</text>
+<rect x="579.8" y="377.3" width="212.2" height="79.7" fill="#FDF0E7" stroke="#EA580C" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">策略网络推理决策：65 期限档配置</text>
+<text x="685.9" y="402.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：策略网络</text>
+<text x="685.9" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">provider(tau, gamma 固定)</text>
+<rect x="579.8" y="491.5" width="212.2" height="95.0" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="499.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">按决策重配资产，生成现金流与余</text>
+<text x="685.9" y="514.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">额</text>
+<text x="685.9" y="531.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="685.9" y="546.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">决策档受 T0 权重约束</text>
+<rect x="579.8" y="621.1" width="212.2" height="79.7" fill="#F1F5F9" stroke="#475569" stroke-width="1.4" rx="6.7" />
+<text x="685.9" y="629.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">记录每月后置状态供指标计算</text>
+<text x="685.9" y="646.6" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：账户引擎</text>
+<text x="685.9" y="661.1" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">post 状态</text>
+<rect x="840.0" y="247.7" width="212.2" height="95.0" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">LCR：HQLA ÷ 净流出（流入 75</text>
+<text x="946.1" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">% 封顶）</text>
+<text x="946.1" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="946.1" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">calculate_lcr_nsfr_indicators</text>
+<rect x="840.0" y="377.3" width="212.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">NSFR：ASF ÷ RSF × 调整系数</text>
+<text x="946.1" y="402.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="946.1" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">engine_params_real.json</text>
+<rect x="840.0" y="491.5" width="212.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="499.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">EVE：六情景 ΔEVE 绝对值比率</text>
+<text x="946.1" y="517.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="946.1" y="531.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">delta_eve_from_cashflows</text>
+<rect x="840.0" y="605.8" width="212.2" height="79.7" fill="#EAF7EF" stroke="#16A34A" stroke-width="1.4" rx="6.7" />
+<text x="946.1" y="613.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">CAR：CET1 资本 ÷ 风险加权资产</text>
+<text x="946.1" y="631.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标计算模块</text>
+<text x="946.1" y="645.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">★四项规则指标</text>
+<rect x="1100.2" y="247.7" width="212.2" height="95.0" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">四项指标映射为 0~500</text>
+<text x="1206.2" y="270.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 分（分段插值）</text>
+<text x="1206.2" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分模块</text>
+<text x="1206.2" y="302.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">map_indicator_tensors</text>
+<rect x="1100.2" y="377.3" width="212.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="385.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">等权加权得综合分：各 0.25</text>
+<text x="1206.2" y="402.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分模块</text>
+<text x="1206.2" y="417.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">weighted_score_tensor</text>
+<rect x="1100.2" y="491.5" width="212.2" height="79.7" fill="#F2ECFD" stroke="#7C3AED" stroke-width="1.4" rx="6.7" />
+<text x="1206.2" y="499.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">计算距离 500 分的二次惩罚</text>
+<text x="1206.2" y="517.0" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：指标评分模块</text>
+<text x="1206.2" y="531.5" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">score_penalty_tensor</text>
+<rect x="1360.3" y="247.7" width="212.2" height="79.7" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="1466.4" y="255.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">输出各情景期末权益与 ROE</text>
+<text x="1466.4" y="273.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：推理引擎</text>
+<text x="1466.4" y="287.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">final_equity / roe_after_dividend</text>
+<rect x="1360.3" y="361.9" width="212.2" height="79.7" fill="#E7F5F9" stroke="#0891B2" stroke-width="1.4" rx="6.7" />
+<text x="1466.4" y="369.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">导出月度台账明细供核对</text>
+<text x="1466.4" y="387.4" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：推理引擎</text>
+<text x="1466.4" y="401.9" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">monthly_ledger_export</text>
+<rect x="1360.3" y="476.2" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1466.4" y="484.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">★回传 PRCP</text>
+<text x="1466.4" y="498.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">：预测业务量 → 指标计量</text>
+<text x="1466.4" y="516.2" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：PRCP平台</text>
+<text x="1466.4" y="530.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_model_train_result</text>
+<rect x="1360.3" y="605.8" width="212.2" height="95.0" fill="#FCE7F3" stroke="#DB2777" stroke-width="1.4" rx="6.7" />
+<text x="1466.4" y="613.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging">★PRCP</text>
+<text x="1466.4" y="628.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="9.5" fill="#1F2937" font-weight="bold" text-anchor="middle" dominant-baseline="hanging"> 指标评分再算分 → 目标达成校验</text>
+<text x="1466.4" y="645.8" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.5" fill="#1F2937" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">责任人：PRCP平台</text>
+<text x="1466.4" y="660.3" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#64748B" font-weight="normal" text-anchor="middle" dominant-baseline="hanging">prcp_kpi_value.score</text>
+<line x1="165.6" y1="343.7" x2="165.6" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="165.6" y1="473.3" x2="165.6" y2="505.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="165.6" y1="602.9" x2="165.6" y2="635.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="425.8" y1="328.4" x2="425.8" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="425.8" y1="442.6" x2="425.8" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="343.7" x2="685.9" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="458.0" x2="685.9" y2="490.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="685.9" y1="587.6" x2="685.9" y2="620.1" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="946.1" y1="343.7" x2="946.1" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="946.1" y1="458.0" x2="946.1" y2="490.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="946.1" y1="572.2" x2="946.1" y2="604.8" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1206.2" y1="343.7" x2="1206.2" y2="376.3" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1206.2" y1="458.0" x2="1206.2" y2="490.5" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1466.4" y1="328.4" x2="1466.4" y2="360.9" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1466.4" y1="442.6" x2="1466.4" y2="475.2" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1466.4" y1="572.2" x2="1466.4" y2="604.8" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="271.7" y1="717.2" x2="295.7" y2="717.2" stroke="#64748B" stroke-width="1.3" />
+<line x1="295.7" y1="717.2" x2="295.7" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="295.7" y1="246.7" x2="319.7" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="531.8" y1="556.8" x2="555.8" y2="556.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="555.8" y1="556.8" x2="555.8" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="555.8" y1="246.7" x2="579.8" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="792.0" y1="701.8" x2="816.0" y2="701.8" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="701.8" x2="816.0" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="816.0" y1="246.7" x2="840.0" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1052.2" y1="686.4" x2="1076.2" y2="686.4" stroke="#64748B" stroke-width="1.3" />
+<line x1="1076.2" y1="686.4" x2="1076.2" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1076.2" y1="246.7" x2="1100.2" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<line x1="1312.3" y1="572.2" x2="1336.3" y2="572.2" stroke="#64748B" stroke-width="1.3" />
+<line x1="1336.3" y1="572.2" x2="1336.3" y2="246.7" stroke="#64748B" stroke-width="1.3" />
+<line x1="1336.3" y1="246.7" x2="1360.3" y2="246.7" stroke="#64748B" stroke-width="1.3" marker-end="url(#arrowhead)" />
+<text x="192.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="start" dominant-baseline="middle">来源：《citideepalm策略模型推理流程》</text>
+<text x="1440.0" y="1015.7" font-family="Microsoft YaHei, SimHei, SimSun, sans-serif" font-size="8.0" fill="#94A3B8" font-weight="normal" text-anchor="end" dominant-baseline="middle">绘制日期：2026-11-05</text>
+</g>
+</svg>
+  </div>
+  <footer>由「流程画师」生成 · Visio 源文件与 SVG 在同一输出目录</footer>
+</div>
+</body>
+</html>

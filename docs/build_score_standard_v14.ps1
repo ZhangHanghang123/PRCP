@@ -1,6 +1,6 @@
 ﻿$ErrorActionPreference = "Stop"
-$SRC = "C:\银行经营\PRCP\docs\v2\评分标准_v13_8指标_含CAR.xlsx"
-$DST = "C:\银行经营\PRCP\docs\v2\评分标准_v14_锚点重标定.xlsx"
+$SRC = "C:\银行经营\PRCP\docs\v2\评分标准_v14_锚点重标定.xlsx"
+$DST = "C:\银行经营\PRCP\docs\v2\评分标准_v14.3_EVE区间重设.xlsx"
 
 $TSV_SEG  = "C:\银行经营\PRCP\docs\_v14_segments.tsv"
 $TSV_PAGE = "C:\银行经营\PRCP\docs\_v14_scorepage.tsv"

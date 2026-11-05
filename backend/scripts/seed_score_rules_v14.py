@@ -58,8 +58,8 @@ IND = {
     "NSFR": dict(dir="H", over="penalty", a0=100.0, a1=101.5, a2=102.8, a4=105.2,
                  delta=5.0, floor=300.0, w=0.13, act=104.65,
                  name="净稳定资金比例", desc="NSFR 净稳定资金比例"),
-    "EVE": dict(dir="L", over="penalty", a0=15.0, a1=13.0, a2=11.0, a4=8.5,
-                delta=3.0, floor=450.0, w=0.12, act=10.54,
+    "EVE": dict(dir="L", over="penalty", a0=170.0, a1=140.0, a2=80.0, a4=60.0,
+                delta=40.0, floor=450.0, w=0.12, act=61.3947,
                 name="银行账户利率风险", desc="EVE 经济价值变动（IRRBB）"),
     "CET1": dict(dir="H", over="penalty", a0=8.7, a1=9.0, a2=9.2, a4=10.0,
                  delta=2.0, floor=300.0, w=0.16, act=9.48,
@@ -389,6 +389,19 @@ def ensure_kpi_defs(conn, systems):
 
 
 def soft_delete_old(conn, kpi_id):
+    """软删该 kpi 的现有规则。
+
+    ⚠ 唯一索引 uk_kpi_rule = (kpi_id, rule_name, is_deleted)，
+    同名规则只能存在一条 —— 若历史已留有同名软删记录，
+    直接再软删会撞 Duplicate entry。故先把旧规则名改写为归档名
+    （带时间戳）再置 is_deleted=1，腾出键位给新规则。
+    """
+    # 先把现存有效规则改名归档
+    conn.execute(text("""
+        UPDATE prcp_kpi_score_rule
+        SET rule_name = CONCAT(rule_name, ' #archived@', DATE_FORMAT(NOW(), '%Y%m%d%H%i%s'))
+        WHERE kpi_id = :k AND is_deleted = 0
+    """), {"k": kpi_id})
     r = conn.execute(text(
         "UPDATE prcp_kpi_score_rule SET is_deleted=1 WHERE kpi_id=:k AND is_deleted=0"
     ), {"k": kpi_id})
@@ -411,7 +424,7 @@ def create_rule(conn, kpi_id, key, code, scheme_id):
         VALUES (:s, :k, :n, 'PIECEWISE', 500, :h, :d, 'ACTIVE', 0, 1, 1)
     """), {
         "s": scheme_id, "k": kpi_id,
-        "n": "%s v14 锚点重标定 0-500 分评分" % code,
+        "n": "%s v14.1 锚点重标定+EVE口径修正 0-500 分评分" % code,
         "h": higher,
         "d": "基于 docs/v2/评分标准_v14_锚点重标定.xlsx - 锚点推导 23 段"
              "（红线→危险→预警→安全→适度最优→过优），段内线性插值",

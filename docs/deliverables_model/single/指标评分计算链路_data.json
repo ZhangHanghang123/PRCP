@@ -1,0 +1,96 @@
+{
+  "flows": [
+    {
+      "title": "指标评分计算链路",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "取评分规则",
+          "items": [
+            {
+              "action": "按指标取评分规则：算法/满分/方向",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_score_rule"
+            },
+            {
+              "action": "加载评分分段：区间→分数映射",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_score_segment"
+            },
+            {
+              "action": "higher_is_better 决定优劣方向",
+              "owner": "指标评分引擎",
+              "remark": "评分方向"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "取待评价值",
+          "items": [
+            {
+              "action": "value 可以是实测值 / 模型预测值 / 情景值",
+              "owner": "指标评分引擎",
+              "remark": "★语义与来源无关"
+            },
+            {
+              "action": "蒙特卡洛可取三值：悲观/中性/乐观",
+              "owner": "指标评分引擎",
+              "remark": "conf_low / predicted / conf_high"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "区间命中",
+          "items": [
+            {
+              "action": "PIECEWISE：按 [min,max) 命中分段",
+              "owner": "指标评分引擎",
+              "remark": "监管档位指标"
+            },
+            {
+              "action": "LINEAR：按锚点对 (x,score) 插值",
+              "owner": "指标评分引擎",
+              "remark": "平滑指标"
+            },
+            {
+              "action": "段内插值：score_min+(x−min)/(max−min)×Δscore",
+              "owner": "指标评分引擎",
+              "remark": "score_min 空则阶梯"
+            },
+            {
+              "action": "LINEAR 超端点做 clamp 截断",
+              "owner": "指标评分引擎",
+              "remark": "y1+(x−x1)/(x2−x1)×(y2−y1)"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "出分落库",
+          "items": [
+            {
+              "action": "写 score 到指标值行（与 current_value 同行）",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_value.score"
+            },
+            {
+              "action": "DNN 训练时评分作为奖励函数驱动收敛",
+              "owner": "指标评分引擎",
+              "remark": "★指标↔模型闭环"
+            },
+            {
+              "action": "未来期次评分对比当前 → 趋势预警",
+              "owner": "指标评分引擎",
+              "remark": "风险幅度"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "指标评分引擎"
+      ]
+    }
+  ]
+}

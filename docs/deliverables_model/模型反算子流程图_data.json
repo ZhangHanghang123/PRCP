@@ -1,0 +1,794 @@
+{
+  "flows": [
+    {
+      "title": "模型反算主链路",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "模型建模",
+          "items": [
+            {
+              "action": "配置算法类型与业务域，关联指标方案",
+              "owner": "业务人员",
+              "remark": "prcp_model.kpi_scheme_id"
+            },
+            {
+              "action": "创建模型版本，复制参数快照",
+              "owner": "业务人员",
+              "remark": "prcp_model_version"
+            },
+            {
+              "action": "挂载超参与关联指标 kpi_id",
+              "owner": "业务人员",
+              "remark": "prcp_model_param"
+            },
+            {
+              "action": "发起训练任务：指定窗口与账户册方案",
+              "owner": "业务人员",
+              "remark": "prcp_model_train"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "训练取数",
+          "items": [
+            {
+              "action": "读取余额序列 prcp_data_balance 月度快照",
+              "owner": "训练引擎",
+              "remark": "prcp_data_balance"
+            },
+            {
+              "action": "读取 ESG 曲线计划作为情景特征",
+              "owner": "训练引擎",
+              "remark": "prcp_esg_curve_point"
+            },
+            {
+              "action": "参数 formula 派生特征（余额/指标值/折算系数）",
+              "owner": "训练引擎",
+              "remark": "param.formula 通道"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "算法求解",
+          "items": [
+            {
+              "action": "按 model_type 三选一，分支求解",
+              "owner": "训练引擎",
+              "remark": "三类算法并行可选"
+            },
+            {
+              "action": "分支A 非线性方程求解 Newton/SLSQP",
+              "owner": "训练引擎",
+              "remark": "NONLINEAR_SOLVER"
+            },
+            {
+              "action": "分支B 蚁群组合优化 群体智能寻优",
+              "owner": "训练引擎",
+              "remark": "ANT_COLONY"
+            },
+            {
+              "action": "分支C DNN 回归 奖励=指标方案评分",
+              "owner": "训练引擎",
+              "remark": "DNN_NEURAL_NETWORK"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "结果落库",
+          "items": [
+            {
+              "action": "写预测值 predicted 与置信区间 CI",
+              "owner": "训练引擎",
+              "remark": "prcp_model_train_result"
+            },
+            {
+              "action": "汇总项 rpt_item_code=SUMMARY 衔接报表",
+              "owner": "训练引擎",
+              "remark": "rpt_item_id=0"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "预测值回流",
+          "items": [
+            {
+              "action": "指标计量用预测值替代实测值算未来指标",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            },
+            {
+              "action": "指标评分对未来值打分 → 趋势预警",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_value.score"
+            },
+            {
+              "action": "待补：回写 prcp_kpi_value 未来期次",
+              "owner": "系统",
+              "remark": "★当前能力缺口（未实现）"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "业务人员",
+        "训练引擎",
+        "指标计量引擎",
+        "指标评分引擎",
+        "系统"
+      ]
+    },
+    {
+      "title": "新业务现金流逐月滚动",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "初始状态",
+          "items": [
+            {
+              "action": "取基准日状态：余额/均值/加权利率/月息",
+              "owner": "新业务模拟引擎",
+              "remark": "get_initial_state"
+            },
+            {
+              "action": "判定节点是否测算：is_model_calc",
+              "owner": "新业务模拟引擎",
+              "remark": "1=模型 2=非模型"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "年目标增量",
+          "items": [
+            {
+              "action": "type1/3 目标=B×参数%/100",
+              "owner": "新业务模拟引擎",
+              "remark": "compute_year_target"
+            },
+            {
+              "action": "type2 目标=参数×单位换算",
+              "owner": "新业务模拟引擎",
+              "remark": "万元 1e4 / 亿元 1e8"
+            },
+            {
+              "action": "type4 目标=年末余额−年初余额（可为负）",
+              "owner": "新业务模拟引擎",
+              "remark": "余额锚定=缩表"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "当月投放",
+          "items": [
+            {
+              "action": "按节奏权重分摊：add=年目标×w[m]/100",
+              "owner": "新业务模拟引擎",
+              "remark": "12月权重，跨年复用"
+            },
+            {
+              "action": "快照计划到期额（take_due 之前）",
+              "owner": "新业务模拟引擎",
+              "remark": "peek_due"
+            },
+            {
+              "action": "取走当月到期额并清零：release=rem_m[k]",
+              "owner": "新业务模拟引擎",
+              "remark": "take_due"
+            },
+            {
+              "action": "type1/2 回补到期：month_new=release+add",
+              "owner": "新业务模拟引擎",
+              "remark": "净增长口径"
+            },
+            {
+              "action": "type3/4 不回补：month_new=add",
+              "owner": "新业务模拟引擎",
+              "remark": "毛投放口径"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "期限落桶",
+          "items": [
+            {
+              "action": "按期限占比拆分：amount_v=month_new×pct/100",
+              "owner": "新业务模拟引擎",
+              "remark": "apply_term_split"
+            },
+            {
+              "action": "原始期限桶只进不出：orig_mv += amount_v",
+              "owner": "新业务模拟引擎",
+              "remark": "记录投放时原始期限"
+            },
+            {
+              "action": "绝对到期月直落：rem_m{k+v} += amount_v",
+              "owner": "新业务模拟引擎",
+              "remark": "v2.2 取消整体前移"
+            },
+            {
+              "action": "超 60 月归档长端：y10/y15/y20/y30",
+              "owner": "新业务模拟引擎",
+              "remark": "_due_key"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "指标重算",
+          "items": [
+            {
+              "action": "余额：new_current = B + add",
+              "owner": "新业务模拟引擎",
+              "remark": "分支A 不测算则不变"
+            },
+            {
+              "action": "均值：new_avg = avg_balance + add/2",
+              "owner": "新业务模拟引擎",
+              "remark": "投放期中点法"
+            },
+            {
+              "action": "加权利率：加权平均后除以 avg+month_new",
+              "owner": "新业务模拟引擎",
+              "remark": "★利率单位需统一"
+            },
+            {
+              "action": "月息：new_interest = new_avg × new_wr / 12",
+              "owner": "新业务模拟引擎",
+              "remark": "月息=均值×加权利率/12"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "排期汇总",
+          "items": [
+            {
+              "action": "累加 60 月完整到期排期（存量+全部投放）",
+              "owner": "新业务模拟引擎",
+              "remark": "accumulate_plan"
+            },
+            {
+              "action": "写回结果行：每格都有值，形成时间轴",
+              "owner": "新业务模拟引擎",
+              "remark": "apply_final_plan"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "新业务模拟引擎"
+      ]
+    },
+    {
+      "title": "指标计量计算链路",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "取指标定义",
+          "items": [
+            {
+              "action": "按模型关联的 kpi_scheme_id 取指标方案",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_scheme"
+            },
+            {
+              "action": "逐条加载指标定义：公式或函数脚本",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_definition"
+            },
+            {
+              "action": "加载折算系数与运算符参数",
+              "owner": "指标计量引擎",
+              "remark": "prcp_*_param"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "准备上下文",
+          "items": [
+            {
+              "action": "注入完整业务表：current/adjusted/delta",
+              "owner": "指标计量引擎",
+              "remark": "prcp_data_basic"
+            },
+            {
+              "action": "注入同方案其他指标的该期值 ctx",
+              "owner": "指标计量引擎",
+              "remark": "★ctx 互引用"
+            },
+            {
+              "action": "实测值或模型预测值（未来期次）",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "逐项求值",
+          "items": [
+            {
+              "action": "type=1 公式引擎：evaluate(formula, ctx)",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            },
+            {
+              "action": "type=2 函数执行器：run_function_kpi(...)",
+              "owner": "指标计量引擎",
+              "remark": "指标函数脚本"
+            },
+            {
+              "action": "按期次循环：24 期逐月计算",
+              "owner": "指标计量引擎",
+              "remark": "current / adjusted"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "结果落库",
+          "items": [
+            {
+              "action": "写指标值：指标编码 + 期次 + 当前值",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            },
+            {
+              "action": "记录 delta 变化供对比展示",
+              "owner": "指标计量引擎",
+              "remark": "adjusted − current"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "指标计量引擎"
+      ]
+    },
+    {
+      "title": "指标评分计算链路",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "取评分规则",
+          "items": [
+            {
+              "action": "按指标取评分规则：算法/满分/方向",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_score_rule"
+            },
+            {
+              "action": "加载评分分段：区间→分数映射",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_score_segment"
+            },
+            {
+              "action": "higher_is_better 决定优劣方向",
+              "owner": "指标评分引擎",
+              "remark": "评分方向"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "取待评价值",
+          "items": [
+            {
+              "action": "value 可以是实测值 / 模型预测值 / 情景值",
+              "owner": "指标评分引擎",
+              "remark": "★语义与来源无关"
+            },
+            {
+              "action": "蒙特卡洛可取三值：悲观/中性/乐观",
+              "owner": "指标评分引擎",
+              "remark": "conf_low / predicted / conf_high"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "区间命中",
+          "items": [
+            {
+              "action": "PIECEWISE：按 [min,max) 命中分段",
+              "owner": "指标评分引擎",
+              "remark": "监管档位指标"
+            },
+            {
+              "action": "LINEAR：按锚点对 (x,score) 插值",
+              "owner": "指标评分引擎",
+              "remark": "平滑指标"
+            },
+            {
+              "action": "段内插值：score_min+(x−min)/(max−min)×Δscore",
+              "owner": "指标评分引擎",
+              "remark": "score_min 空则阶梯"
+            },
+            {
+              "action": "LINEAR 超端点做 clamp 截断",
+              "owner": "指标评分引擎",
+              "remark": "y1+(x−x1)/(x2−x1)×(y2−y1)"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "出分落库",
+          "items": [
+            {
+              "action": "写 score 到指标值行（与 current_value 同行）",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_value.score"
+            },
+            {
+              "action": "DNN 训练时评分作为奖励函数驱动收敛",
+              "owner": "指标评分引擎",
+              "remark": "★指标↔模型闭环"
+            },
+            {
+              "action": "未来期次评分对比当前 → 趋势预警",
+              "owner": "指标评分引擎",
+              "remark": "风险幅度"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "指标评分引擎"
+      ]
+    },
+    {
+      "title": "citideepalm策略模型训练流程",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "场景准备",
+          "items": [
+            {
+              "action": "生成 ESG 情景包：HJM 5 因子 × 情景 × 期限",
+              "owner": "ESG场景工厂",
+              "remark": "hjm_5f_*.pt"
+            },
+            {
+              "action": "读取 T0 账户工作簿：余额/期限/权重",
+              "owner": "账户引擎",
+              "remark": "engine/data/t0/"
+            },
+            {
+              "action": "切分训练集:验证集 = 95:5（固定种子）",
+              "owner": "训练调度器",
+              "remark": "种子 20261025"
+            },
+            {
+              "action": "冻结策略 PCA 3 因子状态",
+              "owner": "ESG场景工厂",
+              "remark": "policy_pca_3f.npz"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "系数采样",
+          "items": [
+            {
+              "action": "按情景采样 τ：目标增长率 0.075~0.11",
+              "owner": "训练调度器",
+              "remark": "sample_training_coefficients"
+            },
+            {
+              "action": "按情景采样 γ：评分损失权重 0.5~10",
+              "owner": "训练调度器",
+              "remark": "★验证取 τ=0.0925 γ=5.25"
+            },
+            {
+              "action": "采样经营成本 / 增长 / 派息比例",
+              "owner": "训练调度器",
+              "remark": "派息 30.7% 准备金 6%/1.6%"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "账户账本推演",
+          "items": [
+            {
+              "action": "run_account_rollout 逐月推进 360 月网格",
+              "owner": "账户引擎",
+              "remark": "prcp_alm.ledger"
+            },
+            {
+              "action": "策略网络输出决策：65 期限档配置分布",
+              "owner": "策略网络",
+              "remark": "AccountPolicy / AccountHead"
+            },
+            {
+              "action": "按决策档重配资产，产生现金流与余额",
+              "owner": "账户引擎",
+              "remark": "★决策档受 T0 权重约束"
+            },
+            {
+              "action": "记录每月后置状态：余额/现金/权益/现金流",
+              "owner": "账户引擎",
+              "remark": "post 状态供指标计算"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "指标计算",
+          "items": [
+            {
+              "action": "LCR：HQLA ÷ 净流出（流入按 75% 封顶）",
+              "owner": "指标计算模块",
+              "remark": "calculate_lcr_nsfr_indicators"
+            },
+            {
+              "action": "NSFR：ASF ÷ RSF × 最终调整系数",
+              "owner": "指标计算模块",
+              "remark": "nsfr_final_adjustment_factor"
+            },
+            {
+              "action": "EVE：六情景冲击下 ΔEVE 绝对值比率",
+              "owner": "指标计算模块",
+              "remark": "delta_eve_from_cashflows"
+            },
+            {
+              "action": "CAR：CET1 资本 ÷ 风险加权资产",
+              "owner": "指标计算模块",
+              "remark": "★CAR 为规则指标"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "指标评分",
+          "items": [
+            {
+              "action": "四项原始指标映射为 0~500 分（分段插值）",
+              "owner": "指标评分模块",
+              "remark": "map_indicator_tensors"
+            },
+            {
+              "action": "四指标等权加权：LCR/NSFR/EVE/CAR 各 0.25",
+              "owner": "指标评分模块",
+              "remark": "weighted_score_tensor"
+            },
+            {
+              "action": "距离最优 500 分的二次惩罚 ((500−q)/40)²",
+              "owner": "指标评分模块",
+              "remark": "score_penalty_tensor"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "损失计算",
+          "items": [
+            {
+              "action": "目标损失：未达目标权益的缺口平方",
+              "owner": "训练调度器",
+              "remark": "target_loss"
+            },
+            {
+              "action": "评分惩罚损失：γ × 月均惩罚",
+              "owner": "训练调度器",
+              "remark": "rule_penalty_loss"
+            },
+            {
+              "action": "总损失 = 目标损失 + 评分惩罚损失",
+              "owner": "训练调度器",
+              "remark": "compute_account_objective"
+            },
+            {
+              "action": "反向传播更新策略网络参数（梯度裁剪）",
+              "owner": "训练调度器",
+              "remark": "lr 0.02 / 梯度裁剪 0.2"
+            },
+            {
+              "action": "早停与最优权重保存（耐心 5 轮）",
+              "owner": "训练调度器",
+              "remark": "★早停耐心 5"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP7",
+          "stepName": "验证评估",
+          "items": [
+            {
+              "action": "验证集逐月推演并重新计算指标与评分",
+              "owner": "训练调度器",
+              "remark": "★验证同样走指标+评分"
+            },
+            {
+              "action": "对比 growth_loss / rule_loss / total_loss",
+              "owner": "训练调度器",
+              "remark": "objective 三分量"
+            },
+            {
+              "action": "导出模型包：策略权重 + PCA 状态 + manifest",
+              "owner": "训练调度器",
+              "remark": "export_prcp_mm_deploy"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "ESG场景工厂",
+        "账户引擎",
+        "训练调度器",
+        "策略网络",
+        "指标计算模块",
+        "指标评分模块"
+      ]
+    },
+    {
+      "title": "citideepalm策略模型推理流程",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "加载模型",
+          "items": [
+            {
+              "action": "读取策略权重 mm_policy_weights.pt",
+              "owner": "推理引擎",
+              "remark": "export_prcp_mm_deploy"
+            },
+            {
+              "action": "读取收益率 PCA 状态 mm_yield_pca.pt",
+              "owner": "推理引擎",
+              "remark": "policy_pca_version 校验"
+            },
+            {
+              "action": "校验 manifest：维度/摘要哈希/决策档布局",
+              "owner": "推理引擎",
+              "remark": "policy_schema_hash"
+            },
+            {
+              "action": "固定推理系数 τ=0.0925、γ=5.25",
+              "owner": "推理引擎",
+              "remark": "★推理不再采样"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "情景输入",
+          "items": [
+            {
+              "action": "加载 ESG 情景包：市场收益率路径",
+              "owner": "ESG场景工厂",
+              "remark": "HJM 5 因子"
+            },
+            {
+              "action": "取策略输入 PCA 3 因子（180 月）",
+              "owner": "ESG场景工厂",
+              "remark": "policy_pca_3f"
+            },
+            {
+              "action": "加载 T0 账户工作簿与训练账户配置",
+              "owner": "账户引擎",
+              "remark": "training_accounts.json"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "账户账本推演",
+          "items": [
+            {
+              "action": "run_account_rollout 逐月推进（推理模式）",
+              "owner": "账户引擎",
+              "remark": "★train=False 不建梯度图"
+            },
+            {
+              "action": "策略网络推理决策：65 期限档配置",
+              "owner": "策略网络",
+              "remark": "provider(tau, gamma 固定)"
+            },
+            {
+              "action": "按决策重配资产，生成现金流与余额",
+              "owner": "账户引擎",
+              "remark": "决策档受 T0 权重约束"
+            },
+            {
+              "action": "记录每月后置状态供指标计算",
+              "owner": "账户引擎",
+              "remark": "post 状态"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "指标计算",
+          "items": [
+            {
+              "action": "LCR：HQLA ÷ 净流出（流入 75% 封顶）",
+              "owner": "指标计算模块",
+              "remark": "calculate_lcr_nsfr_indicators"
+            },
+            {
+              "action": "NSFR：ASF ÷ RSF × 调整系数",
+              "owner": "指标计算模块",
+              "remark": "engine_params_real.json"
+            },
+            {
+              "action": "EVE：六情景 ΔEVE 绝对值比率",
+              "owner": "指标计算模块",
+              "remark": "delta_eve_from_cashflows"
+            },
+            {
+              "action": "CAR：CET1 资本 ÷ 风险加权资产",
+              "owner": "指标计算模块",
+              "remark": "★四项规则指标"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "指标评分",
+          "items": [
+            {
+              "action": "四项指标映射为 0~500 分（分段插值）",
+              "owner": "指标评分模块",
+              "remark": "map_indicator_tensors"
+            },
+            {
+              "action": "等权加权得综合分：各 0.25",
+              "owner": "指标评分模块",
+              "remark": "weighted_score_tensor"
+            },
+            {
+              "action": "计算距离 500 分的二次惩罚",
+              "owner": "指标评分模块",
+              "remark": "score_penalty_tensor"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "结果输出",
+          "items": [
+            {
+              "action": "输出各情景期末权益与 ROE",
+              "owner": "推理引擎",
+              "remark": "final_equity / roe_after_dividend"
+            },
+            {
+              "action": "导出月度台账明细供核对",
+              "owner": "推理引擎",
+              "remark": "monthly_ledger_export"
+            },
+            {
+              "action": "★回传 PRCP：预测业务量 → 指标计量",
+              "owner": "PRCP平台",
+              "remark": "prcp_model_train_result"
+            },
+            {
+              "action": "★PRCP 指标评分再算分 → 目标达成校验",
+              "owner": "PRCP平台",
+              "remark": "prcp_kpi_value.score"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "推理引擎",
+        "ESG场景工厂",
+        "账户引擎",
+        "策略网络",
+        "指标计算模块",
+        "指标评分模块",
+        "PRCP平台"
+      ]
+    }
+  ]
+}

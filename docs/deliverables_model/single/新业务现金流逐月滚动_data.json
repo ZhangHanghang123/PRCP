@@ -1,0 +1,148 @@
+{
+  "flows": [
+    {
+      "title": "新业务现金流逐月滚动",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "初始状态",
+          "items": [
+            {
+              "action": "取基准日状态：余额/均值/加权利率/月息",
+              "owner": "新业务模拟引擎",
+              "remark": "get_initial_state"
+            },
+            {
+              "action": "判定节点是否测算：is_model_calc",
+              "owner": "新业务模拟引擎",
+              "remark": "1=模型 2=非模型"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "年目标增量",
+          "items": [
+            {
+              "action": "type1/3 目标=B×参数%/100",
+              "owner": "新业务模拟引擎",
+              "remark": "compute_year_target"
+            },
+            {
+              "action": "type2 目标=参数×单位换算",
+              "owner": "新业务模拟引擎",
+              "remark": "万元 1e4 / 亿元 1e8"
+            },
+            {
+              "action": "type4 目标=年末余额−年初余额（可为负）",
+              "owner": "新业务模拟引擎",
+              "remark": "余额锚定=缩表"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "当月投放",
+          "items": [
+            {
+              "action": "按节奏权重分摊：add=年目标×w[m]/100",
+              "owner": "新业务模拟引擎",
+              "remark": "12月权重，跨年复用"
+            },
+            {
+              "action": "快照计划到期额（take_due 之前）",
+              "owner": "新业务模拟引擎",
+              "remark": "peek_due"
+            },
+            {
+              "action": "取走当月到期额并清零：release=rem_m[k]",
+              "owner": "新业务模拟引擎",
+              "remark": "take_due"
+            },
+            {
+              "action": "type1/2 回补到期：month_new=release+add",
+              "owner": "新业务模拟引擎",
+              "remark": "净增长口径"
+            },
+            {
+              "action": "type3/4 不回补：month_new=add",
+              "owner": "新业务模拟引擎",
+              "remark": "毛投放口径"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "期限落桶",
+          "items": [
+            {
+              "action": "按期限占比拆分：amount_v=month_new×pct/100",
+              "owner": "新业务模拟引擎",
+              "remark": "apply_term_split"
+            },
+            {
+              "action": "原始期限桶只进不出：orig_mv += amount_v",
+              "owner": "新业务模拟引擎",
+              "remark": "记录投放时原始期限"
+            },
+            {
+              "action": "绝对到期月直落：rem_m{k+v} += amount_v",
+              "owner": "新业务模拟引擎",
+              "remark": "v2.2 取消整体前移"
+            },
+            {
+              "action": "超 60 月归档长端：y10/y15/y20/y30",
+              "owner": "新业务模拟引擎",
+              "remark": "_due_key"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "指标重算",
+          "items": [
+            {
+              "action": "余额：new_current = B + add",
+              "owner": "新业务模拟引擎",
+              "remark": "分支A 不测算则不变"
+            },
+            {
+              "action": "均值：new_avg = avg_balance + add/2",
+              "owner": "新业务模拟引擎",
+              "remark": "投放期中点法"
+            },
+            {
+              "action": "加权利率：加权平均后除以 avg+month_new",
+              "owner": "新业务模拟引擎",
+              "remark": "★利率单位需统一"
+            },
+            {
+              "action": "月息：new_interest = new_avg × new_wr / 12",
+              "owner": "新业务模拟引擎",
+              "remark": "月息=均值×加权利率/12"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "排期汇总",
+          "items": [
+            {
+              "action": "累加 60 月完整到期排期（存量+全部投放）",
+              "owner": "新业务模拟引擎",
+              "remark": "accumulate_plan"
+            },
+            {
+              "action": "写回结果行：每格都有值，形成时间轴",
+              "owner": "新业务模拟引擎",
+              "remark": "apply_final_plan"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "新业务模拟引擎"
+      ]
+    }
+  ]
+}

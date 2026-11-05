@@ -1,0 +1,91 @@
+{
+  "flows": [
+    {
+      "title": "指标计量计算链路",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "取指标定义",
+          "items": [
+            {
+              "action": "按模型关联的 kpi_scheme_id 取指标方案",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_scheme"
+            },
+            {
+              "action": "逐条加载指标定义：公式或函数脚本",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_definition"
+            },
+            {
+              "action": "加载折算系数与运算符参数",
+              "owner": "指标计量引擎",
+              "remark": "prcp_*_param"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "准备上下文",
+          "items": [
+            {
+              "action": "注入完整业务表：current/adjusted/delta",
+              "owner": "指标计量引擎",
+              "remark": "prcp_data_basic"
+            },
+            {
+              "action": "注入同方案其他指标的该期值 ctx",
+              "owner": "指标计量引擎",
+              "remark": "★ctx 互引用"
+            },
+            {
+              "action": "实测值或模型预测值（未来期次）",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "逐项求值",
+          "items": [
+            {
+              "action": "type=1 公式引擎：evaluate(formula, ctx)",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            },
+            {
+              "action": "type=2 函数执行器：run_function_kpi(...)",
+              "owner": "指标计量引擎",
+              "remark": "指标函数脚本"
+            },
+            {
+              "action": "按期次循环：24 期逐月计算",
+              "owner": "指标计量引擎",
+              "remark": "current / adjusted"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "结果落库",
+          "items": [
+            {
+              "action": "写指标值：指标编码 + 期次 + 当前值",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            },
+            {
+              "action": "记录 delta 变化供对比展示",
+              "owner": "指标计量引擎",
+              "remark": "adjusted − current"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "指标计量引擎"
+      ]
+    }
+  ]
+}

@@ -16,10 +16,10 @@ from seed_score_rules_v14 import (IND, ORDER, KPI_CODE_REG, KPI_CODE_PNN,
 
 EPS = 1e-9
 EXPECT = {  # 与 docs/v2/评分标准_v14_锚点重标定.xlsx 得分页一致
-    'LCR': 449.14, 'NSFR': 454.17, 'EVE': 336.80, 'CET1': 370.00,
+    'LCR': 449.14, 'NSFR': 454.17, 'EVE': 486.05, 'CET1': 370.00,
     'CAR': 450.00, 'ROE': 350.86, 'IBL': 436.00, 'LR': 392.94,
 }
-TOTAL_EXPECT = 404.88
+TOTAL_EXPECT = 422.79
 
 print('=' * 108)
 print('v14 落库脚本 · 纯函数层自校验（不连数据库）')

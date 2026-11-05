@@ -1,0 +1,189 @@
+{
+  "flows": [
+    {
+      "title": "citideepalm策略模型训练流程",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "场景准备",
+          "items": [
+            {
+              "action": "生成 ESG 情景包：HJM 5 因子 × 情景 × 期限",
+              "owner": "ESG场景工厂",
+              "remark": "hjm_5f_*.pt"
+            },
+            {
+              "action": "读取 T0 账户工作簿：余额/期限/权重",
+              "owner": "账户引擎",
+              "remark": "engine/data/t0/"
+            },
+            {
+              "action": "切分训练集:验证集 = 95:5（固定种子）",
+              "owner": "训练调度器",
+              "remark": "种子 20261025"
+            },
+            {
+              "action": "冻结策略 PCA 3 因子状态",
+              "owner": "ESG场景工厂",
+              "remark": "policy_pca_3f.npz"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "系数采样",
+          "items": [
+            {
+              "action": "按情景采样 τ：目标增长率 0.075~0.11",
+              "owner": "训练调度器",
+              "remark": "sample_training_coefficients"
+            },
+            {
+              "action": "按情景采样 γ：评分损失权重 0.5~10",
+              "owner": "训练调度器",
+              "remark": "★验证取 τ=0.0925 γ=5.25"
+            },
+            {
+              "action": "采样经营成本 / 增长 / 派息比例",
+              "owner": "训练调度器",
+              "remark": "派息 30.7% 准备金 6%/1.6%"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "账户账本推演",
+          "items": [
+            {
+              "action": "run_account_rollout 逐月推进 360 月网格",
+              "owner": "账户引擎",
+              "remark": "prcp_alm.ledger"
+            },
+            {
+              "action": "策略网络输出决策：65 期限档配置分布",
+              "owner": "策略网络",
+              "remark": "AccountPolicy / AccountHead"
+            },
+            {
+              "action": "按决策档重配资产，产生现金流与余额",
+              "owner": "账户引擎",
+              "remark": "★决策档受 T0 权重约束"
+            },
+            {
+              "action": "记录每月后置状态：余额/现金/权益/现金流",
+              "owner": "账户引擎",
+              "remark": "post 状态供指标计算"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "指标计算",
+          "items": [
+            {
+              "action": "LCR：HQLA ÷ 净流出（流入按 75% 封顶）",
+              "owner": "指标计算模块",
+              "remark": "calculate_lcr_nsfr_indicators"
+            },
+            {
+              "action": "NSFR：ASF ÷ RSF × 最终调整系数",
+              "owner": "指标计算模块",
+              "remark": "nsfr_final_adjustment_factor"
+            },
+            {
+              "action": "EVE：六情景冲击下 ΔEVE 绝对值比率",
+              "owner": "指标计算模块",
+              "remark": "delta_eve_from_cashflows"
+            },
+            {
+              "action": "CAR：CET1 资本 ÷ 风险加权资产",
+              "owner": "指标计算模块",
+              "remark": "★CAR 为规则指标"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "指标评分",
+          "items": [
+            {
+              "action": "四项原始指标映射为 0~500 分（分段插值）",
+              "owner": "指标评分模块",
+              "remark": "map_indicator_tensors"
+            },
+            {
+              "action": "四指标等权加权：LCR/NSFR/EVE/CAR 各 0.25",
+              "owner": "指标评分模块",
+              "remark": "weighted_score_tensor"
+            },
+            {
+              "action": "距离最优 500 分的二次惩罚 ((500−q)/40)²",
+              "owner": "指标评分模块",
+              "remark": "score_penalty_tensor"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP6",
+          "stepName": "损失计算",
+          "items": [
+            {
+              "action": "目标损失：未达目标权益的缺口平方",
+              "owner": "训练调度器",
+              "remark": "target_loss"
+            },
+            {
+              "action": "评分惩罚损失：γ × 月均惩罚",
+              "owner": "训练调度器",
+              "remark": "rule_penalty_loss"
+            },
+            {
+              "action": "总损失 = 目标损失 + 评分惩罚损失",
+              "owner": "训练调度器",
+              "remark": "compute_account_objective"
+            },
+            {
+              "action": "反向传播更新策略网络参数（梯度裁剪）",
+              "owner": "训练调度器",
+              "remark": "lr 0.02 / 梯度裁剪 0.2"
+            },
+            {
+              "action": "早停与最优权重保存（耐心 5 轮）",
+              "owner": "训练调度器",
+              "remark": "★早停耐心 5"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP7",
+          "stepName": "验证评估",
+          "items": [
+            {
+              "action": "验证集逐月推演并重新计算指标与评分",
+              "owner": "训练调度器",
+              "remark": "★验证同样走指标+评分"
+            },
+            {
+              "action": "对比 growth_loss / rule_loss / total_loss",
+              "owner": "训练调度器",
+              "remark": "objective 三分量"
+            },
+            {
+              "action": "导出模型包：策略权重 + PCA 状态 + manifest",
+              "owner": "训练调度器",
+              "remark": "export_prcp_mm_deploy"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "ESG场景工厂",
+        "账户引擎",
+        "训练调度器",
+        "策略网络",
+        "指标计算模块",
+        "指标评分模块"
+      ]
+    }
+  ]
+}

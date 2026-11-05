@@ -27,11 +27,12 @@ def check(name, cond, detail=""):
 
 
 def main():
+    vsdx_path = sys.argv[1] if len(sys.argv) > 1 else VS_PATH
     print("=" * 68)
     print("用 Visio 2013 COM 真实打开 .vsdx")
     print("=" * 68)
-    print(f"文件: {VS_PATH}")
-    print(f"存在: {os.path.exists(VS_PATH)}")
+    print(f"文件: {vsdx_path}")
+    print(f"存在: {os.path.exists(vsdx_path)}")
     print()
 
     app = win32com.client.Dispatch("Visio.Application")
@@ -39,10 +40,48 @@ def main():
     doc = None
     try:
         # visOpenHidden = 2
-        doc = app.Documents.OpenEx(VS_PATH, 2)
+        doc = app.Documents.OpenEx(vsdx_path, 2)
         print("=== Visio 打开成功 ===")
         print(f"  文档名: {doc.Name}")
         print(f"  页数:   {doc.Pages.Count}")
+
+        # 多页文件：逐页检查
+        if doc.Pages.Count > 1:
+            print()
+            print("  逐页检查:")
+            all_ok = True
+            for pi in range(1, doc.Pages.Count + 1):
+                pg = doc.Pages.Item(pi)
+                n_text = 0
+                n_card = 0
+                first_ok = 0
+                for si in range(1, pg.Shapes.Count + 1):
+                    sh = pg.Shapes.Item(si)
+                    try:
+                        tx = sh.Text
+                    except Exception:
+                        tx = ""
+                    if tx.strip():
+                        n_text += 1
+                    if "TaskCard" in sh.Name:
+                        n_card += 1
+                        if tx.strip().split("\r")[0].split("\n")[0].strip():
+                            first_ok += 1
+                ok = (n_card > 0 and first_ok == n_card)
+                all_ok = all_ok and ok
+                print(f"    第{pi}页 「{pg.Name}」: shape={pg.Shapes.Count} "
+                      f"卡片={n_card} 首行非空={first_ok} {'OK' if ok else '异常'}")
+            check("所有页的卡片首行均非空", all_ok)
+            doc.Close()
+            print()
+            print("=" * 68)
+            if FAILS:
+                print(f"结果：{len(FAILS)} 条未通过")
+                for f in FAILS:
+                    print("  -", f)
+                return 1
+            print("结果：全部通过 —— Visio 2013 可正常打开本文件")
+            return 0
 
         page = doc.Pages.Item(1)
         print(f"  页名:   {page.Name}")

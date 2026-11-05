@@ -509,6 +509,8 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
       yAxis: {
         type: 'category',
         data: yLabels,
+        // 反转：类目轴默认首项在底部，inverse 后金额大的排在上方
+        inverse: true,
         axisLabel: { fontSize: 11, width: 200, overflow: 'truncate' },
         axisTick: { alignWithLabel: true },
       },

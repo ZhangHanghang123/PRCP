@@ -1,0 +1,126 @@
+{
+  "flows": [
+    {
+      "title": "模型反算主链路",
+      "steps": [
+        {
+          "stepId": "STEP1",
+          "stepName": "模型建模",
+          "items": [
+            {
+              "action": "配置算法类型与业务域，关联指标方案",
+              "owner": "业务人员",
+              "remark": "prcp_model.kpi_scheme_id"
+            },
+            {
+              "action": "创建模型版本，复制参数快照",
+              "owner": "业务人员",
+              "remark": "prcp_model_version"
+            },
+            {
+              "action": "挂载超参与关联指标 kpi_id",
+              "owner": "业务人员",
+              "remark": "prcp_model_param"
+            },
+            {
+              "action": "发起训练任务：指定窗口与账户册方案",
+              "owner": "业务人员",
+              "remark": "prcp_model_train"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP2",
+          "stepName": "训练取数",
+          "items": [
+            {
+              "action": "读取余额序列 prcp_data_balance 月度快照",
+              "owner": "训练引擎",
+              "remark": "prcp_data_balance"
+            },
+            {
+              "action": "读取 ESG 曲线计划作为情景特征",
+              "owner": "训练引擎",
+              "remark": "prcp_esg_curve_point"
+            },
+            {
+              "action": "参数 formula 派生特征（余额/指标值/折算系数）",
+              "owner": "训练引擎",
+              "remark": "param.formula 通道"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP3",
+          "stepName": "算法求解",
+          "items": [
+            {
+              "action": "按 model_type 三选一，分支求解",
+              "owner": "训练引擎",
+              "remark": "三类算法并行可选"
+            },
+            {
+              "action": "分支A 非线性方程求解 Newton/SLSQP",
+              "owner": "训练引擎",
+              "remark": "NONLINEAR_SOLVER"
+            },
+            {
+              "action": "分支B 蚁群组合优化 群体智能寻优",
+              "owner": "训练引擎",
+              "remark": "ANT_COLONY"
+            },
+            {
+              "action": "分支C DNN 回归 奖励=指标方案评分",
+              "owner": "训练引擎",
+              "remark": "DNN_NEURAL_NETWORK"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP4",
+          "stepName": "结果落库",
+          "items": [
+            {
+              "action": "写预测值 predicted 与置信区间 CI",
+              "owner": "训练引擎",
+              "remark": "prcp_model_train_result"
+            },
+            {
+              "action": "汇总项 rpt_item_code=SUMMARY 衔接报表",
+              "owner": "训练引擎",
+              "remark": "rpt_item_id=0"
+            }
+          ]
+        },
+        {
+          "stepId": "STEP5",
+          "stepName": "预测值回流",
+          "items": [
+            {
+              "action": "指标计量用预测值替代实测值算未来指标",
+              "owner": "指标计量引擎",
+              "remark": "prcp_kpi_value"
+            },
+            {
+              "action": "指标评分对未来值打分 → 趋势预警",
+              "owner": "指标评分引擎",
+              "remark": "prcp_kpi_value.score"
+            },
+            {
+              "action": "待补：回写 prcp_kpi_value 未来期次",
+              "owner": "系统",
+              "remark": "★当前能力缺口（未实现）"
+            }
+          ]
+        }
+      ],
+      "roles": [
+        "业务人员",
+        "训练引擎",
+        "指标计量引擎",
+        "指标评分引擎",
+        "系统"
+      ]
+    }
+  ]
+}

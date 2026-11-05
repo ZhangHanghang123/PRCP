@@ -1,18 +1,29 @@
 """监管指标 · EVE 经济价值变动（△EVE / IRRBB 银行账簿利率风险）
 
-公式：
-  D_A = SUM(资产余额 × 久期) / SUM(资产余额)
-  D_L = SUM(负债余额 × 久期) / SUM(负债余额)
-  D_GAP = D_A - D_L
-  Tier 1 来自 prcp_data_basic 中所有者权益（S030000000000）
-  △EVE = - D_GAP × Tier1 × 200bp 平行向上冲击
+口径（v14.1 起，与 0-500 评分标准一致）：
+    行内 ΔEVE = |ΔEVE| / 一级资本 × 100   （单位：%）
+    数值越小越好（higher_is_better = 0）
+
+计算式（久期缺口近似）：
+    D_A   = SUM(资产余额 × 久期) / SUM(资产余额)
+    D_L   = SUM(负债余额 × 久期) / SUM(负债余额)
+    D_GAP = D_A - D_L
+    Tier1 = 所有者权益（S030000000000）
+    ΔEVE  = - D_GAP × Tier1 × 200bp 平行向上冲击
+    行内ΔEVE% = |ΔEVE| / Tier1 × 100 = D_GAP × 200bp × 100
 
 数据源：
 - prcp_eve_param 表：is_asset=1 / is_liability=1 + duration
 - prcp_data_basic：当前余额（按 node_code + data_date JOIN）+ Tier1 资本
 
-单位：AMOUNT（元）
-监管要求：△EVE 占 Tier 1 资本不超过 15%（即 -0.15 × Tier1 ≤ △EVE ≤ 0）
+监管要求（巴塞尔 IRRBB SRP31.82）：
+    最大情景下 |ΔEVE| 不得超过 Tier 1 资本的 15%
+
+⚠ 历史口径：v14.1 之前本函数返回【金额】（AMOUNT，元）。
+  由于 0-500 评分规则需要百分比输入，且 KPI 重算接口
+  （/kpi/{id}/recalculate）会用本函数返回值直接覆盖 prcp_kpi_value.current_value，
+  已统一改为返回百分比。评分标准档位见
+  docs/v2/评分标准_v14.1_EVE口径修正.xlsx（红线 165% / 达标 100% / 标杆 50%）。
 """
 from urllib.parse import quote_plus
 from sqlalchemy import create_engine, text
@@ -59,6 +70,7 @@ def calc(ctx: dict) -> float:
     if tier1 <= 0:
         return 0.0
 
+    # 久期缺口 → ΔEVE 金额 → 转百分比（|ΔEVE| / Tier1 × 100）
     d_gap = d_a - d_l
     eve_loss = -d_gap * tier1 * INTEREST_SHOCK
-    return round(eve_loss, 2)
+    return round(abs(eve_loss) / tier1 * 100.0, 4)

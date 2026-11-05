@@ -111,11 +111,11 @@ def main(path):
         if not lines or not any(t.strip() for t, _, _ in lines[0]):
             empty_first.append(idx)
 
-        # 4) 段数 ≥ 3（操作名可能折行成多段，但必须有 责任人/备注 两段）
+        # 4) 至少要有 操作名 + 责任人 两段（备注可为空，属合法）
         nonempty = [ln for ln in lines if any(t.strip() for t, _, _ in ln)]
-        if len(nonempty) < 3:
+        if len(nonempty) < 2:
             multi_line.append((idx, len(nonempty)))
-        # 责任人行必须在第 2 段或之后
+        # 责任人行必须存在
         has_owner = any(any("责任人" in t for t, _, _ in ln) for ln in nonempty)
         if not has_owner:
             multi_line.append((idx, "no-owner"))
@@ -123,7 +123,7 @@ def main(path):
     check("cp 索引严格递增且连续", not seq_bad, f"{seq_bad[:3]}")
     check("每个 cp IX 都有对应 Character Row", not missing_row, f"{missing_row[:3]}")
     check("所有卡片首行（操作名）非空", not empty_first, f"{empty_first[:5]}")
-    check("所有卡片解析出 操作名/责任人/备注 三部分", not multi_line, f"{multi_line[:3]}")
+    check("所有卡片解析出 操作名+责任人（备注可空）", not multi_line, f"{multi_line[:3]}")
 
     # 抽样打印解析结果
     print()
