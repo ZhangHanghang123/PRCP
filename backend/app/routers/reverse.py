@@ -630,6 +630,7 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
         nominal = (cur[2] if cur and cur[2] else run[12]) or ""
         total_rounds = ALGO_ROUNDS.get(ALGO_IMPL.get(nominal, DEFAULT_IMPL), 1)
     rounds_remaining = max(0, (total_rounds or 0) - (cur_round_no or 0))
+    rounds_completed = sum(1 for r in round_items if r["status"] == "SUCCESS")
 
     # 进度百分比：run 表的 progress 运行中不更新，取最新日志进度兜底
     percent = float(run[3] or 0)
@@ -684,6 +685,7 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
         "round_no": cur_round_no,
         "total_rounds": total_rounds,
         "rounds_remaining": rounds_remaining,
+        "rounds_completed": rounds_completed,
         "elapsed_sec": elapsed_sec,
         "eta_total_sec": eta_total_sec,
         "eta_remaining_sec": eta_remaining_sec,

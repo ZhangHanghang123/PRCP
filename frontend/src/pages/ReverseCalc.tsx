@@ -935,8 +935,9 @@ const ReverseCalc: React.FC = () => {
                 {logProgress?.round_no
                   ? <span>
                       第 <b style={{ color: '#165dff' }}>{logProgress.round_no}</b> / {logProgress.total_rounds ?? '-'} 轮
-                      {logProgress.rounds_remaining > 0
-                        && <span style={{ color: '#8f959e', marginLeft: 6 }}>（还剩 {logProgress.rounds_remaining} 轮）</span>}
+                      <span style={{ color: '#8f959e', marginLeft: 6 }}>
+                        （已完成 {logProgress.rounds_completed ?? 0}，还剩 {logProgress.rounds_remaining ?? 0}）
+                      </span>
                     </span>
                   : '-'}
               </Descriptions.Item>

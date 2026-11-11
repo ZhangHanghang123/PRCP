@@ -27,7 +27,7 @@ tok = req("POST", "/auth/login", {"username": "admin", "password": "admin123"}, 
 
 # 找一个 HEURISTIC 方案
 schemes = req("GET", "/reverse/schemes", tok=tok)["items"]
-sid = next(s["id"] for s in schemes if s.get("algorithm") == "CVXPY_QP")
+sid = int(__import__("os").environ.get("SID", "44"))
 run = req("POST", "/reverse/runs", {"scheme_id": sid}, tok=tok)
 rid = run["id"]
 req("POST", f"/reverse/runs/{rid}/start", tok=tok)
@@ -35,7 +35,7 @@ print(f"run_id={rid}")
 
 print("\n--- ① 剩余轮次 + ② 时间 ---")
 for i in range(30):
-    time.sleep(2.0)
+    time.sleep(0.35)
     pg = req("GET", f"/reverse/runs/{rid}/progress", tok=tok)
     print(f"  [{i+1:>2}] {pg['status']:<8} 轮次={pg['round_no']}/{pg['total_rounds']} "
           f"还剩={pg['rounds_remaining']} | 已用={pg['elapsed_sec']}s "
