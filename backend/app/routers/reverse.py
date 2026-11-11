@@ -563,7 +563,7 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
 
     # 当前阶段 / 轮次 / 算法：取最后一条日志
     cur = db.execute(
-        text("""SELECT stage, round_no, algo FROM prcp_reverse_run_log
+        text("""SELECT stage, round_no, algo, progress FROM prcp_reverse_run_log
                 WHERE run_id=:rid ORDER BY id DESC LIMIT 1"""),
         {"rid": rid},
     ).first()
@@ -588,6 +588,17 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
     except Exception:
         round_items = []
 
+    # 当前轮次：优先取正在运行的轮，否则取最后一轮
+    running_round = next((r for r in round_items if r["status"] == "RUNNING"), None)
+    cur_round_no = (running_round or (round_items[-1] if round_items else None) or {}).get("round_no")
+    if cur_round_no is None and cur:
+        cur_round_no = cur[1]
+
+    # 进度百分比：run 表的 progress 运行中不更新，取最新日志进度兜底
+    percent = float(run[3] or 0)
+    if cur and cur[3] is not None:
+        percent = max(percent, float(cur[3] or 0))
+
     hist_count = db.execute(
         text("""SELECT COUNT(*) FROM prcp_reverse_run_log WHERE run_id=:rid"""),
         {"rid": rid},
@@ -607,9 +618,9 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
         "success": status == "SUCCESS",
         "cancelled": status == "CANCELLED",
         "failed": status == "FAILED",
-        "percent": float(run[3] or 0),
+        "percent": percent,
         "stage": cur[0] if cur else None,
-        "round_no": cur[1] if cur else None,
+        "round_no": cur_round_no,
         "algo": (cur[2] if cur and cur[2] else run[12]),
         "poll_interval_ms": 2000,
         "history_count": int(hist_count),
