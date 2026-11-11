@@ -626,8 +626,9 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
     elif round_items:
         total_rounds = max((r.get("total_rounds") or 0) for r in round_items) or None
     if not total_rounds:
-        from app.services.reverse_calc_engine import ALGO_ROUNDS
-        total_rounds = ALGO_ROUNDS.get((cur[2] if cur and cur[2] else run[12]) or "", 1)
+        from app.services.reverse_calc_engine import ALGO_IMPL, ALGO_ROUNDS, DEFAULT_IMPL
+        nominal = (cur[2] if cur and cur[2] else run[12]) or ""
+        total_rounds = ALGO_ROUNDS.get(ALGO_IMPL.get(nominal, DEFAULT_IMPL), 1)
     rounds_remaining = max(0, (total_rounds or 0) - (cur_round_no or 0))
 
     # 进度百分比：run 表的 progress 运行中不更新，取最新日志进度兜底

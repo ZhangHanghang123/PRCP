@@ -52,17 +52,23 @@ def run_reverse(run_id: int, db_factory):
              f"加载账户册数据：{len(bal_data['node_ids'])} 个账户册，{len(bal_data['gaps'])} 个月", 20,
              stage=STAGE_LOAD_BALANCE, algo=algo_code)
 
-        # 4. 选算法
+        # 4. 选算法（标称算法 → 实际求解器；未实现的算法落到 QP 兜底）
+        nominal_algo = run[7]
+        impl_algo = ALGO_IMPL.get(nominal_algo, DEFAULT_IMPL)
         algo_fn = {
             "CVXPY_QP": _solve_qp,
             "CVXPY_LP": _solve_lp,
             "HEURISTIC": _solve_heuristic,
-        }.get(algo_code, _solve_qp)
+        }[impl_algo]
+        if impl_algo != nominal_algo:
+            _log(db, run_id, "WARN",
+                 f"标称算法 {nominal_algo} 尚无专属实现，本次使用兜底求解器 {impl_algo}",
+                 30, stage=STAGE_SOLVE, algo=nominal_algo)
 
         # 5. 求解（按轮次执行 —— 单轮算法 1 轮，多轮算法逐轮记录状态与结果）
-        _log(db, run_id, "INFO", f"开始求解（{algo_code}）...", 30,
-             stage=STAGE_SOLVE, algo=algo_code)
-        result = _run_rounds(db, run_id, algo_fn, algo_code, bal_data, targets)
+        _log(db, run_id, "INFO", f"开始求解（{nominal_algo} / {impl_algo}）...", 30,
+             stage=STAGE_SOLVE, algo=nominal_algo)
+        result = _run_rounds(db, run_id, algo_fn, nominal_algo, impl_algo, bal_data, targets)
 
         # 6. 写结果（prcp_reverse_result + prcp_data_reverse）
         _log(db, run_id, "INFO", "保存反算结果...", 80,
@@ -104,7 +110,18 @@ def run_reverse(run_id: int, db_factory):
 # ============================================================
 # 轮次编排
 # ============================================================
-# 各算法的轮数配置（对齐决策中心接口的 acor_max_iter / de_max_iter 语义）
+# 各算法实际使用的求解器与轮数
+#   标称算法（prcp_reverse_scheme.algorithm） → 实际求解器
+#   注意：ANT_COLONY / DNN_NEURAL_NETWORK / NONLINEAR_SOLVER 目前尚无专属实现，
+#   会落到 CVXPY_QP 兜底 —— 轮数与耗时估算必须按「实际求解器」算，不能按标称算法算。
+ALGO_IMPL = {
+    "CVXPY_QP": "CVXPY_QP",
+    "CVXPY_LP": "CVXPY_LP",
+    "HEURISTIC": "HEURISTIC",
+}
+DEFAULT_IMPL = "CVXPY_QP"
+
+# 各实际求解器的轮数配置（对齐决策中心接口的 acor_max_iter / de_max_iter 语义）
 ALGO_ROUNDS = {
     "CVXPY_QP": 1,      # 二次规划一次求解
     "CVXPY_LP": 1,      # 线性规划一次求解
@@ -202,13 +219,15 @@ def _round_score(result: dict, segments: dict = None) -> tuple:
 
 
 def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
-                bal_data: dict, targets: list) -> dict:
+                impl_algo: str, bal_data: dict, targets: list) -> dict:
     """按轮次执行求解：每轮登记开始/结束与结果，最终取最优轮
 
     单轮算法（QP/LP）→ round_no = 1
     多轮算法（HEURISTIC）→ 逐轮迭代，轮次状态与结果全部落库
+
+    轮数按「实际求解器」取，不按标称算法 —— 标称 ANT_COLONY 实走 QP 时应为 1 轮
     """
-    max_round = int(ALGO_ROUNDS.get(algo_code, 1))
+    max_round = int(ALGO_ROUNDS.get(impl_algo, 1))
     best_result = None
     best_score = None
     # 评分分段规则（每轮评分用）
