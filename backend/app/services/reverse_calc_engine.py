@@ -558,7 +558,7 @@ def _solve_heuristic(bal_data: dict, targets: list, log_fn: Callable, round_no: 
     nodes = bal_data["nodes"]
     N = len(nodes)
     T = 24
-    base = np.array([[float(nodes[n_idx]["current"]) for _ in range(N)] for _ in range(T)])
+    base = np.array([[float(nodes[n_idx]["current"]) for n_idx in range(N)] for _ in range(T)])
 
     # 轮次间递减的扰动幅度：越靠后越精细
     rng = np.random.default_rng(20260101 + round_no * 977)
