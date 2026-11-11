@@ -241,6 +241,13 @@ def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
         score, hit, details = _round_score(res, segments)
         ov = float(res.get("optimal_value") or 0)
 
+        # 先落轮次结果（duration_sec 在此写入），再据此推算预计总耗时
+        _round_end(db, run_id, r, algo_code, "SUCCESS",
+                   score=score, optimal_value=ov, target_hit=hit,
+                   metrics=(res.get("metrics") or {}).get("kpi_actual"),
+                   score_details=details, total_rounds=max_round,
+                   progress=30 + r * (50.0 / max_round))
+
         # 预计总耗时：按已完成轮次均速外推 + 固定开销
         round_cost = _last_round_cost(db, run_id, r, algo_code)
         if round_cost is not None:
@@ -253,12 +260,7 @@ def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
         msg = (f"第 {r} 轮完成：opt={ov:.4f}"
                + (f"，得分={score}" if score is not None else "")
                + (f"，预计总耗时 {eta_total}s" if eta_total else ""))
-        _round_end(db, run_id, r, algo_code, "SUCCESS", message=msg,
-                   score=score, optimal_value=ov, target_hit=hit,
-                   metrics=(res.get("metrics") or {}).get("kpi_actual"),
-                   score_details=details, total_rounds=max_round,
-                   eta_total_sec=eta_total,
-                   progress=30 + r * (50.0 / max_round))
+        _set_eta(db, run_id, r, algo_code, eta_total, msg)
         _log(db, run_id, "INFO", msg,
              30 + r * (50.0 / max_round),
              stage=STAGE_SOLVE, round_no=r, algo=algo_code,
@@ -356,6 +358,25 @@ def _last_round_cost(db: Session, run_id: int, round_no: int, algo: str):
         return float(v) if v is not None else None
     except Exception:
         return None
+
+
+def _set_eta(db: Session, run_id: int, round_no: int, algo: str,
+             eta_total_sec: int, message: str = None):
+    """回写该轮的预计总耗时与结论摘要（轮次结束后补写）"""
+    try:
+        db.execute(
+            text("""UPDATE prcp_reverse_run_round
+                    SET eta_total_sec=:eta, message=COALESCE(:msg, message)
+                    WHERE run_id=:rid AND round_no=:rno AND algo=:algo"""),
+            {"rid": run_id, "rno": round_no, "algo": algo,
+             "eta": eta_total_sec, "msg": message},
+        )
+        db.commit()
+    except Exception:
+        try:
+            db.rollback()
+        except Exception:
+            pass
 
 
 def _round_end(db: Session, run_id: int, round_no: int, algo: str, status: str,
