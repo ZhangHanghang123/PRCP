@@ -41,6 +41,17 @@ const STAGE_LABELS: Record<string, string> = {
   FAILED: '失败',
 }
 
+/** 秒 → 可读时长 */
+const fmtDuration = (sec: number | null | undefined) => {
+  if (sec == null) return '-'
+  const s = Math.max(0, Math.round(sec))
+  if (s < 60) return `${s}s`
+  const m = Math.floor(s / 60)
+  const rs = s % 60
+  if (m < 60) return rs ? `${m}m${rs}s` : `${m}m`
+  return `${Math.floor(m / 60)}h${m % 60}m`
+}
+
 const ReverseCalc: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
   const [targets, setTargets] = useState<any[]>([])
@@ -920,10 +931,20 @@ const ReverseCalc: React.FC = () => {
                   ? <Tag color="processing">{STAGE_LABELS[logProgress.stage] || logProgress.stage}</Tag>
                   : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="当前轮次">
-                {logProgress?.round_no ? `第 ${logProgress.round_no} 轮` : '-'}
+              <Descriptions.Item label="轮次">
+                {logProgress?.round_no
+                  ? <span>
+                      第 <b style={{ color: '#165dff' }}>{logProgress.round_no}</b> / {logProgress.total_rounds ?? '-'} 轮
+                      {logProgress.rounds_remaining > 0
+                        && <span style={{ color: '#8f959e', marginLeft: 6 }}>（还剩 {logProgress.rounds_remaining} 轮）</span>}
+                    </span>
+                  : '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="耗时">{logRun.duration_sec || '-'} s</Descriptions.Item>
+              <Descriptions.Item label="已用时间">{fmtDuration(logProgress?.elapsed_sec)}</Descriptions.Item>
+              <Descriptions.Item label="预计耗时">{fmtDuration(logProgress?.eta_total_sec)}</Descriptions.Item>
+              <Descriptions.Item label="预计剩余">
+                {logProgress?.done ? '-' : fmtDuration(logProgress?.eta_remaining_sec)}
+              </Descriptions.Item>
               <Descriptions.Item label="算法">
                 <DictTag dictType="PRCP_REVERSE_ALGO" value={logProgress?.algo || logRun.algorithm} />
               </Descriptions.Item>
@@ -939,29 +960,68 @@ const ReverseCalc: React.FC = () => {
                   推算轮次（{logRounds.length} 轮）
                 </div>
                 <div className="round-list">
-                  {logRounds.map((rd: any) => (
-                    <div key={`${rd.round_no}-${rd.algo}`} className="round-item">
-                      <div className="round-head">
-                        <Tag color={rd.status === 'SUCCESS' ? 'green' : rd.status === 'FAILED' ? 'red' : 'blue'}>
-                          第 {rd.round_no} 轮
-                        </Tag>
-                        <Tag>{rd.algo}</Tag>
-                        <span style={{ fontSize: 11, color: '#8f959e' }}>{rd.message || ''}</span>
-                        {rd.duration_sec != null && (
-                          <span style={{ fontSize: 11, color: '#8f959e', marginLeft: 'auto' }}>{rd.duration_sec}s</span>
+                  {logRounds.map((rd: any) => {
+                    const details = rd.score_details || {}
+                    const dKeys = Object.keys(details)
+                    return (
+                      <div key={`${rd.round_no}-${rd.algo}`} className="round-item">
+                        <div className="round-head">
+                          <Tag color={rd.status === 'SUCCESS' ? 'green' : rd.status === 'FAILED' ? 'red' : 'blue'}>
+                            第 {rd.round_no} 轮
+                          </Tag>
+                          <Tag>{rd.algo}</Tag>
+                          <span style={{ fontSize: 11, color: '#8f959e' }}>{rd.message || ''}</span>
+                          {rd.duration_sec != null && (
+                            <span style={{ fontSize: 11, color: '#8f959e', marginLeft: 'auto' }}>
+                              耗时 {fmtDuration(rd.duration_sec)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="round-body">
+                          <span>得分 <b style={{ color: '#165dff' }}>{rd.score != null ? rd.score : '-'}</b></span>
+                          <span>目标值 <b>{rd.optimal_value != null ? Number(rd.optimal_value).toFixed(4) : '-'}</b></span>
+                          <span>目标达成
+                            <b style={{ color: rd.target_hit ? '#00a870' : '#f53f3f' }}>
+                              {rd.target_hit == null ? '-' : rd.target_hit ? '全部达成' : '未全部达成'}
+                            </b>
+                          </span>
+                          {rd.eta_total_sec ? (
+                            <span>预计总耗时 <b>{fmtDuration(rd.eta_total_sec)}</b></span>
+                          ) : null}
+                        </div>
+                        {/* 每轮指标值与评分明细 */}
+                        {dKeys.length > 0 && (
+                          <div className="round-kpi">
+                            <table className="round-kpi-table">
+                              <thead>
+                                <tr>
+                                  <th>指标</th><th>目标</th><th>实测</th>
+                                  <th>达成度</th><th>得分</th><th>段位</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {dKeys.map((k) => {
+                                  const d = details[k] || {}
+                                  return (
+                                    <tr key={k}>
+                                      <td><Tag color="geekblue">{k}</Tag></td>
+                                      <td className="num">{d.target != null ? Number(d.target).toFixed(2) : '-'}</td>
+                                      <td className="num" style={{ fontWeight: 600, color: '#165dff' }}>
+                                        {d.actual != null ? Number(d.actual).toFixed(2) : '-'}
+                                      </td>
+                                      <td className="num">{(d.ratio * 100).toFixed(1)}%</td>
+                                      <td className="num" style={{ fontWeight: 600 }}>{d.score ?? '-'}</td>
+                                      <td style={{ fontSize: 11, color: '#8f959e' }}>{d.segment_desc || '-'}</td>
+                                    </tr>
+                                  )
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
                         )}
                       </div>
-                      <div className="round-body">
-                        <span>得分 <b style={{ color: '#165dff' }}>{rd.score != null ? rd.score : '-'}</b></span>
-                        <span>目标值 <b>{rd.optimal_value != null ? Number(rd.optimal_value).toFixed(4) : '-'}</b></span>
-                        <span>目标达成
-                          <b style={{ color: rd.target_hit ? '#00a870' : '#f53f3f' }}>
-                            {rd.target_hit == null ? '-' : rd.target_hit ? '全部达成' : '未全部达成'}
-                          </b>
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}

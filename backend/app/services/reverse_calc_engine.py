@@ -112,19 +112,58 @@ ALGO_ROUNDS = {
 }
 
 
-def _round_score(result: dict) -> tuple:
-    """按目标约束算该轮达成度 → (score 0~500, target_hit 是否全部达成)
+def _load_score_segments(db: Session) -> dict:
+    """加载 REG_* 指标的评分分段规则
+
+    返回 {kpi_code: [{min_value, max_value, score, segment_desc}, ...]}（按 min 升序）
+    口径与 prcp_kpi_value 一致（百分数：ROE 12.72 / LCR 148.92）
+    """
+    try:
+        rows = db.execute(text("""
+            SELECT d.kpi_code, s.min_value, s.max_value, s.score, s.segment_desc
+            FROM prcp_kpi_definition d
+            JOIN prcp_kpi_score_rule r ON r.kpi_id = d.id AND r.is_deleted = 0
+            JOIN prcp_kpi_score_segment s ON s.rule_id = r.id AND s.is_deleted = 0
+            WHERE d.kpi_code LIKE 'REG_%' AND d.is_deleted = 0
+            ORDER BY d.kpi_code, s.min_value
+        """)).fetchall()
+    except Exception:
+        return {}
+    out = {}
+    for r in rows:
+        out.setdefault(r[0], []).append({
+            "min_value": float(r[1]) if r[1] is not None else None,
+            "max_value": float(r[2]) if r[2] is not None else None,
+            "score": float(r[3]) if r[3] is not None else None,
+            "segment_desc": r[4],
+        })
+    return out
+
+
+def _segment_score(segments: dict, kpi_code: str, value: float):
+    """按评分分段表查该实测值落在哪一段 → (score, segment_desc)"""
+    for seg in segments.get(kpi_code) or []:
+        lo, hi = seg["min_value"], seg["max_value"]
+        if (lo is None or value >= lo) and (hi is None or value < hi):
+            return seg["score"], seg["segment_desc"]
+    return (None, None)
+
+
+def _round_score(result: dict, segments: dict = None) -> tuple:
+    """算该轮达成度与评分 → (score 0~500, target_hit, details)
 
     GE: 实际/目标　LE: 目标/实际　EQ: 1-|实际-目标|/|目标|
     加权：Σ(达成度×权重)/Σ权重 × 500
+    details：每指标 {target, actual, ratio, score, segment_desc, weight, constraint}
     """
     try:
         kpi_actual = (result.get("metrics") or {}).get("kpi_actual") or {}
         if not kpi_actual:
-            return (None, None)
+            return (None, None, {})
         num = den = 0.0
         hit_all = True
-        for item in kpi_actual.values():
+        details = {}
+        for code, item in kpi_actual.items():
             tv = float(item.get("target") or 0)
             av = float(item.get("actual") or 0)
             ct = (item.get("constraint") or "GE").upper()
@@ -144,11 +183,22 @@ def _round_score(result: dict) -> tuple:
                 hit_all = False
             if av > tv and ct == "LE":
                 hit_all = False
+            # 分段得分（查评分规则表）
+            seg_score, seg_desc = (None, None)
+            if segments:
+                seg_score, seg_desc = _segment_score(segments, code, av)
+            details[code] = {
+                "target": tv, "actual": av,
+                "ratio": round(ratio, 4),
+                "score": seg_score, "segment_desc": seg_desc,
+                "weight": w, "constraint": ct,
+                "higher_is_better": ct != "LE",
+            }
         if den <= 0:
-            return (None, None)
-        return (round(num / den * 500, 2), hit_all)
+            return (None, None, details)
+        return (round(num / den * 500, 2), hit_all, details)
     except Exception:
-        return (None, None)
+        return (None, None, {})
 
 
 def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
@@ -161,6 +211,11 @@ def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
     max_round = int(ALGO_ROUNDS.get(algo_code, 1))
     best_result = None
     best_score = None
+    # 评分分段规则（每轮评分用）
+    segments = _load_score_segments(db)
+    # 求解阶段之外（加载 + 保存）的固定开销估算（秒）
+    FIXED_OVERHEAD_SEC = 3
+    round_costs = []   # 已完成轮次耗时样本
 
     for r in range(1, max_round + 1):
         def _mk_log(rr):
@@ -169,7 +224,7 @@ def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
                      stage=STAGE_SOLVE, round_no=rr, algo=algo_code)
             return fn
 
-        _round_start(db, run_id, r, algo_code,
+        _round_start(db, run_id, r, algo_code, total_rounds=max_round,
                      message=(f"第 {r}/{max_round} 轮开始" if max_round > 1 else "求解开始"))
         _log(db, run_id, "INFO",
              (f"第 {r}/{max_round} 轮开始" if max_round > 1 else "求解开始"),
@@ -183,18 +238,32 @@ def _run_rounds(db: Session, run_id: int, algo_fn, algo_code: str,
                  0, stage=STAGE_SOLVE, round_no=r, algo=algo_code)
             raise
 
-        score, hit = _round_score(res)
+        score, hit, details = _round_score(res, segments)
         ov = float(res.get("optimal_value") or 0)
+
+        # 预计总耗时：按已完成轮次均速外推 + 固定开销
+        round_cost = _last_round_cost(db, run_id, r, algo_code)
+        if round_cost is not None:
+            round_costs.append(round_cost)
+        eta_total = None
+        if round_costs:
+            avg = sum(round_costs) / len(round_costs)
+            eta_total = int(round(avg * max_round + FIXED_OVERHEAD_SEC))
+
         msg = (f"第 {r} 轮完成：opt={ov:.4f}"
-               + (f"，得分={score}" if score is not None else ""))
+               + (f"，得分={score}" if score is not None else "")
+               + (f"，预计总耗时 {eta_total}s" if eta_total else ""))
         _round_end(db, run_id, r, algo_code, "SUCCESS", message=msg,
                    score=score, optimal_value=ov, target_hit=hit,
                    metrics=(res.get("metrics") or {}).get("kpi_actual"),
+                   score_details=details, total_rounds=max_round,
+                   eta_total_sec=eta_total,
                    progress=30 + r * (50.0 / max_round))
         _log(db, run_id, "INFO", msg,
              30 + r * (50.0 / max_round),
              stage=STAGE_SOLVE, round_no=r, algo=algo_code,
-             round_result={"score": score, "optimal_value": ov, "target_hit": hit})
+             round_result={"score": score, "optimal_value": ov, "target_hit": hit,
+                           "eta_total_sec": eta_total})
 
         # 取最优轮（得分优先，其次目标函数值最小）
         better = False
@@ -252,17 +321,21 @@ def _log(db: Session, run_id: int, level: str, msg: str, progress: float,
 
 
 def _round_start(db: Session, run_id: int, round_no: int, algo: str,
-                 stage: str = STAGE_SOLVE, message: str = None):
+                 stage: str = STAGE_SOLVE, message: str = None,
+                 total_rounds: int = None):
     """登记一轮的开始（状态 RUNNING）"""
     try:
         db.execute(
             text("""INSERT INTO prcp_reverse_run_round
-                    (run_id, round_no, algo, stage, status, progress, message, started_at)
-                    VALUES (:rid, :rno, :algo, :stage, 'RUNNING', 0, :msg, NOW())
+                    (run_id, round_no, algo, stage, status, progress, message,
+                     started_at, total_rounds)
+                    VALUES (:rid, :rno, :algo, :stage, 'RUNNING', 0, :msg, NOW(), :tr)
                     ON DUPLICATE KEY UPDATE
                       status='RUNNING', stage=VALUES(stage), message=VALUES(message),
-                      started_at=NOW(), ended_at=NULL, duration_sec=NULL"""),
-            {"rid": run_id, "rno": round_no, "algo": algo, "stage": stage, "msg": message},
+                      started_at=NOW(), ended_at=NULL, duration_sec=NULL,
+                      total_rounds=VALUES(total_rounds)"""),
+            {"rid": run_id, "rno": round_no, "algo": algo, "stage": stage,
+             "msg": message, "tr": total_rounds},
         )
         db.commit()
     except Exception:
@@ -272,15 +345,32 @@ def _round_start(db: Session, run_id: int, round_no: int, algo: str,
             pass
 
 
+def _last_round_cost(db: Session, run_id: int, round_no: int, algo: str):
+    """取该轮已耗时（秒）"""
+    try:
+        v = db.execute(
+            text("""SELECT duration_sec FROM prcp_reverse_run_round
+                    WHERE run_id=:rid AND round_no=:rno AND algo=:algo"""),
+            {"rid": run_id, "rno": round_no, "algo": algo},
+        ).scalar()
+        return float(v) if v is not None else None
+    except Exception:
+        return None
+
+
 def _round_end(db: Session, run_id: int, round_no: int, algo: str, status: str,
                message: str = None, score: float = None, optimal_value: float = None,
-               target_hit: bool = None, metrics: dict = None, progress: float = 100.0):
+               target_hit: bool = None, metrics: dict = None, progress: float = 100.0,
+               score_details: dict = None, total_rounds: int = None,
+               eta_total_sec: int = None):
     """登记一轮的结束（状态 + 结果）"""
     try:
         db.execute(
             text("""UPDATE prcp_reverse_run_round SET
                       status=:st, message=:msg, score=:score, optimal_value=:ov,
                       target_hit=:hit, metrics=:m, progress=:p,
+                      score_details=:sd, total_rounds=COALESCE(:tr, total_rounds),
+                      eta_total_sec=:eta,
                       ended_at=NOW(),
                       duration_sec = TIMESTAMPDIFF(SECOND, started_at, NOW())
                     WHERE run_id=:rid AND round_no=:rno AND algo=:algo"""),
@@ -288,6 +378,8 @@ def _round_end(db: Session, run_id: int, round_no: int, algo: str, status: str,
              "score": score, "ov": optimal_value,
              "hit": (1 if target_hit else 0) if target_hit is not None else None,
              "m": json.dumps(metrics, ensure_ascii=False) if metrics else None,
+             "sd": json.dumps(score_details, ensure_ascii=False) if score_details else None,
+             "tr": total_rounds, "eta": eta_total_sec,
              "p": progress},
         )
         db.commit()

@@ -510,7 +510,8 @@ async def get_run_rounds(rid: int, db: Session = Depends(get_db),
         rows = db.execute(
             text("""SELECT id, round_no, algo, stage, status, progress, score,
                           optimal_value, target_hit, message, metrics,
-                          started_at, ended_at, duration_sec
+                          started_at, ended_at, duration_sec,
+                          total_rounds, eta_total_sec, score_details
                     FROM prcp_reverse_run_round
                     WHERE run_id=:rid ORDER BY round_no ASC, id ASC"""),
             {"rid": rid},
@@ -525,6 +526,12 @@ async def get_run_rounds(rid: int, db: Session = Depends(get_db),
                 mt = json.loads(mt)
             except Exception:
                 mt = None
+        sd = r[16]
+        if isinstance(sd, str):
+            try:
+                sd = json.loads(sd)
+            except Exception:
+                sd = None
         items.append({
             "id": r[0], "round_no": r[1], "algo": r[2], "stage": r[3],
             "status": r[4], "progress": float(r[5] or 0),
@@ -535,6 +542,9 @@ async def get_run_rounds(rid: int, db: Session = Depends(get_db),
             "started_at": r[11].isoformat() if r[11] else None,
             "ended_at": r[12].isoformat() if r[12] else None,
             "duration_sec": r[13],
+            "total_rounds": r[14],
+            "eta_total_sec": r[15],
+            "score_details": sd or {},
         })
     return {"items": items, "total_rounds": len(items)}
 
@@ -572,32 +582,82 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
     try:
         rounds = db.execute(
             text("""SELECT round_no, algo, status, progress, score, optimal_value,
-                              target_hit, message, duration_sec
+                              target_hit, message, duration_sec, total_rounds,
+                              eta_total_sec, score_details, started_at, ended_at
                        FROM prcp_reverse_run_round
                        WHERE run_id=:rid ORDER BY round_no ASC, id ASC"""),
             {"rid": rid},
         ).fetchall()
-        round_items = [{
-            "round_no": r[0], "algo": r[1], "status": r[2],
-            "progress": float(r[3] or 0),
-            "score": float(r[4]) if r[4] is not None else None,
-            "optimal_value": float(r[5]) if r[5] is not None else None,
-            "target_hit": (bool(r[6]) if r[6] is not None else None),
-            "message": r[7], "duration_sec": r[8],
-        } for r in rounds]
+        round_items = []
+        for r in rounds:
+            sd = r[11]
+            if isinstance(sd, str):
+                try:
+                    sd = json.loads(sd)
+                except Exception:
+                    sd = None
+            round_items.append({
+                "round_no": r[0], "algo": r[1], "status": r[2],
+                "progress": float(r[3] or 0),
+                "score": float(r[4]) if r[4] is not None else None,
+                "optimal_value": float(r[5]) if r[5] is not None else None,
+                "target_hit": (bool(r[6]) if r[6] is not None else None),
+                "message": r[7], "duration_sec": r[8],
+                "total_rounds": r[9],
+                "eta_total_sec": r[10],
+                "score_details": sd or {},
+                "started_at": r[12].isoformat() if r[12] else None,
+                "ended_at": r[13].isoformat() if r[13] else None,
+            })
     except Exception:
         round_items = []
 
     # 当前轮次：优先取正在运行的轮，否则取最后一轮
     running_round = next((r for r in round_items if r["status"] == "RUNNING"), None)
-    cur_round_no = (running_round or (round_items[-1] if round_items else None) or {}).get("round_no")
+    cur_round = running_round or (round_items[-1] if round_items else None)
+    cur_round_no = cur_round.get("round_no") if cur_round else None
     if cur_round_no is None and cur:
         cur_round_no = cur[1]
+
+    # 总轮次：轮次表优先，否则用引擎配置
+    total_rounds = None
+    if cur_round and cur_round.get("total_rounds"):
+        total_rounds = cur_round["total_rounds"]
+    elif round_items:
+        total_rounds = max((r.get("total_rounds") or 0) for r in round_items) or None
+    if not total_rounds:
+        from app.services.reverse_calc_engine import ALGO_ROUNDS
+        total_rounds = ALGO_ROUNDS.get((cur[2] if cur and cur[2] else run[12]) or "", 1)
+    rounds_remaining = max(0, (total_rounds or 0) - (cur_round_no or 0))
 
     # 进度百分比：run 表的 progress 运行中不更新，取最新日志进度兜底
     percent = float(run[3] or 0)
     if cur and cur[3] is not None:
         percent = max(percent, float(cur[3] or 0))
+
+    # 时间：已用 / 预计总耗时 / 预计剩余
+    elapsed_sec = 0
+    if run[4]:
+        try:
+            elapsed_sec = int((datetime.now() - run[4]).total_seconds())
+        except Exception:
+            elapsed_sec = 0
+    if not done:
+        elapsed_sec = max(0, elapsed_sec)
+    else:
+        elapsed_sec = int(run[6] or elapsed_sec)
+
+    # 预计总耗时：引擎按已完成轮次均速推算；没有则按进度线性外推
+    eta_total_sec = None
+    for r in reversed(round_items):
+        if r.get("eta_total_sec"):
+            eta_total_sec = int(r["eta_total_sec"])
+            break
+    if not eta_total_sec and percent > 0 and elapsed_sec > 0:
+        eta_total_sec = int(elapsed_sec / (percent / 100.0))
+    eta_remaining_sec = None
+    if eta_total_sec is not None:
+        eta_remaining_sec = max(0, eta_total_sec - elapsed_sec)
 
     hist_count = db.execute(
         text("""SELECT COUNT(*) FROM prcp_reverse_run_log WHERE run_id=:rid"""),
@@ -621,6 +681,11 @@ async def get_run_progress(rid: int, db: Session = Depends(get_db),
         "percent": percent,
         "stage": cur[0] if cur else None,
         "round_no": cur_round_no,
+        "total_rounds": total_rounds,
+        "rounds_remaining": rounds_remaining,
+        "elapsed_sec": elapsed_sec,
+        "eta_total_sec": eta_total_sec,
+        "eta_remaining_sec": eta_remaining_sec,
         "algo": (cur[2] if cur and cur[2] else run[12]),
         "poll_interval_ms": 2000,
         "history_count": int(hist_count),
