@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组合反算 · 运行记录日志功能 · 需求设计文档</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.65;font-size:14px;padding:0 0 60px}
+.wrap{display:flex;max-width:1460px;margin:0 auto}
+.nav{width:250px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px}
+.nav a{display:block;padding:6px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;font-size:12.5px}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.nav a.l2{padding-left:26px;font-size:12px}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+.hd{background:var(--card);border-radius:12px;padding:26px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:22px;font-weight:600;margin-bottom:8px}
+.hd .sub{font-size:13px;color:var(--txt2);margin-bottom:12px}
+.hd .meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);padding-top:13px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;font-family:var(--mono)}
+.tag-b{background:var(--blue-bg);color:var(--blue)}.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:15px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;background:var(--blue);color:#fff;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-h h2{font-size:16px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:24px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:18px 0 8px;color:var(--txt)}
+.sec-b h4 .fr{font-family:var(--mono);color:var(--blue);font-size:11.5px;margin-right:6px}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+.sec-b ul,.sec-b ol{margin:0 0 12px 22px;color:var(--txt2)}
+.sec-b li{margin-bottom:4px}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);
+  border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.num{font-family:var(--mono);text-align:right;white-space:nowrap}
+.tbl{overflow-x:auto}
+code.t{font-family:var(--mono);font-size:12px;color:var(--purple);white-space:nowrap}
+.sql{background:#fbfcfd;border:1px solid var(--line);border-left:3px solid var(--blue);
+  border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;
+  font-family:var(--mono);font-size:12px;line-height:1.85;overflow-x:auto;white-space:pre}
+.sql .c{color:#8f959e}.sql .k{color:var(--blue);font-weight:600}.sql .s{color:var(--green)}.sql .n{color:var(--orange)}
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+.flow{background:#fbfcfd;border:1px solid var(--line);border-radius:10px;padding:18px;margin:14px 0}
+.layer{border:1.5px solid var(--line);border-radius:9px;padding:12px 14px;margin-bottom:10px;background:#fff}
+.layer-t{font-size:11px;font-weight:600;font-family:var(--mono);margin-bottom:8px}
+.node{flex:1;min-width:110px;border:1.5px solid #d0d4da;border-radius:8px;padding:9px 10px;text-align:center;background:#fff}
+.node .nt{font-size:12px;font-weight:600;margin-bottom:2px}
+.node .ns{font-size:9.5px;color:var(--txt3);font-family:var(--mono);line-height:1.5}
+.node.b{border-color:var(--blue);background:var(--blue-bg)}.node.b .nt{color:var(--blue)}
+.node.g{border-color:var(--green);background:var(--green-bg)}.node.g .nt{color:var(--green)}
+.node.o{border-color:var(--orange);background:var(--orange-bg)}.node.o .nt{color:var(--orange)}
+.node.p{border-color:var(--purple);background:var(--purple-bg)}.node.p .nt{color:var(--purple)}
+.node.c{border-color:var(--cyan);background:var(--cyan-bg)}.node.c .nt{color:#0aa39e}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.arrow{text-align:center;color:var(--txt3);font-size:15px;margin:3px 0}
+.ui{border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;background:#fbfcfc}
+.ui-row{display:flex;gap:10px;margin-bottom:8px;align-items:center;font-size:12.5px}
+.ui-lab{width:88px;flex:none;font-size:11px;font-family:var(--mono);color:var(--txt3)}
+.ui-box{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff}
+.ui-box.blue{border-color:var(--blue);background:var(--blue-bg)}
+.ui-box.green{border-color:var(--green);background:var(--green-bg)}
+.ui-box.gray{border-color:#d0d4da;background:#f7f8fa;color:var(--txt2)}
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s1" class="on">1 需求与目标</a>
+  <a href="#s2">2 契约对标与差距</a>
+  <a href="#s3">3 总体设计</a>
+  <a href="#s4">4 数据模型设计</a>
+  <a href="#s5">5 接口契约设计</a>
+  <a href="#s6">6 引擎侧轮次编排</a>
+  <a href="#s7">7 前端交互设计</a>
+  <a href="#s8">8 时序与异常</a>
+  <a href="#s9">9 验证与遗留</a>
+</div>
+<div class="main">
+
+<div class="hd">
+  <h1>组合反算 · 运行记录日志功能 · 需求设计文档</h1>
+  <div class="sub">依据《资负反向测算接口文档》契约，重构 PRCP 组合反算运行日志</div>
+  <div style="margin-bottom:12px">
+    <span class="tag tag-g">实时刷新</span>
+    <span class="tag tag-b">结构化阶段</span>
+    <span class="tag tag-p">多轮轮次记录</span>
+    <span class="tag tag-o">契约对齐</span>
+  </div>
+  <div class="meta">
+    <div>模块 <b>组合反算 / 运行记录</b></div>
+    <div>版本 <b>v1.0</b></div>
+    <div>日期 <b>2026-11-11</b></div>
+    <div>依据 <b>资负反向测算接口文档.pdf</b></div>
+  </div>
+</div>
+
+<!-- 1 -->
+<div class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>需求与目标</h2></div>
+  <div class="sec-b">
+    <h3>1.1 需求描述</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">编号</th><th style="width:190px">需求项</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>R1</td><td>日志实时刷新</td><td>调用过程中日志能实时刷新，可按时间间隔定时请求刷新</td></tr>
+        <tr><td>R2</td><td>日志反映运行状态</td><td>日志不是孤立的文本流，要能表达「当前处于哪个阶段、进行到第几轮、整体进度多少」</td></tr>
+        <tr><td>R3</td><td>多轮推算逐轮记录</td><td>如果是多轮推算，日志中记录<strong>每一轮的状态和结果</strong></td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>1.2 设计目标</h3>
+    <ul>
+      <li>把「运行记录」从<strong>纯文本追加流</strong>升级为<strong>结构化可观测过程</strong></li>
+      <li>接口形态与《资负反向测算接口文档》的 <code>progress / history / trace</code> 契约对齐，便于后续对接决策中心</li>
+      <li>轮次记录独立成表，日志流只承载摘要，避免大 JSON 塞进日志表</li>
+    </ul>
+
+    <h3>1.3 非目标</h3>
+    <ul>
+      <li>不引入新的优化算法（ACOR/DE/SLSQP 多引擎属决策中心侧能力）</li>
+      <li>不做分布式追踪 / 链路埋点</li>
+      <li>不改造结果存储结构（<code>prcp_reverse_result</code> 保持不变）</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>契约对标与差距</h2></div>
+  <div class="sec-b">
+    <p>以《资负反向测算接口文档》的决策中心契约作为对标基准，逐项比对 PRCP 现状：</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:160px">能力</th><th style="width:250px">文档契约</th>
+        <th style="width:230px">PRCP 改造前</th><th style="width:70px">差距</th><th>本方案</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>进度流水</td><td><code>history[]{stage, percent, message, ts}</code></td>
+            <td>仅 <code>log_message</code> 自由文本，无阶段字段</td>
+            <td><span class="tag tag-r">缺</span></td>
+            <td>日志表扩 <code>stage</code> 字段，7 个阶段常量</td></tr>
+        <tr><td>轮次轨迹</td><td><code>trace[]{algo, iter, best, top3_plans}</code></td>
+            <td>无任何轮次概念</td>
+            <td><span class="tag tag-r">缺</span></td>
+            <td>新增轮次表 + 引擎轮次编排器</td></tr>
+        <tr><td>进度契约</td><td><code>done / success / cancelled / percent / stage / history_count</code></td>
+            <td>前端需分别拉日志与 run 列表自行拼装</td>
+            <td><span class="tag tag-o">弱</span></td>
+            <td>新增 <code>/progress</code> 一次拿全</td></tr>
+        <tr><td>轮询间隔</td><td>返回 <code>poll_interval_ms</code></td>
+            <td>前端硬编码 2000ms</td>
+            <td><span class="tag tag-o">弱</span></td>
+            <td>由后端下发，前端按值轮询</td></tr>
+        <tr><td>评分口径</td><td><code>best.score</code> 0~500 分制</td>
+            <td>无轮次级评分</td>
+            <td><span class="tag tag-r">缺</span></td>
+            <td>按目标约束算达成度 → 归一到 0~500</td></tr>
+        <tr><td>取消</td><td><code>POST /cancel/{task_id}</code></td>
+            <td><code>/reverse/runs/{id}/cancel</code></td>
+            <td><span class="tag tag-g">已有</span></td><td>复用，补充 CANCELLED 轮次状态</td></tr>
+        <tr><td>结果分离</td><td><code>GET /result/{task_id}</code> + fields 白名单</td>
+            <td><code>/reverse/runs/{id}/result</code></td>
+            <td><span class="tag tag-g">已有</span></td><td>复用，不在本次范围</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>2.1 字段映射表（文档 ↔ PRCP）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:190px">文档字段</th><th style="width:190px">PRCP 对应</th><th>说明</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>data.task_id</code></td><td><code>prcp_reverse_run.id</code></td><td>PRCP 用自增 id，无字符串任务号</td></tr>
+        <tr><td><code>data.stage</code></td><td><code>prcp_reverse_run_log.stage</code></td><td>阶段枚举一一对应</td></tr>
+        <tr><td><code>data.percent</code></td><td><code>run.progress</code> ∪ 最新日志 progress</td><td>取两者较大值（run 表运行中不更新）</td></tr>
+        <tr><td><code>data.message</code></td><td><code>log_message</code></td><td>语义一致</td></tr>
+        <tr><td><code>data.done / success / cancelled</code></td><td>由 <code>run.status</code> 派生</td><td>SUCCESS/FAILED/CANCELLED → done</td></tr>
+        <tr><td><code>data.history[]</code></td><td><code>GET /runs/{id}/logs</code></td><td>PRCP 支持 <code>since_id</code> 增量 + <code>stage</code> 过滤</td></tr>
+        <tr><td><code>data.history_count</code></td><td>日志表 COUNT</td><td></td></tr>
+        <tr><td><code>data.trace[].algo</code></td><td><code>round.algo</code></td><td>算法/引擎标识</td></tr>
+        <tr><td><code>data.trace[].iter</code></td><td><code>round.round_no</code></td><td>轮次序号</td></tr>
+        <tr><td><code>data.trace[].best</code></td><td><code>round.score</code> + <code>round.optimal_value</code></td><td>该轮最优得分与目标函数值</td></tr>
+        <tr><td><code>data.best.score</code></td><td><code>round.score</code></td><td>同为 0~500 分制</td></tr>
+        <tr><td><code>data.poll_interval_ms</code></td><td><code>progress.poll_interval_ms</code></td><td>前端按此值轮询</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>总体设计</h2></div>
+  <div class="sec-b">
+    <h3>3.1 分层结构</h3>
+    <div class="flow">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--orange)">① 引擎层 · reverse_calc_engine.py</div>
+        <div class="row">
+          <div class="node o"><div class="nt">_log</div><div class="ns">结构化日志<br>stage/round/algo</div></div>
+          <div class="node o"><div class="nt">_round_start</div><div class="ns">轮次开始<br>status=RUNNING</div></div>
+          <div class="node o"><div class="nt">_round_end</div><div class="ns">轮次结束<br>状态+得分+耗时</div></div>
+          <div class="node o"><div class="nt">_run_rounds</div><div class="ns">轮次编排器<br>逐轮执行取最优</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--purple)">② 存储层</div>
+        <div class="row">
+          <div class="node p"><div class="nt">prcp_reverse_run</div><div class="ns">运行主表<br>status/progress</div></div>
+          <div class="node p"><div class="nt">prcp_reverse_run_log</div><div class="ns">日志流水<br>扩展 4 字段</div></div>
+          <div class="node p"><div class="nt">prcp_reverse_run_round</div><div class="ns">轮次记录（新表）</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--blue)">③ 接口层 · reverse.py</div>
+        <div class="row">
+          <div class="node b"><div class="nt">GET /progress</div><div class="ns">状态+轮次+间隔<br>一次拿全</div></div>
+          <div class="node b"><div class="nt">GET /rounds</div><div class="ns">轮次清单</div></div>
+          <div class="node b"><div class="nt">GET /logs</div><div class="ns">增量日志<br>结构化字段</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--green)">④ 展现层 · ReverseCalc.tsx</div>
+        <div class="row">
+          <div class="node g"><div class="nt">状态条</div><div class="ns">阶段/轮次/进度</div></div>
+          <div class="node g"><div class="nt">轮次面板</div><div class="ns">每轮一张卡</div></div>
+          <div class="node g"><div class="nt">日志流</div><div class="ns">阶段标签+轮次徽标</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>3.2 关键设计决策</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:190px">决策</th><th style="width:250px">方案</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr><td>轮次记录载体</td><td><strong>独立新表</strong> + 日志流只写摘要</td>
+            <td>轮次结果含指标 JSON，量大；混在日志表会让日志查询变重、也无法按轮次聚合</td></tr>
+        <tr><td>轮次语义</td><td>一次反算任务内的一次求解尝试 = 一轮</td>
+            <td>与文档 <code>trace[].iter</code> 语义一致（粗筛迭代轮次）</td></tr>
+        <tr><td>单轮兼容</td><td>单轮算法记为 round_no = 1</td>
+            <td>现有 QP/LP 是单次求解，不改算法但结构就位</td></tr>
+        <tr><td>多轮如何落地</td><td>HEURISTIC 改为 5 轮迭代改进</td>
+            <td>HEURISTIC 本是演示算法，改它风险最低，且能让多轮记录被真实验证</td></tr>
+        <tr><td>轮次得分口径</td><td>按目标约束算达成度 → 0~500</td>
+            <td>不依赖评分规则表（<code>prcp_kpi_value</code> 是基期预存值，不适用于轮次）</td></tr>
+        <tr><td>进度来源</td><td>run.progress ∪ 最新日志 progress 取大</td>
+            <td>run 表 progress 仅在结束时写 100，运行时为 0，不取会导致进度条不动</td></tr>
+        <tr><td>轮询策略</td><td>间隔由后端下发；页面隐藏暂停；done 自动停</td>
+            <td>对齐 <code>poll_interval_ms</code> 契约，同时避免后台页无意义请求</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>数据模型设计</h2></div>
+  <div class="sec-b">
+    <h3>4.1 prcp_reverse_run_log 扩展</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">字段</th><th style="width:130px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>stage</code></td><td>VARCHAR(24) NULL</td>
+            <td>阶段标识：SUBMIT / LOAD_TARGET / LOAD_BALANCE / SOLVE / SAVE_RESULT / DONE / FAILED</td></tr>
+        <tr><td><code>round_no</code></td><td>INT NULL</td><td>轮次序号，1 起；非求解阶段为 NULL</td></tr>
+        <tr><td><code>algo</code></td><td>VARCHAR(24) NULL</td>
+            <td>算法/引擎标识：CVXPY_QP / CVXPY_LP / HEURISTIC（预留 ACOR / DE / SLSQP / DL）</td></tr>
+        <tr><td><code>round_result</code></td><td>JSON NULL</td>
+            <td>该轮关键结果快照：<code>{score, optimal_value, target_hit}</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql"><span class="c">-- 幂等迁移（可重复执行）</span>
+<span class="k">ALTER TABLE</span> prcp_reverse_run_log
+  <span class="k">ADD COLUMN</span> stage        VARCHAR(24) <span class="k">NULL</span> COMMENT <span class="s">'阶段：SUBMIT/LOAD_TARGET/LOAD_BALANCE/SOLVE/SAVE_RESULT/DONE/FAILED'</span>,
+  <span class="k">ADD COLUMN</span> round_no     INT         <span class="k">NULL</span> COMMENT <span class="s">'轮次序号，1 起'</span>,
+  <span class="k">ADD COLUMN</span> algo         VARCHAR(24) <span class="k">NULL</span> COMMENT <span class="s">'算法/引擎标识'</span>,
+  <span class="k">ADD COLUMN</span> round_result JSON        <span class="k">NULL</span> COMMENT <span class="s">'该轮关键结果快照'</span>;
+<span class="k">ALTER TABLE</span> prcp_reverse_run_log <span class="k">ADD INDEX</span> idx_run_stage (run_id, stage, id);</div>
+    <p style="font-size:12.5px">迁移脚本：<code>backend/scripts/migrations/V20261111_01_reverse_run_log_round.sql</code>
+    （用 information_schema 判断列是否存在，可重复执行）</p>
+
+    <h3>4.2 prcp_reverse_run_round（新增）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:160px">字段</th><th style="width:140px">类型</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>run_id</code></td><td>BIGINT</td><td>关联 <code>prcp_reverse_run.id</code></td></tr>
+        <tr><td><code>round_no</code></td><td>INT</td><td>轮次序号，1 起</td></tr>
+        <tr><td><code>algo</code></td><td>VARCHAR(24)</td><td>算法/引擎标识</td></tr>
+        <tr><td><code>stage</code></td><td>VARCHAR(24)</td><td>该轮所处阶段</td></tr>
+        <tr><td><code>status</code></td><td>VARCHAR(16)</td><td>RUNNING / SUCCESS / FAILED / CANCELLED</td></tr>
+        <tr><td><code>progress</code></td><td>DECIMAL(5,2)</td><td>该轮进度</td></tr>
+        <tr><td><code>score</code></td><td>DECIMAL(10,2)</td><td><b>该轮综合得分（0~500 分制）</b></td></tr>
+        <tr><td><code>optimal_value</code></td><td>DECIMAL(20,6)</td><td>该轮最优目标函数值</td></tr>
+        <tr><td><code>target_hit</code></td><td>TINYINT(1)</td><td><b>是否全部目标达成</b></td></tr>
+        <tr><td><code>message</code></td><td>VARCHAR(500)</td><td>该轮结论摘要</td></tr>
+        <tr><td><code>metrics</code></td><td>JSON</td><td>该轮指标实测值快照</td></tr>
+        <tr><td><code>started_at / ended_at / duration_sec</code></td><td>DATETIME / INT</td><td>起止时间与耗时</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql"><span class="k">CREATE TABLE IF NOT EXISTS</span> prcp_reverse_run_round (
+  id             BIGINT       <span class="k">NOT NULL AUTO_INCREMENT</span>,
+  run_id         BIGINT       <span class="k">NOT NULL</span> COMMENT <span class="s">'运行记录 id'</span>,
+  round_no       INT          <span class="k">NOT NULL</span> COMMENT <span class="s">'轮次序号，1 起'</span>,
+  algo           VARCHAR(24)  <span class="k">NOT NULL</span>,
+  stage          VARCHAR(24)  <span class="k">NULL</span>,
+  status         VARCHAR(16)  <span class="k">NOT NULL DEFAULT</span> <span class="s">'RUNNING'</span>,
+  progress       DECIMAL(5,2) <span class="k">NULL DEFAULT</span> <span class="n">0.00</span>,
+  score          DECIMAL(10,2) <span class="k">NULL</span> COMMENT <span class="s">'该轮综合得分（0~500）'</span>,
+  optimal_value  DECIMAL(20,6) <span class="k">NULL</span>,
+  target_hit     TINYINT(1)   <span class="k">NULL</span>,
+  message        VARCHAR(500) <span class="k">NULL</span>,
+  metrics        JSON         <span class="k">NULL</span>,
+  started_at     DATETIME     <span class="k">NULL</span>,
+  ended_at       DATETIME     <span class="k">NULL</span>,
+  duration_sec   INT          <span class="k">NULL</span>,
+  <span class="k">PRIMARY KEY</span> (id),
+  <span class="k">UNIQUE KEY</span> uk_run_round_algo (run_id, round_no, algo),
+  <span class="k">KEY</span> idx_run (run_id)
+) ENGINE=InnoDB <span class="k">DEFAULT CHARSET</span>=utf8mb4;</div>
+
+    <h3>4.3 阶段枚举</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">stage</th><th style="width:120px">中文</th><th style="width:120px">进度区间</th><th>含义</th></tr></thead>
+      <tbody>
+        <tr><td><code>SUBMIT</code></td><td>提交</td><td>0</td><td>反算任务启动</td></tr>
+        <tr><td><code>LOAD_TARGET</code></td><td>加载目标</td><td>12</td><td>读取目标约束</td></tr>
+        <tr><td><code>LOAD_BALANCE</code></td><td>加载账户册</td><td>20</td><td>读取 24 月现金流与节点值</td></tr>
+        <tr><td><code>SOLVE</code></td><td>求解</td><td>30~80</td><td>逐轮求解，每轮内再分摊</td></tr>
+        <tr><td><code>SAVE_RESULT</code></td><td>保存结果</td><td>80</td><td>写结果表与数据表</td></tr>
+        <tr><td><code>DONE</code></td><td>完成</td><td>100</td><td>成功收尾</td></tr>
+        <tr><td><code>FAILED</code></td><td>失败</td><td>0</td><td>异常收尾</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>接口契约设计</h2></div>
+  <div class="sec-b">
+    <h3>5.1 GET /reverse/runs/{rid}/progress（新增）</h3>
+    <p>一次返回「状态 + 进度 + 当前阶段/轮次 + 轮次清单 + 轮询间隔」，前端无需多次请求。</p>
+    <div class="sql"><span class="c">GET /prcp/api/reverse/runs/{rid}/progress</span>
+
+{
+  <span class="k">"run_id"</span>: 34,
+  <span class="k">"run_code"</span>: <span class="s">"R20261111_995BED"</span>,
+  <span class="k">"status"</span>: <span class="s">"SUCCESS"</span>,           <span class="c">// PENDING/RUNNING/SUCCESS/FAILED/CANCELLED</span>
+  <span class="k">"done"</span>: true,
+  <span class="k">"success"</span>: true,
+  <span class="k">"cancelled"</span>: false,
+  <span class="k">"failed"</span>: false,
+  <span class="k">"percent"</span>: 100.00,                      <span class="c">// run.progress 与最新日志 progress 取大</span>
+  <span class="k">"stage"</span>: <span class="s">"DONE"</span>,                     <span class="c">// 最后一条日志的阶段</span>
+  <span class="k">"round_no"</span>: 5,                          <span class="c">// RUNNING 轮优先，否则最后一轮</span>
+  <span class="k">"algo"</span>: <span class="s">"HEURISTIC"</span>,
+  <span class="k">"poll_interval_ms"</span>: 2000,               <span class="c">// 前端按此值轮询</span>
+  <span class="k">"history_count"</span>: 27,
+  <span class="k">"rounds"</span>: [                             <span class="c">// 每轮的状态与结果</span>
+    {
+      <span class="k">"round_no"</span>: 1, <span class="k">"algo"</span>: <span class="s">"HEURISTIC"</span>, <span class="k">"status"</span>: <span class="s">"SUCCESS"</span>,
+      <span class="k">"progress"</span>: 40.00,
+      <span class="k">"score"</span>: 500.0,                     <span class="c">// 0~500 分制</span>
+      <span class="k">"optimal_value"</span>: 0.0,
+      <span class="k">"target_hit"</span>: true,                <span class="c">// 是否全部目标达成</span>
+      <span class="k">"message"</span>: <span class="s">"第 1 轮完成：opt=0.0000，得分=500.0"</span>,
+      <span class="k">"duration_sec"</span>: 0
+    }
+  ],
+  <span class="k">"total_rounds"</span>: 5,
+  <span class="k">"start_at"</span>: <span class="s">"2026-11-11T11:28:54"</span>,
+  <span class="k">"end_at"</span>: <span class="s">"2026-11-11T11:28:58"</span>,
+  <span class="k">"duration_sec"</span>: 4,
+  <span class="k">"optimal_value"</span>: 0.0,
+  <span class="k">"metrics"</span>: { ... },
+  <span class="k">"error_message"</span>: null,
+  <span class="k">"scheme_code"</span>: <span class="s">"HEUR_RND_TEST"</span>,
+  <span class="k">"scheme_name"</span>: <span class="s">"启发式多轮验证"</span>
+}</div>
+
+    <h3>5.2 GET /reverse/runs/{rid}/rounds（新增）</h3>
+    <div class="sql"><span class="c">GET /prcp/api/reverse/runs/{rid}/rounds</span>
+
+{ <span class="k">"total_rounds"</span>: 5, <span class="k">"items"</span>: [ { <span class="k">"round_no"</span>:1, <span class="k">"algo"</span>:<span class="s">"HEURISTIC"</span>, <span class="k">"status"</span>:<span class="s">"SUCCESS"</span>, ... } ] }</div>
+    <p style="font-size:12.5px">比 <code>/progress</code> 多返回 <code>metrics</code>（该轮指标实测值快照）与起止时间。</p>
+
+    <h3>5.3 GET /reverse/runs/{rid}/logs（扩展）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">参数</th><th style="width:120px">默认</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>since_id</code></td><td>0</td><td>增量游标，只返回 id 更大的日志</td></tr>
+        <tr><td><code>limit</code></td><td>1000</td><td>单次上限 3000（改造前固定 500）</td></tr>
+        <tr><td><code>stage</code></td><td>—</td><td>按阶段过滤</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql"><span class="c">GET /prcp/api/reverse/runs/{rid}/logs?since_id=0&amp;limit=1000&amp;stage=SOLVE</span>
+
+{ <span class="k">"count"</span>: 20, <span class="k">"items"</span>: [
+  { <span class="k">"id"</span>:236, <span class="k">"log_level"</span>:<span class="s">"INFO"</span>, <span class="k">"log_message"</span>:<span class="s">"第 1/5 轮开始"</span>,
+    <span class="k">"progress"</span>:30.0, <span class="k">"stage"</span>:<span class="s">"SOLVE"</span>, <span class="k">"round_no"</span>:1,
+    <span class="k">"algo"</span>:<span class="s">"HEURISTIC"</span>, <span class="k">"round_result"</span>:null,
+    <span class="k">"created_at"</span>:<span class="s">"2026-11-11T11:28:55"</span> }
+] }</div>
+
+    <h3>5.4 前端 API 客户端</h3>
+    <div class="sql">runLogs:   (id, sinceId = 0, params = {}) =&gt; GET /reverse/runs/{id}/logs
+runRounds: (id)             =&gt; GET /reverse/runs/{id}/rounds
+runProgress: (id)           =&gt; GET /reverse/runs/{id}/progress</div>
+  </div>
+</div>
+
+<!-- 6 -->
+<div class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>引擎侧轮次编排</h2></div>
+  <div class="sec-b">
+    <h3>6.1 编排流程</h3>
+    <div class="sql"><span class="c"># 轮次编排器（伪代码）</span>
+<span class="k">def</span> _run_rounds(db, run_id, algo_fn, algo_code, bal_data, targets):
+    max_round = ALGO_ROUNDS.get(algo_code, <span class="n">1</span>)      <span class="c"># QP/LP=1，HEURISTIC=5</span>
+    best_result, best_score = <span class="k">None</span>, <span class="k">None</span>
+    <span class="k">for</span> r <span class="k">in</span> range(<span class="n">1</span>, max_round + <span class="n">1</span>):
+        _round_start(db, run_id, r, algo_code)          <span class="c"># 轮次开始 → status=RUNNING</span>
+        _log(... <span class="s">"第 r/max_round 轮开始"</span>, stage=SOLVE, round_no=r)
+        <span class="k">try</span>:
+            res = algo_fn(bal_data, targets, log_fn_r, round_no=r)
+        <span class="k">except</span> Exception <span class="k">as</span> e:
+            _round_end(... status=FAILED, message=str(e))   <span class="c"># 轮次失败也要落库</span>
+            <span class="k">raise</span>
+        score, hit = _round_score(res)                  <span class="c"># 达成度 → 0~500 分</span>
+        _round_end(... status=SUCCESS, score=score, optimal_value=ov, target_hit=hit)
+        _log(... <span class="s">"第 r 轮完成：opt=..., 得分=..."</span>, round_result={score, optimal_value, target_hit})
+        <span class="k">if</span> 更好: best_result, best_score = res, score   <span class="c"># 取最优轮</span>
+    <span class="k">return</span> best_result</div>
+
+    <h3>6.2 轮次得分口径（_round_score）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:120px">约束类型</th><th style="width:220px">达成度</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>GE</code>（≥）</td><td><code>实际 / 目标</code></td><td>越高越好</td></tr>
+        <tr><td><code>LE</code>（≤）</td><td><code>目标 / 实际</code></td><td>越低越好</td></tr>
+        <tr><td><code>EQ</code>（=）</td><td><code>1 − |实际 − 目标| / |目标|</code></td><td></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql">加权得分 = Σ(达成度 × 权重) / Σ权重 × 500        <span class="c"># 归一到 0~500 分制</span>
+target_hit = 所有 GE 目标实际 ≥ 目标 且 所有 LE 目标实际 ≤ 目标</div>
+
+    <h3>6.3 阶段打点位置</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:200px">代码位置</th><th style="width:140px">stage</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>任务启动后</td><td><code>SUBMIT</code></td><td>记录方案与算法</td></tr>
+        <tr><td>读取目标后</td><td><code>LOAD_TARGET</code></td><td>记录目标条数</td></tr>
+        <tr><td>读取账户册后</td><td><code>LOAD_BALANCE</code></td><td>记录账户册数与月份数</td></tr>
+        <tr><td>进入求解</td><td><code>SOLVE</code></td><td>轮次内逐条打点</td></tr>
+        <tr><td>写结果前</td><td><code>SAVE_RESULT</code></td><td></td></tr>
+        <tr><td>成功收尾</td><td><code>DONE</code></td><td>携带 optimal_value</td></tr>
+        <tr><td>异常收尾</td><td><code>FAILED</code></td><td>携带错误信息</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>6.4 多轮如何真正跑起来</h3>
+    <div class="note note-b">
+      <b>HEURISTIC 改造为 5 轮迭代改进</b>
+      <ul style="margin:8px 0 0">
+        <li>第 1 轮：初始解（历史均值 + 趋势外推）</li>
+        <li>第 r 轮：在上一轮基础上加<b>确定性扰动</b>（种子 <code>20260101 + round×977</code>，保证可复现），
+            扰动幅度按 <code>0.02 × 0.7^(r−1)</code> 递减，再做一次收缩改进（向跨月均值靠拢）</li>
+        <li>每轮评估目标函数（波动度），由编排器择优</li>
+      </ul>
+    </div>
+    <div class="note">
+      <b>说明</b>：QP / LP 仍是单轮求解（round_no = 1）。当后续接入决策中心的
+      ACOR / DE / SLSQP 多引擎时，只需在 <code>ALGO_ROUNDS</code> 中登记轮数，
+      由引擎在每轮迭代前后调用 <code>_round_start / _round_end</code> 即可，
+      日志与轮次表结构无需变更。
+    </div>
+  </div>
+</div>
+
+<!-- 7 -->
+<div class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>前端交互设计</h2></div>
+  <div class="sec-b">
+    <h3>7.1 日志抽屉布局</h3>
+    <div class="ui">
+      <div class="ui-row"><div class="ui-lab">状态条</div><div class="ui-box blue">
+        状态 ｜ 进度条 ｜ <b>当前阶段</b> ｜ <b>当前轮次</b> ｜ 耗时 ｜ 算法 ｜ 日志条数 ｜ <b>轮次数</b> ｜ 方案
+      </div></div>
+      <div class="ui-row"><div class="ui-lab">轮次面板</div><div class="ui-box green">
+        推算轮次（5 轮）<br>
+        每轮一张卡：<b>[第 N 轮] [算法]</b> 结论摘要 · 耗时<br>
+        　得分 / 目标值 / 目标达成（全部达成绿 · 未达成红）
+      </div></div>
+      <div class="ui-row"><div class="ui-lab">日志流</div><div class="ui-box gray">
+        深色终端风格，每行：时间 <span style="color:#a78bfa">[R3]</span> <span style="color:#38bdf8">[求解]</span> [INFO] 消息 (进度%)
+      </div></div>
+    </div>
+
+    <h3>7.2 轮询策略</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:190px">策略</th><th>设计</th></tr></thead>
+      <tbody>
+        <tr><td>间隔</td><td>取后端 <code>progress.poll_interval_ms</code>（默认 2000ms），前端不硬编码</td></tr>
+        <tr><td>后台暂停</td><td><code>document.hidden</code> 时跳过本轮请求，返回后再恢复</td></tr>
+        <tr><td>自动停止</td><td><code>done = true</code> 后清定时器，并<strong>再补拉一次</strong>日志与进度（避免最后几行丢失）</td></tr>
+        <tr><td>增量拉取</td><td><code>since_id</code> 游标，只取新增；打开抽屉时重置为 0 全量拉一次</td></tr>
+        <tr><td>自动滚动</td><td>新增开关（默认开），新日志到达时滚到底部；用户手动上滚后可关闭</td></tr>
+        <tr><td>切换 run</td><td>effect 依赖 <code>[logDrawer, logRun?.id]</code>，切换时清空游标与列表</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>7.3 组件与样式</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:220px">位置</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td><code>ReverseCalc.tsx</code></td><td><code>STAGE_LABELS</code> 阶段中文映射；<code>CompareTag</code> 同级新增轮次面板渲染</td></tr>
+        <tr><td><code>frontend/src/index.css</code></td><td><code>.round-list / .round-item / .round-head / .round-body</code></td></tr>
+        <tr><td>抽屉宽度</td><td>720 → 880（容纳轮次面板的得分/目标值/达成三列）</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- 8 -->
+<div class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n">8</div><h2>时序与异常</h2></div>
+  <div class="sec-b">
+    <h3>8.1 实时刷新时序</h3>
+    <div class="flow">
+      <div class="layer">
+        <div class="layer-t" style="color:var(--green)">前端</div>
+        <div class="row">
+          <div class="node g"><div class="nt">打开日志抽屉</div><div class="ns">since_id=0<br>拉全量</div></div>
+          <div class="node g"><div class="nt">定时轮询</div><div class="ns">每 poll_interval_ms</div></div>
+          <div class="node g"><div class="nt">渲染</div><div class="ns">状态条 + 轮次面板<br>+ 日志流</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--blue)">后端</div>
+        <div class="row">
+          <div class="node b"><div class="nt">GET /logs</div><div class="ns">增量日志<br>since_id</div></div>
+          <div class="node b"><div class="nt">GET /progress</div><div class="ns">状态/阶段/轮次<br>+ rounds[]</div></div>
+        </div>
+      </div>
+      <div class="arrow">▼</div>
+      <div class="layer">
+        <div class="layer-t" style="color:var(--orange)">引擎（后台协程）</div>
+        <div class="row">
+          <div class="node o"><div class="nt">_log</div><div class="ns">阶段打点</div></div>
+          <div class="node o"><div class="nt">_round_start</div><div class="ns">轮次开始</div></div>
+          <div class="node o"><div class="nt">_round_end</div><div class="ns">轮次结果</div></div>
+        </div>
+      </div>
+    </div>
+
+    <h3>8.2 异常处理</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:220px">场景</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td>轮次内算法抛异常</td><td>该轮记 <code>FAILED</code>（含错误摘要与耗时）→ 写一条 ERROR 日志 → 整轮任务标记 FAILED</td></tr>
+        <tr><td>日志表未迁移</td><td><code>_log</code> / <code>_round_*</code> 捕获异常并回滚，<strong>不阻塞主流程</strong>（反算结果仍能写出）</td></tr>
+        <tr><td>轮次表查询失败</td><td><code>/progress</code> 与 <code>/rounds</code> 返回空列表，不影响日志展示</td></tr>
+        <tr><td>轮次中途取消</td><td>轮次状态记 <code>CANCELLED</code>；<code>progress.cancelled = true</code></td></tr>
+        <tr><td>前端请求失败</td><td>catch 后 console.error，不中断定时器，下轮继续</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- 9 -->
+<div class="sec" id="s9">
+  <div class="sec-h"><div class="sec-n">9</div><h2>验证与遗留</h2></div>
+  <div class="sec-b">
+    <h3>9.1 验证结果</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">验证项</th><th style="width:110px">结果</th><th>实测</th></tr></thead>
+      <tbody>
+        <tr><td>轮次记录</td><td><span class="tag tag-g">通过</span></td>
+            <td>HEURISTIC 方案跑出 <b>5 轮</b>，轮次表逐轮记录 SUCCESS / 得分 500 / opt=0.0 / 耗时</td></tr>
+        <tr><td>日志结构化</td><td><span class="tag tag-g">通过</span></td>
+            <td>27 条日志中 <b>20 条带轮次标记</b>；阶段齐全 SUBMIT / LOAD_TARGET / LOAD_BALANCE / SOLVE / SAVE_RESULT / DONE</td></tr>
+        <tr><td>progress 契约</td><td><span class="tag tag-g">通过</span></td>
+            <td>done / success / cancelled / percent / stage / round_no / rounds[] / poll_interval_ms 齐备</td></tr>
+        <tr><td>进度实时性</td><td><span class="tag tag-g">通过</span></td>
+            <td>运行中 percent = 80.00（不再恒为 0），结束时 100.00</td></tr>
+        <tr><td>当前轮次</td><td><span class="tag tag-g">通过</span></td>
+            <td>运行中与结束后均为「第 5 轮」，不出现空值</td></tr>
+        <tr><td>前端轮次面板</td><td><span class="tag tag-g">通过</span></td>
+            <td>抽屉内 5 张轮次卡（轮次/算法/结论/耗时/得分/目标值/达成），日志行带 [R1]~[R5] 与阶段标签</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>9.2 遗留问题</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">编号</th><th style="width:210px">问题</th><th style="width:90px">等级</th><th>说明与建议</th></tr></thead>
+      <tbody>
+        <tr><td>L1</td><td>QP / LP 仍是单轮</td><td><span class="tag tag-o">中</span></td>
+            <td>多轮结构已就位，<code>ALGO_ROUNDS</code> 登记轮数即可扩展；接入 ACOR/DE 时在每轮前后调用
+                <code>_round_start/_round_end</code> 即可，无需改表结构</td></tr>
+        <tr><td>L2</td><td>轮次得分未用评分规则表</td><td><span class="tag tag-y">低</span></td>
+            <td>当前按目标约束算达成度；<code>prcp_kpi_value</code> 是基期预存值，不适用于轮次级实时评分</td></tr>
+        <tr><td>L3</td><td>取消时轮次状态未落 CANCELLED</td><td><span class="tag tag-y">低</span></td>
+            <td>引擎在每轮迭代前检查取消标志；当前取消会中断任务但正在跑的轮次仍是 RUNNING，需补一次状态回写</td></tr>
+        <tr><td>L4</td><td>日志表无清理策略</td><td><span class="tag tag-y">低</span></td>
+            <td>长周期运行会累积；建议按 run 保留 N 天或按 <code>created_at</code> 定期归档</td></tr>
+        <tr><td>L5</td><td>未与决策中心网关打通</td><td><span class="tag tag-y">低</span></td>
+            <td>本方案是 PRCP 内部形态；如需对外暴露网关入口，按文档「统一 POST + action 区分」改造即可</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>9.3 涉及文件</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:330px">文件</th><th>改动</th></tr></thead>
+      <tbody>
+        <tr><td><code>backend/app/services/reverse_calc_engine.py</code></td><td>阶段常量、_log 扩展、_round_start/_round_end、_run_rounds、_round_score、HEURISTIC 多轮化</td></tr>
+        <tr><td><code>backend/app/routers/reverse.py</code></td><td>新增 /progress、/rounds；扩展 /logs</td></tr>
+        <tr><td><code>backend/scripts/migrations/V20261111_01_reverse_run_log_round.sql</code></td><td>幂等迁移脚本</td></tr>
+        <tr><td><code>frontend/src/pages/ReverseCalc.tsx</code></td><td>日志抽屉升级、轮次面板、轮询策略</td></tr>
+        <tr><td><code>frontend/src/api/index.ts</code></td><td>runLogs 扩展 + runRounds / runProgress</td></tr>
+        <tr><td><code>frontend/src/index.css</code></td><td>轮次面板样式</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  组合反算 · 运行记录日志功能 · 需求设计文档 v1.0<br>
+  契约依据：《资负反向测算接口文档》· 11 项接口字段对齐 · 7 个阶段 · 多轮轮次记录<br>
+  生成时间 2026-11-11
+</div>
+
+</div>
+</div>
+<script>
+const secs=[...document.querySelectorAll('.sec')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    links.forEach(l=>l.classList.remove('on'));
+    const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id); if(a)a.classList.add('on');
+  }});
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
