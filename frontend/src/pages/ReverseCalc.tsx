@@ -30,6 +30,17 @@ const SCHEME_STATUS_OPTIONS = [
   { value: 'DISABLED', label: '已停用' },
 ]
 
+/** 运行阶段中文名（与后端 STAGE_* 常量一一对应） */
+const STAGE_LABELS: Record<string, string> = {
+  SUBMIT: '提交',
+  LOAD_TARGET: '加载目标',
+  LOAD_BALANCE: '加载账户册',
+  SOLVE: '求解',
+  SAVE_RESULT: '保存结果',
+  DONE: '完成',
+  FAILED: '失败',
+}
+
 const ReverseCalc: React.FC = () => {
   const [schemes, setSchemes] = useState<any[]>([])
   const [targets, setTargets] = useState<any[]>([])
@@ -63,8 +74,12 @@ const ReverseCalc: React.FC = () => {
   const [logDrawer, setLogDrawer] = useState(false)
   const [logRun, setLogRun] = useState<any>(null)
   const [logLines, setLogLines] = useState<any[]>([])
+  const [logRounds, setLogRounds] = useState<any[]>([])
+  const [logProgress, setLogProgress] = useState<any>(null)
+  const [logAutoScroll, setLogAutoScroll] = useState(true)
   const logSinceRef = useRef(0)
   const logTimerRef = useRef<any>(null)
+  const logBoxRef = useRef<any>(null)
 
   const [resultDrawer, setResultDrawer] = useState(false)
   const [resultData, setResultData] = useState<any>(null)
@@ -127,39 +142,69 @@ const ReverseCalc: React.FC = () => {
     loadKpiOpts(s?.model_id || null)
   }, [activeSchemeId, schemes])
 
-  // 日志轮询
+  // 日志轮询：增量拉日志 + 进度契约 + 轮次清单
+  //   间隔取后端返回的 poll_interval_ms（默认 2000ms，对齐决策中心契约）
+  //   页面不可见时暂停；运行结束（done=true）自动停止
   useEffect(() => {
     if (!logRun || !logDrawer) return
     logSinceRef.current = 0
     setLogLines([])
+    setLogRounds([])
+    setLogProgress(null)
+    let stopped = false
+    let timer: any = null
+
     const tick = async () => {
+      if (stopped) return
+      // 页面在后台时跳过本轮，避免无意义请求
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
+        // ① 增量日志
         const r = await reverseApi.runLogs(logRun.id, logSinceRef.current)
         if (r.items && r.items.length) {
           setLogLines((p) => [...p, ...r.items])
           logSinceRef.current = r.items[r.items.length - 1].id
         }
-        const list = await reverseApi.listRuns({ scheme_id: logRun.scheme_id })
-        const updated = (list.items || []).find((t: any) => t.id === logRun.id)
-        if (updated) {
-          setLogRun(updated)
-          if (['SUCCESS', 'FAILED', 'CANCELLED'].includes(updated.status)) {
-            if (logTimerRef.current) {
-              clearInterval(logTimerRef.current)
-              logTimerRef.current = null
-            }
+        // ② 进度（状态 / 阶段 / 轮次 / 轮次清单一次拿全）
+        const pg = await reverseApi.runProgress(logRun.id)
+        setLogProgress(pg)
+        setLogRun((prev: any) => (prev ? { ...prev, ...pg } : pg))
+        if (pg.rounds?.length) setLogRounds(pg.rounds)
+        // ③ 结束则停止轮询
+        if (pg.done) {
+          stopped = true
+          if (timer) { clearInterval(timer); timer = null }
+          // 收尾再拉一次日志，确保最后几行不丢
+          const last = await reverseApi.runLogs(logRun.id, logSinceRef.current)
+          if (last.items?.length) {
+            setLogLines((p) => [...p, ...last.items])
+            logSinceRef.current = last.items[last.items.length - 1].id
           }
+          const pg2 = await reverseApi.runProgress(logRun.id)
+          setLogProgress(pg2)
+          if (pg2.rounds?.length) setLogRounds(pg2.rounds)
         }
       } catch (e) {
         console.error(e)
       }
     }
+
     tick()
-    logTimerRef.current = setInterval(tick, 2000)
+    timer = setInterval(tick, 2000)
+    logTimerRef.current = timer
     return () => {
-      if (logTimerRef.current) clearInterval(logTimerRef.current)
+      stopped = true
+      if (timer) clearInterval(timer)
+      logTimerRef.current = null
     }
   }, [logDrawer, logRun?.id])
+
+  // 自动滚动到底部
+  useEffect(() => {
+    if (logAutoScroll && logBoxRef.current) {
+      logBoxRef.current.scrollTop = logBoxRef.current.scrollHeight
+    }
+  }, [logLines, logAutoScroll])
 
   // ============================================================
   // 方案 CRUD
@@ -857,23 +902,94 @@ const ReverseCalc: React.FC = () => {
       <Drawer
         open={logDrawer}
         title={logRun ? `反算日志：${logRun.run_code}` : ''}
-        width={720}
-        onClose={() => { setLogDrawer(false); setLogRun(null); setLogLines([]) }}
+        width={880}
+        onClose={() => { setLogDrawer(false); setLogRun(null); setLogLines([]); setLogRounds([]); setLogProgress(null) }}
       >
         {logRun && (
           <>
-            <Descriptions size="small" column={3} bordered style={{ marginBottom: 12 }}>
-              <Descriptions.Item label="状态"><DictTag dictType="PRCP_RUN_STATUS" value={logRun.status} /></Descriptions.Item>
-              <Descriptions.Item label="进度"><Progress percent={logRun.progress} size="small" style={{ width: 120 }} /></Descriptions.Item>
+            {/* 状态条 */}
+            <Descriptions size="small" column={4} bordered style={{ marginBottom: 12 }}>
+              <Descriptions.Item label="状态">
+                <DictTag dictType="PRCP_RUN_STATUS" value={logRun.status} />
+              </Descriptions.Item>
+              <Descriptions.Item label="进度">
+                <Progress percent={logRun.progress} size="small" style={{ width: 130 }} />
+              </Descriptions.Item>
+              <Descriptions.Item label="当前阶段">
+                {logProgress?.stage
+                  ? <Tag color="processing">{STAGE_LABELS[logProgress.stage] || logProgress.stage}</Tag>
+                  : '-'}
+              </Descriptions.Item>
+              <Descriptions.Item label="当前轮次">
+                {logProgress?.round_no ? `第 ${logProgress.round_no} 轮` : '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="耗时">{logRun.duration_sec || '-'} s</Descriptions.Item>
-              <Descriptions.Item label="方案" span={3}>{logRun.scheme_code} · {logRun.scheme_name}</Descriptions.Item>
-              <Descriptions.Item label="算法" span={3}><DictTag dictType="PRCP_REVERSE_ALGO" value={logRun.algorithm} /></Descriptions.Item>
+              <Descriptions.Item label="算法">
+                <DictTag dictType="PRCP_REVERSE_ALGO" value={logProgress?.algo || logRun.algorithm} />
+              </Descriptions.Item>
+              <Descriptions.Item label="日志条数">{logProgress?.history_count ?? logLines.length}</Descriptions.Item>
+              <Descriptions.Item label="轮次数">{logRounds.length || 0}</Descriptions.Item>
+              <Descriptions.Item label="方案" span={4}>{logRun.scheme_code} · {logRun.scheme_name}</Descriptions.Item>
             </Descriptions>
-            <div style={{ background: '#0f172a', color: '#94a3b8', fontFamily: 'Consolas, monospace', fontSize: 12, padding: 12, borderRadius: 6, maxHeight: 400, overflow: 'auto' }}>
+
+            {/* 轮次面板 —— 多轮推算时逐轮记录状态与结果 */}
+            {logRounds.length > 0 && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 600, marginBottom: 6, color: '#1f2329' }}>
+                  推算轮次（{logRounds.length} 轮）
+                </div>
+                <div className="round-list">
+                  {logRounds.map((rd: any) => (
+                    <div key={`${rd.round_no}-${rd.algo}`} className="round-item">
+                      <div className="round-head">
+                        <Tag color={rd.status === 'SUCCESS' ? 'green' : rd.status === 'FAILED' ? 'red' : 'blue'}>
+                          第 {rd.round_no} 轮
+                        </Tag>
+                        <Tag>{rd.algo}</Tag>
+                        <span style={{ fontSize: 11, color: '#8f959e' }}>{rd.message || ''}</span>
+                        {rd.duration_sec != null && (
+                          <span style={{ fontSize: 11, color: '#8f959e', marginLeft: 'auto' }}>{rd.duration_sec}s</span>
+                        )}
+                      </div>
+                      <div className="round-body">
+                        <span>得分 <b style={{ color: '#165dff' }}>{rd.score != null ? rd.score : '-'}</b></span>
+                        <span>目标值 <b>{rd.optimal_value != null ? Number(rd.optimal_value).toFixed(4) : '-'}</b></span>
+                        <span>目标达成
+                          <b style={{ color: rd.target_hit ? '#00a870' : '#f53f3f' }}>
+                            {rd.target_hit == null ? '-' : rd.target_hit ? '全部达成' : '未全部达成'}
+                          </b>
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 日志流 */}
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, color: '#1f2329' }}>运行日志</span>
+              <span style={{ fontSize: 11, color: '#8f959e', marginLeft: 8 }}>
+                {logProgress?.done ? '（运行已结束）' : `（实时刷新中 · 每 ${Math.round((logProgress?.poll_interval_ms || 2000) / 1000)} 秒）`}
+              </span>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#8f959e' }}>
+                <Switch size="small" checked={logAutoScroll} onChange={setLogAutoScroll} /> 自动滚动
+              </span>
+            </div>
+            <div
+              ref={logBoxRef}
+              style={{ background: '#0f172a', color: '#94a3b8', fontFamily: 'Consolas, monospace', fontSize: 12, padding: 12, borderRadius: 6, maxHeight: 400, overflow: 'auto' }}
+            >
               {logLines.length === 0 && <div style={{ color: '#64748b' }}>暂无日志...</div>}
               {logLines.map((l: any) => (
                 <div key={l.id} style={{ marginBottom: 2 }}>
                   <span style={{ color: '#64748b' }}>{l.created_at?.substring(11, 19)}</span>{' '}
+                  {l.round_no != null && (
+                    <span style={{ color: '#a78bfa' }}>[R{l.round_no}]</span>
+                  )}{' '}
+                  {l.stage && (
+                    <span style={{ color: '#38bdf8' }}>[{STAGE_LABELS[l.stage] || l.stage}]</span>
+                  )}{' '}
                   <span style={{
                     color: l.log_level === 'ERROR' ? '#fca5a5' : l.log_level === 'WARN' ? '#fcd34d' : '#93c5fd'
                   }}>[{l.log_level}]</span>{' '}

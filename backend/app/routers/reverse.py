@@ -459,24 +459,169 @@ async def delete_run(rid: int, db: Session = Depends(get_db), user=Depends(get_c
 
 
 @router.get("/runs/{rid}/logs")
-async def get_run_logs(rid: int, since_id: int = 0,
+async def get_run_logs(rid: int, since_id: int = 0, limit: int = 1000,
+                       stage: str = None,
                        db: Session = Depends(get_db), user=Depends(get_current_user)):
+    """运行日志（增量拉取，支持结构化字段与阶段过滤）
+
+    返回项字段：id / log_level / log_message / progress / stage / round_no / algo
+              / round_result / created_at
+    """
+    limit = max(1, min(limit, 3000))
     try:
+        params = {"rid": rid, "sid": since_id, "lim": limit}
+        stage_filter = ""
+        if stage:
+            stage_filter = " AND stage = :st"
+            params["st"] = stage
         rows = db.execute(
-            text("""SELECT id, log_level, log_message, progress, created_at
-                    FROM prcp_reverse_run_log
-                    WHERE run_id=:rid AND id > :sid ORDER BY id ASC LIMIT 500"""),
-            {"rid": rid, "sid": since_id},
+            text(f"""SELECT id, log_level, log_message, progress, created_at,
+                             stage, round_no, algo, round_result
+                      FROM prcp_reverse_run_log
+                      WHERE run_id=:rid AND id > :sid{stage_filter}
+                      ORDER BY id ASC LIMIT :lim"""),
+            params,
         ).fetchall()
     except Exception:
         return {"items": []}
+    items = []
+    for r in rows:
+        rr = r[8]
+        if isinstance(rr, str):
+            try:
+                rr = json.loads(rr)
+            except Exception:
+                rr = None
+        items.append({
+            "id": r[0], "log_level": r[1], "log_message": r[2],
+            "progress": float(r[3] or 0),
+            "created_at": r[4].isoformat() if r[4] else None,
+            "stage": r[5], "round_no": r[6], "algo": r[7],
+            "round_result": rr,
+        })
+    return {"items": items, "count": len(items)}
+
+
+@router.get("/runs/{rid}/rounds")
+async def get_run_rounds(rid: int, db: Session = Depends(get_db),
+                         user=Depends(get_current_user)):
+    """运行轮次清单 —— 每轮的状态与结果"""
+    try:
+        rows = db.execute(
+            text("""SELECT id, round_no, algo, stage, status, progress, score,
+                          optimal_value, target_hit, message, metrics,
+                          started_at, ended_at, duration_sec
+                    FROM prcp_reverse_run_round
+                    WHERE run_id=:rid ORDER BY round_no ASC, id ASC"""),
+            {"rid": rid},
+        ).fetchall()
+    except Exception:
+        return {"items": [], "total_rounds": 0}
+    items = []
+    for r in rows:
+        mt = r[10]
+        if isinstance(mt, str):
+            try:
+                mt = json.loads(mt)
+            except Exception:
+                mt = None
+        items.append({
+            "id": r[0], "round_no": r[1], "algo": r[2], "stage": r[3],
+            "status": r[4], "progress": float(r[5] or 0),
+            "score": float(r[6]) if r[6] is not None else None,
+            "optimal_value": float(r[7]) if r[7] is not None else None,
+            "target_hit": (bool(r[8]) if r[8] is not None else None),
+            "message": r[9], "metrics": mt,
+            "started_at": r[11].isoformat() if r[11] else None,
+            "ended_at": r[12].isoformat() if r[12] else None,
+            "duration_sec": r[13],
+        })
+    return {"items": items, "total_rounds": len(items)}
+
+
+@router.get("/runs/{rid}/progress")
+async def get_run_progress(rid: int, db: Session = Depends(get_db),
+                           user=Depends(get_current_user)):
+    """运行进度 —— 对齐决策中心 progress 契约
+
+    一次请求返回：状态三态 + 进度 + 当前阶段/轮次 + 轮次清单 + 轮询间隔建议
+    """
+    run = db.execute(
+        text("""SELECT r.id, r.run_code, r.status, r.progress, r.start_at, r.end_at,
+                          r.duration_sec, r.optimal_value, r.metrics, r.error_message,
+                          s.scheme_code, s.scheme_name, s.algorithm
+                    FROM prcp_reverse_run r
+                    JOIN prcp_reverse_scheme s ON s.id = r.scheme_id
+                    WHERE r.id = :rid AND r.is_deleted = 0"""),
+        {"rid": rid},
+    ).first()
+    if not run:
+        raise HTTPException(404, "反算不存在")
+
+    status = (run[2] or "PENDING").upper()
+    done = status in ("SUCCESS", "FAILED", "CANCELLED")
+
+    # 当前阶段 / 轮次 / 算法：取最后一条日志
+    cur = db.execute(
+        text("""SELECT stage, round_no, algo FROM prcp_reverse_run_log
+                WHERE run_id=:rid ORDER BY id DESC LIMIT 1"""),
+        {"rid": rid},
+    ).first()
+
+    # 轮次清单
+    try:
+        rounds = db.execute(
+            text("""SELECT round_no, algo, status, progress, score, optimal_value,
+                              target_hit, message, duration_sec
+                       FROM prcp_reverse_run_round
+                       WHERE run_id=:rid ORDER BY round_no ASC, id ASC"""),
+            {"rid": rid},
+        ).fetchall()
+        round_items = [{
+            "round_no": r[0], "algo": r[1], "status": r[2],
+            "progress": float(r[3] or 0),
+            "score": float(r[4]) if r[4] is not None else None,
+            "optimal_value": float(r[5]) if r[5] is not None else None,
+            "target_hit": (bool(r[6]) if r[6] is not None else None),
+            "message": r[7], "duration_sec": r[8],
+        } for r in rounds]
+    except Exception:
+        round_items = []
+
+    hist_count = db.execute(
+        text("""SELECT COUNT(*) FROM prcp_reverse_run_log WHERE run_id=:rid"""),
+        {"rid": rid},
+    ).scalar() or 0
+
+    metrics = run[8]
+    if isinstance(metrics, str):
+        try:
+            metrics = json.loads(metrics)
+        except Exception:
+            metrics = None
+
     return {
-        "items": [
-            {"id": r[0], "log_level": r[1], "log_message": r[2],
-             "progress": float(r[3] or 0),
-             "created_at": r[4].isoformat() if r[4] else None}
-            for r in rows
-        ]
+        "run_id": run[0], "run_code": run[1],
+        "status": status,
+        "done": done,
+        "success": status == "SUCCESS",
+        "cancelled": status == "CANCELLED",
+        "failed": status == "FAILED",
+        "percent": float(run[3] or 0),
+        "stage": cur[0] if cur else None,
+        "round_no": cur[1] if cur else None,
+        "algo": (cur[2] if cur and cur[2] else run[12]),
+        "poll_interval_ms": 2000,
+        "history_count": int(hist_count),
+        "rounds": round_items,
+        "total_rounds": len(round_items),
+        "start_at": run[4].isoformat() if run[4] else None,
+        "end_at": run[5].isoformat() if run[5] else None,
+        "duration_sec": run[6],
+        "optimal_value": float(run[7]) if run[7] is not None else None,
+        "metrics": metrics,
+        "error_message": run[9],
+        "scheme_code": run[10], "scheme_name": run[11],
     }
 
 

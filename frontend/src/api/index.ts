@@ -248,8 +248,12 @@ export const reverseApi = {
   startRun: (id: number) => http.post(`/reverse/runs/${id}/start`).then((r) => r.data),
   cancelRun: (id: number) => http.post(`/reverse/runs/${id}/cancel`).then((r) => r.data),
   deleteRun: (id: number) => http.delete(`/reverse/runs/${id}`).then((r) => r.data),
-  runLogs: (id: number, sinceId = 0) =>
-    http.get(`/reverse/runs/${id}/logs`, { params: { since_id: sinceId } }).then((r) => r.data),
+  runLogs: (id: number, sinceId = 0, params: any = {}) =>
+    http.get(`/reverse/runs/${id}/logs`, { params: { since_id: sinceId, ...params } }).then((r) => r.data),
+  runRounds: (id: number) =>
+    http.get(`/reverse/runs/${id}/rounds`).then((r) => r.data),
+  runProgress: (id: number) =>
+    http.get(`/reverse/runs/${id}/progress`).then((r) => r.data),
   runResult: (id: number) => http.get(`/reverse/runs/${id}/result`).then((r) => r.data),
 }
 
