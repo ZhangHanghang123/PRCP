@@ -1,6 +1,13 @@
 # ===== Excel 临时文件 =====
-docs/~*.xlsx
-docs/~*.ls
+# Office/WPS 打开文件时生成的锁文件（如 ~$CAR.-20261030.xlsx）
+# 用 **/ 匹配任意层级，避免只覆盖 docs/ 一层而漏掉 docs/v3/ 等子目录
+**/~*.xlsx
+**/~*.ls
+**/~*.docx
+**/~*.doc
+**/~*.pptx
+**/~*.xls
+**/~*.ppt
 
 # ===== Node =====
 node_modules/
