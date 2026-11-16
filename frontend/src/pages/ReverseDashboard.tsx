@@ -214,11 +214,13 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
     (async () => {
       const r = await reverseDashboardApi.runs(schemeCode)
       setRuns(r.items || [])
-      // 如果当前 runId 不在新列表里，重置为最新 SUCCESS
+      // 当前 runId 不在新列表里时，重置为「结果数据最完整」的 SUCCESS run
+      //   （按 result_rows 降序，同等则取更新的），避免异常 run 导致页面空白
       const success = (r.items || []).filter((x: any) => x.status === 'SUCCESS')
-      const latest = success[0]
+      const best = success.slice().sort((a: any, b: any) =>
+        (b.result_rows || 0) - (a.result_rows || 0) || b.run_id - a.run_id)[0]
       if (!runId || !(r.items || []).some((x: any) => x.run_id === runId)) {
-        setRunId(latest?.run_id)
+        setRunId(best?.run_id)
       }
     })()
   }, [schemeCode])

@@ -49,8 +49,20 @@ def run_reverse(run_id: int, db_factory):
         # 3. 加载资产负债表（24 月现金流 + L1 节点 current_amount）
         bal_data = _load_balance(db, run[4], run[5])
         _log(db, run_id, "INFO",
-             f"加载账户册数据：{len(bal_data['node_ids'])} 个账户册，{len(bal_data['gaps'])} 个月", 20,
+             f"加载账户册数据：{len(bal_data['node_ids'])} 个账户册，"
+             f"命中基础数据 {bal_data.get('loaded_nodes', 0)} 条，"
+             f"{len(bal_data['gaps'])} 个月", 20,
              stage=STAGE_LOAD_BALANCE, algo=algo_code)
+
+        # 数据完整性护栏：余额与现金流全为 0 时拒绝求解
+        #   防止产出全 0 结果并写回 prcp_data_reverse，覆盖已有的正确数据
+        total_current = bal_data.get("total_current") or 0
+        total_gap = sum(sum(g) for g in bal_data.get("gaps") or [])
+        if total_current <= 0 and total_gap <= 0:
+            raise RuntimeError(
+                f"账户册基准数据为空（账户册={run[4]} 基准日={run[5]}）："
+                f"prcp_data_basic 无该日数据，余额与现金流均为 0，拒绝执行求解"
+                f"（避免产出全 0 结果覆盖已有数据）")
 
         # 4. 选算法（标称算法 → 实际求解器；未实现的算法落到 QP 兜底）
         nominal_algo = run[7]
@@ -431,7 +443,20 @@ def _round_end(db: Session, run_id: int, round_no: int, algo: str, status: str,
 
 
 def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
-    """加载 24 月现金流 + 当前资产负债节点值"""
+    """加载账户册基准余额 + 期限桶现金流
+
+    数据来源：prcp_data_basic（真实数据表）
+      current_balance  账户当前余额
+      orig_m1..m60     各期限桶的期初余额分布
+      rem_m1..m60      各期限桶的剩余现金流分布
+
+    ⚠️ 历史实现读 prcp_data_balance（current_amount + m1_gap..m24_gap），
+       但该表从未被填充（0 行）→ 余额全 0 → 求解结果全 0 →
+       写回 prcp_data_reverse 覆盖了正确数据。已改为读 prcp_data_basic。
+
+    gaps_map（月度增量）：由剩余现金流按剩余期限摊还估算
+      第 t 月现金流 = Σ{ rem_m[k] : 剩余期限 k > t }（超过 t 月才流出的部分）
+    """
     # L1 + L2 + L3 节点基本信息
     rows = db.execute(
         text("""SELECT id, node_code, node_name, node_level
@@ -440,28 +465,44 @@ def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
                 ORDER BY node_level, sort_order, path"""),
         {"sid": coa_scheme_id},
     ).fetchall()
-    # 单独查 current_amount（按 data_date）
+
+    # 基准余额 + 期限桶（来自 prcp_data_basic）
     bal_rows = db.execute(
-        text("""SELECT b.coa_node_id, b.current_amount,
-                      b.m1_gap, b.m2_gap, b.m3_gap, b.m4_gap, b.m5_gap, b.m6_gap,
-                      b.m7_gap, b.m8_gap, b.m9_gap, b.m10_gap, b.m11_gap, b.m12_gap,
-                      b.m13_gap, b.m14_gap, b.m15_gap, b.m16_gap, b.m17_gap, b.m18_gap,
-                      b.m19_gap, b.m20_gap, b.m21_gap, b.m22_gap, b.m23_gap, b.m24_gap
-                FROM prcp_data_balance b
-                JOIN prcp_coa_node n ON n.id=b.coa_node_id
-                WHERE n.scheme_id=:sid AND b.data_date=:d
-                      AND b.is_deleted=0 AND n.is_deleted=0"""),
+        text("""SELECT b.coa_node_id, b.current_balance,
+                      b.orig_m1, b.orig_m2, b.orig_m3, b.orig_m4, b.orig_m5, b.orig_m6,
+                      b.orig_m7, b.orig_m8, b.orig_m9, b.orig_m10, b.orig_m11, b.orig_m12,
+                      b.orig_m13, b.orig_m14, b.orig_m15, b.orig_m16, b.orig_m17, b.orig_m18,
+                      b.orig_m19, b.orig_m20, b.orig_m21, b.orig_m22, b.orig_m23, b.orig_m24,
+                      b.rem_m1, b.rem_m2, b.rem_m3, b.rem_m4, b.rem_m5, b.rem_m6,
+                      b.rem_m7, b.rem_m8, b.rem_m9, b.rem_m10, b.rem_m11, b.rem_m12,
+                      b.rem_m13, b.rem_m14, b.rem_m15, b.rem_m16, b.rem_m17, b.rem_m18,
+                      b.rem_m19, b.rem_m20, b.rem_m21, b.rem_m22, b.rem_m23, b.rem_m24
+                FROM prcp_data_basic b
+                JOIN prcp_coa_node n ON n.id = b.coa_node_id
+                WHERE n.scheme_id = :sid AND b.data_date = :d
+                      AND b.is_deleted = 0 AND n.is_deleted = 0"""),
         {"sid": coa_scheme_id, "d": data_date},
     ).fetchall()
+
     amount_map = {r[0]: float(r[1] or 0) for r in bal_rows}
-    gaps_map = {r[0]: [float(r[i+2] or 0) for i in range(24)] for r in bal_rows}
+    # 期限桶 → 月度增量：第 t 月 = 剩余期限 > t 的桶的剩余现金流之和
+    gaps_map = {}
+    for r in bal_rows:
+        rem = [float(r[26 + i] or 0) for i in range(24)]   # rem_m1..rem_m24
+        gaps = []
+        for t in range(24):
+            gaps.append(sum(rem[t:]) if t < 24 else 0.0)
+        gaps_map[r[0]] = gaps
+
     nodes = [
         {"id": r[0], "code": r[1], "name": r[2], "level": r[3],
          "current": amount_map.get(r[0], 0)}
         for r in rows
     ]
     return {"nodes": nodes, "gaps_map": gaps_map, "gaps": list(gaps_map.values()),
-            "node_ids": [r[0] for r in rows]}
+            "node_ids": [r[0] for r in rows],
+            "loaded_nodes": len(bal_rows),
+            "total_current": sum(abs(v) for v in amount_map.values())}
 
 
 def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Optional[int],

@@ -99,15 +99,21 @@ async def options(
     default = next((s for s in scheme_items if s["scheme_code"] == "2026"),
                    scheme_items[0] if scheme_items else None)
 
-    # 默认方案的默认 run（最新 SUCCESS）+ 月份
+    # 默认方案的默认 run + 月份
+    #   默认 run 取「结果数据最完整」的那个（prcp_data_reverse 有效行数最多），
+    #   而不是「最新的」—— 避免异常/测试 run 成为默认后首页变空。
+    #   同等完整度时取更新的（id 大的）。
     default_run = None
     default_date_offset = 1
     if default:
         run = db.execute(text("""
-            SELECT id, status, start_at, end_at, duration_sec FROM prcp_reverse_run
-            WHERE scheme_id = :sid AND status = 'SUCCESS' AND is_deleted = 0
-            ORDER BY id DESC LIMIT 1
-        """), {"sid": default["rev_id"]}).first()
+            SELECT r.id, r.status, r.start_at, r.end_at, r.duration_sec,
+                   (SELECT COUNT(*) FROM prcp_data_reverse d
+                     WHERE d.scheme_code = :sc AND d.run_id = r.id AND d.is_deleted = 0) AS nrows
+            FROM prcp_reverse_run r
+            WHERE r.scheme_id = :sid AND r.status = 'SUCCESS' AND r.is_deleted = 0
+            ORDER BY nrows DESC, r.id DESC LIMIT 1
+        """), {"sid": default["rev_id"], "sc": default["scheme_code"]}).first()
         if run:
             default_run = {"run_id": run[0], "status": run[1],
                            "start_at": run[2].isoformat() if hasattr(run[2], "isoformat") else str(run[2]),
@@ -145,11 +151,13 @@ async def list_runs(
     rev_id = rev[0]
 
     rows = db.execute(text("""
-        SELECT r.id, r.status, r.run_code, r.start_at, r.end_at, r.duration_sec, r.optimal_value
+        SELECT r.id, r.status, r.run_code, r.start_at, r.end_at, r.duration_sec, r.optimal_value,
+               (SELECT COUNT(*) FROM prcp_data_reverse d
+                 WHERE d.scheme_code = :sc AND d.run_id = r.id AND d.is_deleted = 0) AS nrows
         FROM prcp_reverse_run r
         WHERE r.scheme_id = :sid AND r.is_deleted = 0
         ORDER BY r.id DESC
-    """), {"sid": rev_id}).fetchall()
+    """), {"sid": rev_id, "sc": scheme_code}).fetchall()
 
     return {
         "scheme_code": scheme_code,
@@ -159,6 +167,7 @@ async def list_runs(
             "end_at": r[4].isoformat() if hasattr(r[4], "isoformat") else str(r[4]) if r[4] else None,
             "duration_sec": r[5] or 0,
             "optimal_value": float(r[6] or 0),
+            "result_rows": int(r[7] or 0),
         } for r in rows],
     }
 
