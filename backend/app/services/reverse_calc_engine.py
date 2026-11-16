@@ -442,6 +442,24 @@ def _round_end(db: Session, run_id: int, round_no: int, algo: str, status: str,
             pass
 
 
+def _classify_node(node_code: str, path: str = "") -> str:
+    """按账户册编码/路径判定大类（与后端 reverse_dashboard._classify 口径一致）
+
+    中信 ZX_COA 编码体系：S01 资产 / S02 负债 / S03 权益 / S04 表外
+    """
+    code = node_code or ""
+    p = path or ""
+    if code.startswith("S01") or code.startswith("ZX_A") or p.startswith("/L1_资产") or p == "/L1_ASSET/":
+        return "ASSET"
+    if code.startswith("S02") or code.startswith("ZX_L") or p.startswith("/L1_负债") or p == "/L1_LIABILITY/":
+        return "LIABILITY"
+    if code.startswith("S03") or code.startswith("ZX_E") or p.startswith("/L1_权益") or p == "/L1_EQUITY/":
+        return "EQUITY"
+    if code.startswith("S04") or p.startswith("/L1_表外") or p == "/L1_OFF_BALANCE/":
+        return "OFF_BALANCE"
+    return "OTHER"
+
+
 def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
     """加载账户册基准余额 + 期限桶现金流
 
@@ -465,7 +483,7 @@ def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
     """
     # 全部层级的节点（含 parent_id，用于末级判定与 roll-up）
     rows = db.execute(
-        text("""SELECT id, node_code, node_name, node_level, parent_id
+        text("""SELECT id, node_code, node_name, node_level, parent_id, path
                 FROM prcp_coa_node
                 WHERE scheme_id=:sid AND is_deleted=0
                 ORDER BY node_level, sort_order, path"""),
@@ -495,7 +513,8 @@ def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
 
     nodes = [
         {"id": r[0], "code": r[1], "name": r[2], "level": r[3],
-         "parent_id": r[4],
+         "parent_id": r[4], "path": r[5] or "",
+         "category": _classify_node(r[1], r[5] or ""),
          "current": amount_map.get(r[0], 0)}
         for r in rows
     ]
@@ -603,7 +622,8 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
                 insert_cols = (
                     ['record_id', 'scheme_code', 'run_id', 'coa_scheme_id',
                      'data_date', 'date_offset', 'offset_unit',
-                     'coa_node_id', 'node_code', 'node_name', 'node_level'] +
+                     'coa_node_id', 'node_code', 'node_name', 'node_level',
+                     'is_leaf', 'category'] +
                     orig_cols + rem_cols +
                     ['current_balance', 'avg_balance', 'weighted_rate',
                      'interest_amount', 'risk_weight', 'calc_note']
@@ -623,6 +643,8 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
                     'node_code': node['code'],
                     'node_name': node['name'],
                     'node_level': node['level'],
+                    'is_leaf': 1 if node['id'] in leaf_ids else 0,
+                    'category': node.get('category') or _classify_node(node['code'], node.get('path') or ''),
                 }
                 # 初始化所有 orig/rem/ 桶为 0
                 for c in orig_cols + rem_cols:
