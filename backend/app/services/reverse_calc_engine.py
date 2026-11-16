@@ -485,14 +485,12 @@ def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
     ).fetchall()
 
     amount_map = {r[0]: float(r[1] or 0) for r in bal_rows}
-    # 期限桶 → 月度增量：第 t 月 = 剩余期限 > t 的桶的剩余现金流之和
-    gaps_map = {}
-    for r in bal_rows:
-        rem = [float(r[26 + i] or 0) for i in range(24)]   # rem_m1..rem_m24
-        gaps = []
-        for t in range(24):
-            gaps.append(sum(rem[t:]) if t < 24 else 0.0)
-        gaps_map[r[0]] = gaps
+    # 期限桶 rem_m1..m24（剩余现金流，量级远大于余额）不能直接当作月度增量累加，
+    # 否则求解初值被撑爆（opt 达 1e14 量级）。
+    # 当前引擎的 gaps 语义是「月度余额增量」，取 0 表示各月余额保持基准日水平，
+    # 即 init[t][n] = current_balance[n]。
+    # 期限桶信息（orig_*/rem_*）应在 EVE 现金流折现环节使用，不在余额推演环节。
+    gaps_map = {r[0]: [0.0] * 24 for r in bal_rows}
 
     nodes = [
         {"id": r[0], "code": r[1], "name": r[2], "level": r[3],
