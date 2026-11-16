@@ -4,7 +4,7 @@ import urllib.parse
 import urllib.request
 
 BASE = "http://127.0.0.1:8006/prcp/api"
-RID = 40
+RID = 41
 
 
 def _req(path, tok=None):
@@ -51,4 +51,4 @@ print(f"  月份 {len(bt.get('months') or [])}  大类 {len(bt.get('categories')
 for c in (bt.get("categories") or [])[:3]:
     v = c.get("values") or []
     nz = sum(1 for x in v if x)
-    print(f"  {str(c.get('name') or c.get('code')):<16} {len(v)} 月，非零 {nz}，首月 {v[0] if v else None}")
+    print(f"  {str(c.get("key") or c.get("key")):<16} {len(v)} 月，非零 {nz}，首月 {v[0] if v else None}")
