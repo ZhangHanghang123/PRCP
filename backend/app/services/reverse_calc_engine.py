@@ -454,14 +454,20 @@ def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
        但该表从未被填充（0 行）→ 余额全 0 → 求解结果全 0 →
        写回 prcp_data_reverse 覆盖了正确数据。已改为读 prcp_data_basic。
 
-    gaps_map（月度增量）：由剩余现金流按剩余期限摊还估算
-      第 t 月现金流 = Σ{ rem_m[k] : 剩余期限 k > t }（超过 t 月才流出的部分）
+    ⚠️ 节点范围：必须加载**全部层级**。账户册 ZX_COA 的余额数据集中在
+       L4/L5/L6（末级，38/40 个有值），L1/L2 多数为 0。
+       历史实现只取 node_level<=3（L1~L3 共 17 个），末级节点根本没进求解，
+       写回时也就没有末级数据 → 驾驶舱按末级汇总出来全是 0。
+
+    gaps_map（月度增量）：当前引擎 gaps 语义为「月度余额增量」，取 0 表示各月
+      余额保持基准日水平（init = current_balance）。
+      期限桶信息（orig_*/rem_*）应在 EVE 现金流折现环节使用，不参与余额推演。
     """
-    # L1 + L2 + L3 节点基本信息
+    # 全部层级的节点（含 parent_id，用于末级判定与 roll-up）
     rows = db.execute(
-        text("""SELECT id, node_code, node_name, node_level
+        text("""SELECT id, node_code, node_name, node_level, parent_id
                 FROM prcp_coa_node
-                WHERE scheme_id=:sid AND is_deleted=0 AND node_level<=3
+                WHERE scheme_id=:sid AND is_deleted=0
                 ORDER BY node_level, sort_order, path"""),
         {"sid": coa_scheme_id},
     ).fetchall()
@@ -485,20 +491,42 @@ def _load_balance(db: Session, coa_scheme_id: int, data_date) -> dict:
     ).fetchall()
 
     amount_map = {r[0]: float(r[1] or 0) for r in bal_rows}
-    # 期限桶 rem_m1..m24（剩余现金流，量级远大于余额）不能直接当作月度增量累加，
-    # 否则求解初值被撑爆（opt 达 1e14 量级）。
-    # 当前引擎的 gaps 语义是「月度余额增量」，取 0 表示各月余额保持基准日水平，
-    # 即 init[t][n] = current_balance[n]。
-    # 期限桶信息（orig_*/rem_*）应在 EVE 现金流折现环节使用，不在余额推演环节。
     gaps_map = {r[0]: [0.0] * 24 for r in bal_rows}
 
     nodes = [
         {"id": r[0], "code": r[1], "name": r[2], "level": r[3],
+         "parent_id": r[4],
          "current": amount_map.get(r[0], 0)}
         for r in rows
     ]
+
+    # 构建树：children_map + 末级集合 + 自底向上顺序
+    children_map: dict = {}
+    for nd in nodes:
+        children_map.setdefault(nd["parent_id"], []).append(nd["id"])
+    node_ids = {nd["id"] for nd in nodes}
+    leaf_ids = {nid for nid in node_ids if not children_map.get(nid)}
+    # 自底向上（深度大 → 小），保证父节点在子节点之后汇总
+    depth = {}
+
+    def _depth(nid, guard=0):
+        if nid in depth:
+            return depth[nid]
+        if guard > 12:
+            return 0
+        pid = next((n["parent_id"] for n in nodes if n["id"] == nid), None)
+        d = 0 if (pid is None or pid not in node_ids) else _depth(pid, guard + 1) + 1
+        depth[nid] = d
+        return d
+
+    for nd in nodes:
+        _depth(nd["id"])
+    bottom_up = sorted(node_ids, key=lambda x: -depth.get(x, 0))
+
     return {"nodes": nodes, "gaps_map": gaps_map, "gaps": list(gaps_map.values()),
             "node_ids": [r[0] for r in rows],
+            "children_map": children_map, "leaf_ids": leaf_ids,
+            "bottom_up": bottom_up,
             "loaded_nodes": len(bal_rows),
             "total_current": sum(abs(v) for v in amount_map.values())}
 
@@ -513,6 +541,24 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
         base_date = datetime.strptime(str(base_date), "%Y-%m-%d").date()
     months = result["months"]  # shape (24, N)
     nodes = bal_data["nodes"]
+    children_map = bal_data.get("children_map") or {}
+    leaf_ids = bal_data.get("leaf_ids") or set()
+    bottom_up = bal_data.get("bottom_up") or []
+
+    # 预计算每月的节点值：
+    #   末级节点 → 求解结果
+    #   父级节点 → 子树末级之和（roll-up）
+    #   父节点的 current_balance 在账户册里多为 0，直接写求解值会失真
+    month_values = []
+    for m_idx in range(24):
+        vals = {}
+        for n_idx, node in enumerate(nodes):
+            vals[node["id"]] = float(months[m_idx][n_idx])
+        for nid in bottom_up:
+            kids = children_map.get(nid)
+            if kids:
+                vals[nid] = sum(vals.get(c, 0.0) for c in kids)
+        month_values.append(vals)
     # 1) 写入 prcp_reverse_result（保持原 API）
     for m_idx in range(24):
         # 预测日期 = base_date + m_idx 月
@@ -521,7 +567,7 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
         for n_idx, node in enumerate(nodes):
             try:
                 current = node["current"]
-                adjusted = float(months[m_idx][n_idx])
+                adjusted = month_values[m_idx].get(node["id"], 0.0)
                 delta = adjusted - current
                 db.execute(
                     text("""INSERT INTO prcp_reverse_result
@@ -544,7 +590,7 @@ def _save_results(db: Session, run_id: int, scheme_code: str, coa_scheme_id: Opt
         for n_idx, node in enumerate(nodes):
             try:
                 current = node["current"]
-                adjusted = float(months[m_idx][n_idx])
+                adjusted = month_values[m_idx].get(node["id"], 0.0)
                 adjusted_bal = adjusted
 
                 # 64 桶结构：把调整量放入对应月桶（m1~m24）
