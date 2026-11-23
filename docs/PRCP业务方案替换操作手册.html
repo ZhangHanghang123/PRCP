@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRCP 业务方案替换 · 操作手册</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.65;font-size:14px;padding:0 0 60px}
+.wrap{display:flex;max-width:1500px;margin:0 auto}
+.nav{width:258px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px;letter-spacing:.5px}
+.nav a{display:block;padding:6px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;font-size:12.5px;margin-bottom:1px;transition:.15s}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.nav a.l2{padding-left:26px;font-size:12px}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+.hd{background:var(--card);border-radius:12px;padding:26px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:22px;font-weight:600;margin-bottom:8px}
+.hd .sub{font-size:13px;color:var(--txt2);margin-bottom:12px}
+.hd .meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);padding-top:13px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;font-family:var(--mono);vertical-align:middle}
+.tag-b{background:var(--blue-bg);color:var(--blue)}.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:15px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:26px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:18px 0 8px}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+.sec-b ul,.sec-b ol{margin:0 0 12px 22px;color:var(--txt2)}
+.sec-b li{margin-bottom:4px}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.tbl{overflow-x:auto}
+.sql{background:#fbfcfd;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;font-family:var(--mono);font-size:12px;line-height:1.85;overflow-x:auto;white-space:pre}
+.sql .c{color:#8f959e}.sql .k{color:var(--blue);font-weight:600}.sql .s{color:var(--green)}.sql .n{color:var(--orange)}
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+/* 阶段色彩 */
+.ph1 .sec-n{background:#165dff}.ph2 .sec-n{background:#00a870}.ph3 .sec-n{background:#ff8f1f}.ph4 .sec-n{background:#7d3ff5}.ph5 .sec-n{background:#0aa39e}.ph0 .sec-n{background:#646a73}
+/* 流程条 */
+.roadmap{background:var(--card);border-radius:12px;border:1px solid var(--line);padding:18px 22px;margin-bottom:18px}
+.roadmap .rm-t{font-size:13px;font-weight:600;margin-bottom:14px;color:var(--txt)}
+.rm-row{display:flex;gap:0;align-items:stretch;margin-bottom:10px}
+.rm-step{flex:1;border:1.5px solid var(--line);border-radius:9px;padding:10px 12px;background:#fafbfc;position:relative;min-width:0}
+.rm-step .num{font-size:10px;font-family:var(--mono);color:var(--txt3)}
+.rm-step .nm{font-size:12.5px;font-weight:600;margin:2px 0 4px}
+.rm-step .ds{font-size:10.5px;color:var(--txt3);line-height:1.5}
+.rm-step .wk{font-size:10px;font-family:var(--mono);margin-top:5px;color:var(--txt3)}
+.rm-step.c1{border-color:#165dff;background:#e8f3ff}.rm-step.c1 .nm{color:#165dff}
+.rm-step.c2{border-color:#00a870;background:#e8fff8}.rm-step.c2 .nm{color:#00a870}
+.rm-step.c3{border-color:#ff8f1f;background:#fff3e8}.rm-step.c3 .nm{color:#d97706}
+.rm-step.c4{border-color:#7d3ff5;background:#f5ecff}.rm-step.c4 .nm{color:#7d3ff5}
+.rm-step.c5{border-color:#0aa39e;background:#e8fffb}.rm-step.c5 .nm{color:#0aa39e}
+.rm-arrow{display:flex;align-items:center;padding:0 6px;color:#c9cdd4;font-size:16px;flex:none}
+/* 检查清单 */
+.chk{border:1px solid var(--line);border-radius:9px;padding:5px 14px;margin:8px 0;background:#fbfcfd}
+.chk label{display:flex;gap:9px;padding:6px 0;font-size:12.5px;color:var(--txt2);border-bottom:1px dashed #eef0f3;cursor:default}
+.chk label:last-child{border-bottom:none}
+.chk input[type=checkbox]{margin-top:3px}
+/* 影响面表 */
+.impact-high td{background:#fff7f5}
+.impact-mid td{background:#fffcf5}
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s0" class="on">0 适用范围与现状</a>
+  <a href="#rm">总览 · 六阶段路线图</a>
+  <a href="#s1">1 基础准备</a>
+  <a href="#s1-1" class="l2">1.1 账户册梳理</a>
+  <a href="#s1-2" class="l2">1.2 指标逻辑梳理</a>
+  <a href="#s1-3" class="l2">1.3 指标计量参数梳理</a>
+  <a href="#s1-4" class="l2">1.4 底层数据准备</a>
+  <a href="#s1-5" class="l2">1.5 新银行准入清单</a>
+  <a href="#s2">2 重新运行项目</a>
+  <a href="#s2-1" class="l2">2.1 ESG 情景生成</a>
+  <a href="#s2-2" class="l2">2.2 新业务模型重训</a>
+  <a href="#s2-3" class="l2">2.3 组合反算验证</a>
+  <a href="#s3">3 代码改造</a>
+  <a href="#s3-1" class="l2">3.1 引擎算法调整</a>
+  <a href="#s3-2" class="l2">3.2 蚁群算法落地</a>
+  <a href="#s3-3" class="l2">3.3 代码级检查点</a>
+  <a href="#s4">4 结果展示调整</a>
+  <a href="#s5">5 你可能没想到的</a>
+  <a href="#s6">6 上线切换与回退</a>
+  <a href="#s7">7 交付物与检查清单</a>
+</div>
+<div class="main">
+
+<div class="hd">
+  <h1>PRCP 业务方案替换 · 操作手册</h1>
+  <div class="sub">年底更换业务方案（换行 / 换银行主体 / 换一套资产负债口径）时的全量替换步骤</div>
+  <div style="margin-bottom:12px">
+    <span class="tag tag-b">6 阶段</span>
+    <span class="tag tag-g">28 项检查点</span>
+    <span class="tag tag-o">含回退方案</span>
+    <span class="tag tag-p">基于生产库实测</span>
+  </div>
+  <div class="meta">
+    <div>产品 <b>PRCP 组合反算平台</b></div>
+    <div>当前基线 <b>ZX_COA · 57 节点 · 2025-12-31</b></div>
+    <div>版本 <b>v1.0</b></div>
+    <div>日期 <b>2026-11-23</b></div>
+  </div>
+</div>
+
+<!-- ============ 0 ============ -->
+<div class="sec ph0" id="s0">
+  <div class="sec-h"><div class="sec-n">0</div><h2>适用范围与现状基线</h2></div>
+  <div class="sec-b">
+    <h3>0.1 三种替换场景</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:150px">场景</th><th style="width:300px">含义</th><th style="width:110px">工作量</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>A. 换数据日期</b></td><td>同一家银行，基准日从 2025-12-31 换到新年度（如 2026-12-31）</td><td><span class="tag tag-g">小</span></td>
+            <td>账户册结构不变，主要是重灌基础数据 + 重跑模型；本文 §1.4/§2 为主</td></tr>
+        <tr><td><b>B. 换银行主体</b></td><td>从中信银行换成另一家银行的账户册与数据</td><td><span class="tag tag-o">中</span></td>
+            <td>账户册重梳、编码体系可能变（S01× 前缀约定）、五大引擎系数全部重算；本文全流程适用</td></tr>
+        <tr><td><b>C. 换口径/方法</b></td><td>同一家银行，但指标口径或计量方法调整（如 EVE 改现值法）</td><td><span class="tag tag-r">大</span></td>
+            <td>涉及代码改造（§3）为主，数据层可复用</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b"><b>本文按场景 B（最全）编写</b>，A / C 场景按章节标注裁剪即可。</div>
+
+    <h3>0.2 生产库现状基线（2026-11-23 实测）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">对象</th><th style="width:300px">现状</th><th>替换时是否要动</th></tr></thead>
+      <tbody>
+        <tr><td>账户册方案 <code>prcp_coa_scheme</code></td><td>仅 1 套：<code>ZX_COA</code>（中信，57 节点 L1~L6）</td><td>是 —— 新建方案，<b>勿在原方案上改</b></td></tr>
+        <tr><td>组合反算方案 <code>prcp_reverse_scheme</code></td><td>4 个（REV_DNN_REG / REV_ANT_REG / REV_NLS_REG / 2026）</td><td>是 —— 新建并指向新账户册</td></tr>
+        <tr><td>ESG 情景 <code>prcp_esg_scheme</code></td><td>5 套方案 / 15 个情景</td><td>是 —— 用新初始收益率曲线重新生成</td></tr>
+        <tr><td>计量模型 <code>prcp_model</code></td><td>3 个：DNN_REG / ACO_OPT / NLS_REG（均 ACTIVE）</td><td>是 —— 重新训练并出新版本</td></tr>
+        <tr><td>五大引擎参数表</td><td><code>prcp_lcr/nsfr/cet1/eve/nim/roe_param</code></td><td>是 —— 按新账户册逐节点重算</td></tr>
+        <tr><td>利率曲线 <code>prcp_rate_curv/point</code></td><td>国债曲线 CN_SOV_CNY 等</td><td>视银行 —— 若币种/曲线源变化则要换</td></tr>
+        <tr><td><s>prcp_data_balance</s></td><td><b>空表（0 行，遗留设计）</b></td><td>否 —— 引擎已改读 <code>prcp_data_basic</code>，勿再灌数</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>0.3 关键代码位置速查</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:250px">模块</th><th style="width:300px">文件</th><th>改动敏感度</th></tr></thead>
+      <tbody>
+        <tr><td>组合反算引擎</td><td><code>backend/app/services/reverse_calc_engine.py</code></td><td><span class="tag tag-r">高</span> 大类前缀 / 层级 / 数据源</td></tr>
+        <tr><td>结果驾驶舱</td><td><code>backend/app/routers/reverse_dashboard.py</code></td><td><span class="tag tag-r">高</span> _classify / _is_leaf / 口径</td></tr>
+        <tr><td>驾驶舱前端</td><td><code>frontend/src/pages/ReverseDashboard.tsx</code></td><td><span class="tag tag-o">中</span> 贷款节点前缀、指标映射</td></tr>
+        <tr><td>组合反算页</td><td><code>frontend/src/pages/ReverseCalc.tsx</code></td><td><span class="tag tag-g">低</span> 基本通用</td></tr>
+        <tr><td>五大引擎参数</td><td><code>backend/scripts/kpi_functions/*.py</code></td><td><span class="tag tag-r">高</span> 节点匹配多为硬编码</td></tr>
+        <tr><td>ESG 生成</td><td><code>backend/app/routers/esg*.py</code></td><td><span class="tag tag-o">中</span> 初始曲线与因子数</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 路线图 ============ -->
+<div class="roadmap" id="rm">
+  <div class="rm-t">🧭 总览 · 六阶段路线图（建议总工期 5~7 周，A 场景可压缩到 2 周）</div>
+  <div class="rm-row">
+    <div class="rm-step c1"><div class="num">PHASE 1</div><div class="nm">基础准备</div>
+      <div class="ds">账户册 · 指标逻辑 · 计量参数 · 底层数据</div><div class="wk">≈ 2 周</div></div>
+    <div class="rm-arrow">→</div>
+    <div class="rm-step c2"><div class="num">PHASE 2</div><div class="nm">重新运行项目</div>
+      <div class="ds">ESG 情景 → 模型重训 → 反算验证</div><div class="wk">≈ 1 周</div></div>
+    <div class="rm-arrow">→</div>
+    <div class="rm-step c3"><div class="num">PHASE 3</div><div class="nm">代码改造</div>
+      <div class="ds">引擎算法 · 蚁群落地 · 硬编码清理</div><div class="wk">≈ 1~2 周</div></div>
+  </div>
+  <div class="rm-row">
+    <div class="rm-step c4"><div class="num">PHASE 4</div><div class="nm">结果展示调整</div>
+      <div class="ds">驾驶舱口径 · 目标 · 评分 · 导出</div><div class="wk">≈ 3 天</div></div>
+    <div class="rm-arrow">→</div>
+    <div class="rm-step c5"><div class="num">PHASE 5</div><div class="nm">上线切换</div>
+      <div class="ds">灰度验证 · 双跑对比 · 正式切流</div><div class="wk">≈ 3 天</div></div>
+    <div class="rm-arrow">→</div>
+    <div class="rm-step c1"><div class="num">PHASE 6</div><div class="nm">收尾归档</div>
+      <div class="ds">旧数据归档 · 文档同步 · 复盘</div><div class="wk">≈ 1 天</div></div>
+  </div>
+  <div class="note note-b" style="margin-bottom:0"><b>并行建议</b>：Phase 1 的账户册梳理是后续一切的前置；1.2/1.3 可与 1.4 并行；Phase 3 的代码改造可提前到 Phase 1 期间启动（先读后改）。</div>
+</div>
+
+<!-- ============ 1 ============ -->
+<div class="sec ph1" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>基础准备</h2><span class="tag tag-b">一切的前置</span></div>
+  <div class="sec-b">
+
+    <h3 id="s1-1">1.1 账户册梳理</h3>
+    <p>账户册是全链路的骨架：五大引擎参数、基础数据、驾驶舱汇总、反算决策变量全部挂在节点上。先定结构，再灌数据。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:200px">动作</th><th style="width:280px">落点（表/页面）</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>取得新银行科目体系</td><td>——</td>
+            <td>总账科目表 / 监管报表 G01/G32 / FTP 口径表，三选一作为权威源</td></tr>
+        <tr><td class="num">2</td><td>确定层级与末级</td><td>新 <code>prcp_coa_scheme</code> + <code>prcp_coa_node</code></td>
+            <td>ZX_COA 是 6 级 57 节点。新行可能 4~5 级，<b>末级必须承载余额</b>（父级余额灌 0，展示层靠 roll-up）</td></tr>
+        <tr><td class="num">3</td><td><b>确定编码前缀约定</b></td><td><code>node_code</code></td>
+            <td>当前代码按 <code>S01=资产 / S02=负债 / S03=权益 / S04=表外</code> 分类。新行若沿用此约定则免改代码；否则必须改 <code>_classify</code> 与 <code>_classify_node</code>（见 §3.3）</td></tr>
+        <tr><td class="num">4</td><td>标注决策变量</td><td>节点备注 / <code>prcp_sim_node_config</code></td>
+            <td>哪些末级科目参与算法优化（dynamic）、哪些固定（fixed）；ZX_COA 是 12 个决策变量 + 权益</td></tr>
+        <tr><td class="num">5</td><td>录入系统</td><td>前端「账户册维护」/prcp/coa</td>
+            <td>建<b>新方案</b>（如 <code>BANK2_COA_2026</code>），设置 ACTIVE；<b>不要在 ZX_COA 上原地改</b></td></tr>
+        <tr><td class="num">6</td><td>结构自检</td><td>SQL 校验</td>
+            <td>父子闭环（无孤儿）、每条路径到根、末级占比、大类划分 100% 覆盖</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql"><span class="c">-- 账户册结构自检（新方案入库后执行，四项应分别为 0 / 总数 / ≥90% / 1.0）</span>
+<span class="k">SELECT</span>
+  (SELECT COUNT(*) FROM prcp_coa_node c LEFT JOIN prcp_coa_node p ON p.id=c.parent_id
+    WHERE c.scheme_id=:new AND c.parent_id IS NOT NULL AND p.id IS NULL)  <span class="k">AS</span> 孤儿节点,
+  COUNT(*)                                                              <span class="k">AS</span> 总节点,
+  SUM(c.is_leaf)/COUNT(*)                                               <span class="k">AS</span> 末级占比,
+  SUM(c.node_code LIKE <span class="s">'S0%'</span> OR c.node_code LIKE <span class="s">'ZX_%'</span>)/COUNT(*) <span class="k">AS</span> 编码覆盖率
+FROM prcp_coa_node c WHERE c.scheme_id=:new AND c.is_deleted=0;</div>
+
+    <h3 id="s1-2">1.2 指标逻辑梳理</h3>
+    <p>明确"算什么、怎么算、目标是什么"。输出一张<b>指标映射总表</b>，它是后面参数配置与验收的唯一依据。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:200px">动作</th><th style="width:260px">落点</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>盘点指标清单</td><td><code>prcp_kpi_definition</code></td>
+            <td>当前 8 指标制：LCR / NSFR / CET1 / CAR / ROE / EVE / IBL / LR。新银行增删指标在此定义（kpi_code 建议 <code>REG_</code> 前缀保持一致）</td></tr>
+        <tr><td class="num">2</td><td>逐指标写口径卡</td><td>文档（附录模板）</td>
+            <td>分子/分母取哪些科目、时点值还是均值、单位（小数 or 百分数）——<b>单位口径必须全表统一</b>，当前体系是百分数（ROE 12.72、LCR 148.92）</td></tr>
+        <tr><td class="num">3</td><td>对齐目标值</td><td><code>prcp_reverse_target</code></td>
+            <td>每指标目标 + 约束方向（GE/LE）+ 权重 + 生效期；注意与评分分段表的量纲一致</td></tr>
+        <tr><td class="num">4</td><td>确认红线/段位</td><td><code>prcp_kpi_score_rule/_segment</code></td>
+            <td>23 段制是监管红线 → 危险 → 预警 → 安全 → 过优。新银行的监管环境不同，段位边界要重定</td></tr>
+        <tr><td class="num">5</td><td>明确不可推导项</td><td>口径表"缺口"列</td>
+            <td>列出缺数据列的指标（如 IBL/LR 当前就是占位 0），要么补数据源、要么明确标记 missing</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 id="s1-3">1.3 指标计量参数梳理（五大引擎系数）</h3>
+    <p>五大引擎（LCR/NSFR/CET1/EVE/NIM/ROE）的系数是<b>按科目</b>配置的，换账户册 = 全部重配。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">参数表</th><th style="width:240px">关键字段</th><th>换行时来源</th></tr></thead>
+      <tbody>
+        <tr><td><code>prcp_lcr_param</code></td><td>scheme_code + node_code + 折算率（流入/流出）</td><td>新行流动性报表逐科目折算系数</td></tr>
+        <tr><td><code>prcp_nsfr_param</code></td><td>ASF/RSF 系数</td><td>NSFR 报表口径</td></tr>
+        <tr><td><code>prcp_cet1_param</code></td><td>风险权重 / 资本扣减项</td><td>资本管理办法权重表</td></tr>
+        <tr><td><code>prcp_eve_param</code></td><td>is_asset / is_liability / duration</td><td>利率风险计量口径（重定价期限）</td></tr>
+        <tr><td><code>prcp_nim_param</code> / <code>prcp_roe_param</code></td><td>利率 / 收益率参数</td><td>FTP 定价与新行财务计划</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><b>顺序提醒</b>：参数表的 <code>scheme_code</code> 指向<b>账户册方案</b>（ZX_COA），不是组合方案。新账户册建好后先灌参数、再做系数回验（用基准日数据跑一遍引擎，比对行方真实报表误差 ≤ 容差）。</div>
+    <div class="sql"><span class="c">-- 系数覆盖率校验：应返回 0 行（每个有余额的末级科目在六张参数表都有系数）</span>
+<span class="k">SELECT</span> n.node_code, n.node_name
+FROM prcp_coa_node n
+JOIN prcp_data_basic b ON b.coa_node_id=n.id AND b.data_date=:d AND b.is_deleted=0
+LEFT JOIN prcp_lcr_param p ON p.node_code=n.node_code AND p.scheme_code=:coa AND p.is_deleted=0
+WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
+  AND b.current_balance&lt;&gt;0 AND p.id IS NULL;</div>
+
+    <h3 id="s1-4">1.4 底层数据准备</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">数据表</th><th style="width:150px">粒度</th><th>准备内容与要点</th></tr></thead>
+      <tbody>
+        <tr><td><code>prcp_data_basic</code> <span class="tag tag-r">核心</span></td><td>账户册 × 基准日</td>
+            <td>每末级科目一行：<code>current_balance</code>（余额，父级留 0）+ <code>orig_m1..m60 / rem_m1..m60</code>（<b>64 期限桶</b>：剩余现金流分布）。注意 <b>is_leaf 标记必须正确</b>，驾驶舱末级判定依赖它</td></tr>
+        <tr><td><code>prcp_rate_curv / prcp_rate_point</code></td><td>曲线 × 期限点</td>
+            <td>国债/ Shibor 曲线（EVE 折现用）。若沿用 CN_SOV_CNY 只需追加新日期点位；换币种则新建曲线方案</td></tr>
+        <tr><td><code>prcp_kpi_value</code></td><td>KPI × 日期</td><td>新银行基准日真实指标值（用于 T0 基线与评分回验）</td></tr>
+        <tr><td><code>prcp_metric_coefficient</code></td><td>账户册方案 × 节点 × 月份</td><td>5 指标逐月系数（反算结果的对比基线）。由引擎跑出或从历史导入</td></tr>
+        <tr><td>报表项映射</td><td><code>prcp_rpt_*</code></td><td>若新行有专属报表（G01 等），表项与节点映射重配</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note warn"><b>灌数纪律（上次事故的教训）</b>：
+      <ul style="margin:8px 0 0">
+        <li><b>不要灌 <code>prcp_data_balance</code></b> —— 引擎已改读 <code>prcp_data_basic</code>，这张空表保留只为兼容</li>
+        <li>灌数前 <b>备份</b>：<code>CREATE TABLE prcp_data_basic_bak_YYYYMMDD AS SELECT * FROM prcp_data_basic;</code></li>
+        <li>灌完跑<b>总量对平</b>：Σ(末级余额) 对比新行总资产/总负债报表，误差 ≤ 0.5% 才放行</li>
+        <li>新增数据一律 <b>新 data_date</b>，不覆盖旧日期（历史可回溯）</li>
+      </ul>
+    </div>
+
+    <h3 id="s1-5">1.5 新银行准入清单（换主体场景专用）</h3>
+    <div class="chk">
+      <label><input type="checkbox"> 科目体系与编码前缀约定已确认（沿用 S01~S04 或提交代码改造单）</label>
+      <label><input type="checkbox"> 账户册新方案已建（非原地改），节点数 / 末级数 / 孤儿检查通过</label>
+      <label><input type="checkbox"> 六张引擎参数表按新账户册灌齐，覆盖率校验 0 缺口</label>
+      <label><input type="checkbox"> 基准日基础数据灌入（余额 + 64 桶），总量与行方报表对平</label>
+      <label><input type="checkbox"> 利率曲线就位（币种 / 期限点 / 日期）</label>
+      <label><input type="checkbox"> 指标口径卡完成，单位口径统一（建议百分数）</label>
+      <label><input type="checkbox"> 目标值 + 约束 + 权重配置完成（prcp_reverse_target）</label>
+      <label><input type="checkbox"> 评分红线/段位按新监管环境重定并入库</label>
+      <label><input type="checkbox"> 五大引擎基准日回验：计算值 vs 行方真实报表 ≤ 容差</label>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 2 ============ -->
+<div class="sec ph2" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>重新运行项目</h2><span class="tag tag-g">数据就绪后</span></div>
+  <div class="sec-b">
+
+    <h3 id="s2-1">2.1 ESG 情景生成</h3>
+    <p>利率情景是 EVE 与新业务模拟的输入。换方案后初始收益率曲线变了，情景必须重新生成，<b>不能复用旧情景</b>。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:210px">动作</th><th style="width:250px">落点</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>配置 ESG 方案</td><td>前端 ESG 场景工厂 / <code>prcp_esg_scheme</code></td>
+            <td>关键参数：<code>initial_yields_json</code>（新曲线初始值）、<code>n_factors</code>（HJM 因子数，当前 5）、<code>n_scenarios</code>（当前 50）、<code>n_steps</code>、<code>seed</code>（可复现）</td></tr>
+        <tr><td class="num">2</td><td>生成情景</td><td><code>prcp_esg_run</code> → <code>prcp_esg_scenario</code> → <code>prcp_esg_curve_point</code></td>
+            <td>跑完抽查：情景均值曲线应贴合初始曲线，无明显漂移</td></tr>
+        <tr><td class="num">3</td><td>曲线还原校验</td><td>ESG 曲线还原页</td>
+            <td>挑 3 个情景做反推校验，期限点插值无断点</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><b>已知缺口</b>：接口文档里 ESG 经济情景生成属 P2-4 未完成项（25 端点）。当前库内 5 套方案/15 情景是既有数据 —— 换行前先确认生成链路可用性，不可用则走脚本离线生成后导入。</div>
+
+    <h3 id="s2-2">2.2 新业务模型重新生成（重训）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:210px">动作</th><th style="width:250px">落点</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>发起训练任务</td><td>模型管理 / <code>prcp_model_train</code></td>
+            <td>指定：model_id（DNN_REG 等）+ <b>coa_scheme_id（新账户册）</b> + 训练区间 balance_date_from/to</td></tr>
+        <tr><td class="num">2</td><td>跟踪训练</td><td><code>prcp_model_train_log</code></td>
+            <td>复用运行日志的轮次/进度/ETA 观测；失败看 error_message</td></tr>
+        <tr><td class="num">3</td><td>评估与定版</td><td><code>prcp_model_train_result</code> → <code>prcp_model_version</code></td>
+            <td>比对 metrics（拟合优度/误差）；通过后设新版本为 ACTIVE，<b>旧版本保留不删</b></td></tr>
+        <tr><td class="num">4</td><td>模型参数迁移</td><td><code>prcp_model_param</code></td>
+            <td>n_candidates / acor_* / de_* / slsqp_* 等超参按新数据特性调整（建议先沿用默认跑基线）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql"><span class="c">-- 模型版本切换：新版本 ACTIVE、旧版本归档（不删）</span>
+<span class="k">UPDATE</span> prcp_model_version <span class="k">SET</span> status=<span class="s">'ARCHIVED'</span> WHERE model_id=:mid AND status=<span class="s">'ACTIVE'</span>;
+<span class="k">UPDATE</span> prcp_model_version <span class="k">SET</span> status=<span class="s">'ACTIVE'</span>  WHERE id=:new_version_id;</div>
+
+    <h3 id="s2-3">2.3 组合反算验证（先跑通再改造）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:210px">动作</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>新建组合方案</td><td>指向新账户册 + 新模型版本 + 新基准日；先各建一个 DNN / 蚁群 / 非线性方案</td></tr>
+        <tr><td class="num">2</td><td>配置目标约束</td><td>按 §1.2 第 3 步的映射表录入；建议首个方案只用 4 个核心指标跑通</td></tr>
+        <tr><td class="num">3</td><td>跑首轮反算</td><td>用现有引擎（QP 兜底）跑通全链路；日志里会打 WARN「标称算法无专属实现」属预期</td></tr>
+        <tr><td class="num">4</td><td>验证写回质量</td><td>
+            ① 末级行数 = 末级节点数 × 月数（不能只有 17 行这种半截数据）<br>
+            ② <code>is_leaf</code>/<code>category</code> 标记非空<br>
+            ③ 资产余额 Σ(末级) 与报表对平（当前基线：资产 94,786 亿 / 负债 91,578 亿 / 权益 7,862 亿同量级）</td></tr>
+        <tr><td class="num">5</td><td>驾驶舱冒烟</td><td>默认 run 能选中、KPI 非零、余额走势 24 月全非零、导出 xlsx 四个 Sheet 正常</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="chk">
+      <label><input type="checkbox"> ESG 情景用新曲线重新生成并抽查通过</label>
+      <label><input type="checkbox"> 三个模型完成重训，新版本 ACTIVE，旧版本已归档</label>
+      <label><input type="checkbox"> 新组合方案首轮反算跑通，写回数据三项检查全过</label>
+      <label><input type="checkbox"> 驾驶舱冒烟：KPI / 分布 / 走势 / 导出全部有值</label>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 3 ============ -->
+<div class="sec ph3" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>代码改造</h2><span class="tag tag-o">换行必做 · 换数据日可跳过</span></div>
+  <div class="sec-b">
+
+    <h3 id="s3-1">3.1 引擎算法调整</h3>
+    <h4>3.1.1 必改项（编码体系变化时）</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:250px">改动点</th><th style="width:260px">位置</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>大类分类规则</td><td><code>reverse_dashboard._classify</code> + <code>reverse_calc_engine._classify_node</code>（<b>两处口径必须同步</b>）</td>
+            <td>新编码前缀不在 S01~S04 / ZX_× 体系时，改这两处的判定分支；建议抽成公共常量模块</td></tr>
+        <tr><td>贷款节点识别</td><td><code>ReverseDashboard.tsx</code> 贷款加权平均利率的节点前缀、<code>reverse_calc_engine._solve_qp</code> 的按名匹配（"对公一般贷款"等）</td>
+            <td>科目名/编码全变 —— 从硬编码改为<b>可配置映射</b>（建议加到 sim_node_config 或字典表）</td></tr>
+        <tr><td>决策变量定义</td><td>引擎决策变量清单 + 前端方案表单</td>
+            <td>新行的 dynamic/fixed 科目集合不同，12 个决策变量要重新圈定</td></tr>
+        <tr><td>目标指标绑定</td><td><code>REG_*</code> 映射（METRIC_TO_REG_CODE 等）</td>
+            <td>增删指标后前端映射表与后端 kpi_code 对齐</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h4>3.1.2 强烈建议项（技术债清理，趁换行一起做）</h4>
+    <ul>
+      <li><b>废弃 <code>prcp_data_balance</code></b>：从代码与文档中移除引用，或直接 DROP（留备份表）</li>
+      <li><b>科目匹配去硬编码</b>：<code>kpi_functions/*.py</code> 里按节点名匹配的逻辑改为 node_code 驱动</li>
+      <li><b>分类规则抽公共模块</b>：一处定义、前后端共享（当前三处各写一份，已出过口径漂移）</li>
+      <li><b>标称算法 ↔ 实际求解器显式化</b>：ALGO_IMPL 已加 WARN，进一步把方案表单的算法下拉与实现清单对齐，未实现的标注"演示"</li>
+    </ul>
+
+    <h3 id="s3-2">3.2 蚁群算法落地（当前最大的功能缺口）</h3>
+    <p>现状：<code>ANT_COLONY</code> 标称方案实际跑的是 QP 兜底（引擎未实现）。换行是补齐它的最佳时机——新数据、新期望，一次到位。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:190px">动作</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>实现 ACOR 求解器</td><td>参考决策中心契约（接口文档 PDF）：蚁群粗筛（m=20, k=5, max_iter=15）+ DE 差分进化（np=30, max_iter=10）+ SLSQP 精修；参数全部从 <code>prcp_model_param</code> 读</td></tr>
+        <tr><td class="num">2</td><td>接入轮次编排</td><td>复用现有 <code>_run_rounds</code>：ALGO_ROUNDS['ACOR'] = max_iter（每轮登记状态/得分/ETA，日志面板已就绪）</td></tr>
+        <tr><td class="num">3</td><td>收敛曲线输出</td><td>按契约 trace[]{algo, iter, best} 落库，驾驶舱加收敛曲线图</td></tr>
+        <tr><td class="num">4</td><td>对照验证</td><td>同一目标下 QP vs ACOR 跑分对比：ACOR 得分应 ≥ QP（否则调参）</td></tr>
+        <tr><td class="num">5</td><td>性能压测</td><td>57 节点 × 15 轮在 1CPU 服务器上的耗时；超 5 分钟需降 max_iter 或抽样节点</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b"><b>同样欠账的还有</b>：DNN_NEURAL_NETWORK（真神经网络）与 NONLINEAR_SOLVER（真非线性求解）。建议按 ACOR → DNN → NLS 顺序排期，或先在方案表单把未实现项标注「演示算法」，管理预期。</div>
+
+    <h3 id="s3-3">3.3 代码级检查点（改造完成后逐项过）</h3>
+    <div class="chk">
+      <label><input type="checkbox"> _classify / _classify_node 两处分类口径一致（单测对拍）</label>
+      <label><input type="checkbox"> 无按中文科目名匹配的残留（全局搜"对公""零售""国债"等关键字）</label>
+      <label><input type="checkbox"> 贷款利率节点清单改为可配置</label>
+      <label><input type="checkbox"> ALGO_IMPL 覆盖新方案全部标称算法，无静默兜底</label>
+      <label><input type="checkbox"> 引擎写回含 is_leaf / category，末级行数 = 末级节点 × 月数</label>
+      <label><input type="checkbox"> 数据完整性护栏在（全 0 拒算），旧数据不被覆盖</label>
+      <label><input type="checkbox"> Python 语法检查 + 前端 tsc 通过 + 部署脚本走 release.sh</label>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 4 ============ -->
+<div class="sec ph4" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>结果展示调整</h2><span class="tag tag-p">轻量收尾</span></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">步</th><th style="width:210px">调整项</th><th style="width:250px">位置</th><th>要点</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>方案默认项</td><td>options 接口硬编码优先 <code>2026</code></td>
+            <td>改为取「最新 ACTIVE 方案」或配置项 —— 否则换行后默认还指旧方案</td></tr>
+        <tr><td class="num">2</td><td>KPI 卡片</td><td><code>ReverseDashboard.tsx</code></td>
+            <td>增删指标后同步卡片清单与图标；基期对比的方向（越高越好/越低越好）按新指标重配</td></tr>
+        <tr><td class="num">3</td><td>评分标签</td><td>0~500 分制 + 段位</td>
+            <td>新段位入库后，前端 segment_desc 直接展示；确认权重展示（v14.3 六指标权重）同步</td></tr>
+        <tr><td class="num">4</td><td>目标达成模块</td><td>targets + M12 完成率</td>
+            <td>量纲保护规则（目标与实际差 3 个数量级显示"-"）对新指标同样生效，抽查一遍</td></tr>
+        <tr><td class="num">5</td><td>导出模板</td><td>balance-export 4 Sheet</td>
+            <td>口径说明 Sheet 的方案/基准日/账户册信息随新数据自动带出；表头无中信字样残留</td></tr>
+        <tr><td class="num">6</td><td>报表项/反算指标结果表</td><td>/data-maint 系列页面</td>
+            <td>表项映射换新后，反算指标结果表（reverse-metric-table）重跑生成</td></tr>
+        <tr><td class="num">7</td><td>文案与品牌</td><td>登录页/门户/页签标题</td>
+            <td>若对外交付，检查"中信银行"字样、Logo、浏览器标题</td></tr>
+        <tr><td class="num">8</td><td>验收截图留档</td><td>docs/</td>
+            <td>新行驾驶舱全页截图（KPI/分布/走势/目标/导出）存档，作为验收基线</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="chk">
+      <label><input type="checkbox"> 默认方案指向新方案</label>
+      <label><input type="checkbox"> KPI 卡 / 评分 / 目标模块按新指标体系调整并冒烟</label>
+      <label><input type="checkbox"> 导出无旧行字样残留，验收截图已留档</label>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 5 ============ -->
+<div class="sec ph5" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>你可能没想到的（补充项）</h2><span class="tag tag-c">10 项</span></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:44px">#</th><th style="width:220px">事项</th><th>为什么重要 / 怎么做</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><b>旧数据备份与归档策略</b></td>
+            <td>切换前对 9 张核心表做 <code>CREATE TABLE xxx_bak_YYYYMM AS SELECT</code>（data_basic / data_reverse / metric_coefficient / esg_* / model_* / kpi_value）。旧数据<b>软删或归档不物理删</b>——审计与回退都靠它</td></tr>
+        <tr><td class="num">2</td><td><b>双跑并行期</b></td>
+            <td>新旧方案在库中并存（不同 scheme_code），驾驶舱下拉可切换对比。建议保留 2~4 周双跑：新方案每日跑一轮，与旧方案结果差异截图留档，确认无异常再切默认</td></tr>
+        <tr><td class="num">3</td><td><b>权限与用户</b></td>
+            <td>新方案的数据权限：谁能看、谁能跑、谁能改目标。若对外演示，准备只读账号并验证其看不到旧行数据</td></tr>
+        <tr><td class="num">4</td><td><b>演示/测试数据隔离</b></td>
+            <td>上次的教训：调试用的 run 一旦成为「最新 SUCCESS」就会污染默认选项。现已改为按数据完整度选默认，但仍建议：测试方案命名带 <code>TEST_</code> 前缀，验收前统一软删测试 run</td></tr>
+        <tr><td class="num">5</td><td><b>字典项与状态枚举</b></td>
+            <td>PRCP_RUN_STATUS / PRCP_REVERSE_ALGO / PRCP_SCHEME_TYPE 等字典：新算法、新状态要先加字典项，否则前端显示空白</td></tr>
+        <tr><td class="num">6</td><td><b>Java 版（prcp-java）同步</b></td>
+            <td>Java 版与 Python 版共用一套库！换账户册/数据后 Java 版的 coa、basic-data、KPI、反算全部受影响。两套都要冒烟，或者明确本次切换只启用 Python 版并下线/冻结 Java 版入口</td></tr>
+        <tr><td class="num">7</td><td><b>门户与跨模块联动</b></td>
+            <td>统一门户 wxfzhh.online 的入口、CURV 曲线模块（prcp_rate_curv 数据源之一）、ALMD/ALMT 是否引用同一套账户册 —— 换之前排查跨模块依赖</td></tr>
+        <tr><td class="num">8</td><td><b>性能与容量</b></td>
+            <td>新行科目数若显著多于 57（如 120+），反算决策变量、ESG 情景点数、驾驶舱查询都会变慢。压测三个点：snapshot 响应 &lt;2s、反算单轮 &lt;5min、导出 &lt;30s；服务器 1CPU 是瓶颈</td></tr>
+        <tr><td class="num">9</td><td><b>时间安排的日历风险</b></td>
+            <td>"年底"切换要避开：月末/季末结账日（数据不可用）、报表报送期（行方没人配合对数）、你的假期。建议 T-2 周冻结需求、T-1 周只修不加</td></tr>
+        <tr><td class="num">10</td><td><b>验收标准成文</b></td>
+            <td>和业务方提前签收口径：总量对平误差（≤0.5%）、五大引擎回验误差（≤行方容差）、指标值与行方报表一致性、导出可用性。写进验收单，避免"看起来不对"式的扯皮</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- ============ 6 ============ -->
+<div class="sec ph1" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>上线切换与回退</h2></div>
+  <div class="sec-b">
+    <h3>6.1 切换日流程（T 日）</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:90px">时点</th><th style="width:240px">动作</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>T-1 日</td><td>全量备份 9 张核心表</td><td>含 bak 后缀表 + mysqldump 全库一份异地存放</td></tr>
+        <tr><td>T 上午</td><td>数据终检</td><td>§1.5 准入清单全部勾完 + 双跑差异报告无红灯</td></tr>
+        <tr><td>T 下午</td><td>切默认</td><td>options 默认方案改新方案（配置或代码热更）；门户入口检查</td></tr>
+        <tr><td>T 傍晚</td><td>冒烟 + 截图</td><td>Python 版 + Java 版（若保留）全页面过一遍，截图归档</td></tr>
+        <tr><td>T+1</td><td>旧方案归档</td><td>旧 reverse_scheme/esg_scheme 置 INACTIVE（不删），从下拉隐藏</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <h3>6.2 回退方案（15 分钟内可执行）</h3>
+    <div class="sql"><span class="c">-- 回退 = 切回旧默认 + 恢复被污染的数据（如有）。代码无需回滚（新旧并存设计）</span>
+<span class="c">-- ① 默认方案切回（若默认是配置）</span>
+<span class="k">UPDATE</span> sys_config <span class="k">SET</span> value=<span class="s">'2026'</span> <span class="k">WHERE</span> key_=<span class="s">'default_reverse_scheme'</span>;
+<span class="c">-- ② 数据被污染时：软删坏 run（先查后删）</span>
+<span class="k">SELECT</span> id, run_code, start_at <span class="k">FROM</span> prcp_reverse_run
+<span class="k">WHERE</span> scheme_id=:new_sid AND status=<span class="s">'SUCCESS'</span> <span class="k">AND</span> is_deleted=0;   <span class="c">-- 人工确认后：</span>
+<span class="k">UPDATE</span> prcp_reverse_run    <span class="k">SET</span> is_deleted=1 <span class="k">WHERE</span> id=:bad_rid;
+<span class="k">UPDATE</span> prcp_data_reverse <span class="k">SET</span> is_deleted=1 <span class="k">WHERE</span> run_id=:bad_rid;
+<span class="c">-- ③ 极端情况：恢复备份表</span>
+<span class="k">RENAME TABLE</span> prcp_data_basic <span class="k">TO</span> prcp_data_basic_broken,
+             prcp_data_basic_bak_20261231 <span class="k">TO</span> prcp_data_basic;</div>
+    <div class="note ok"><b>为什么能快</b>：整套替换是「新建并存」而非「原地覆盖」——旧方案/旧数据/旧模型版本全程保留，回退只是把默认指回去。</div>
+  </div>
+</div>
+
+<!-- ============ 7 ============ -->
+<div class="sec ph0" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>交付物清单</h2></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">#</th><th style="width:260px">交付物</th><th>产出阶段</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>指标口径映射总表（含缺口清单）</td><td>§1.2</td></tr>
+        <tr><td class="num">2</td><td>新旧账户册对照表（科目映射 + 层级 + 决策变量标注）</td><td>§1.1</td></tr>
+        <tr><td class="num">3</td><td>五大引擎系数配置表 + 基准日回验报告（计算值 vs 行方报表）</td><td>§1.3</td></tr>
+        <tr><td class="num">4</td><td>数据灌入对平报告（总量误差 ≤0.5%）</td><td>§1.4</td></tr>
+        <tr><td class="num">5</td><td>ESG 情景生成记录 + 抽查报告</td><td>§2.1</td></tr>
+        <tr><td class="num">6</td><td>模型重训报告（三模型 metrics + 版本号）</td><td>§2.2</td></tr>
+        <tr><td class="num">7</td><td>双跑差异报告（新旧方案 KPI/余额对比截图）</td><td>§5.2</td></tr>
+        <tr><td class="num">8</td><td>代码改造清单（分类规则/去硬编码/蚁群落地）</td><td>§3</td></tr>
+        <tr><td class="num">9</td><td>验收基线截图包 + 验收单（签收口径成文）</td><td>§4 / §5.10</td></tr>
+        <tr><td class="num">10</td><td>备份与回退预案（含执行脚本）</td><td>§6</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b" style="margin-top:18px">
+      <b>一句话总结</b>：先立骨架（账户册）→ 再定口径（指标/参数/目标）→ 后灌数据并回验 →
+      然后让 ESG/模型/反算在新数据上重生 → 代码侧清掉硬编码并补齐蚁群 → 展示层轻调 →
+      双跑观察 → 切默认。全程「新建并存」，随时可退。
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  PRCP 业务方案替换 · 操作手册 v1.0<br>
+  6 阶段 · 28 检查点 · 10 项补充 · 含回退预案<br>
+  基线数据取自生产库 2026-11-23 实测 · 生成 2026-11-23
+</div>
+
+</div>
+</div>
+<script>
+const secs=[...document.querySelectorAll('.sec, .roadmap')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    links.forEach(l=>l.classList.remove('on'));
+    const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id); if(a)a.classList.add('on');
+  }});
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
