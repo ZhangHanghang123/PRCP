@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PRCP 业务方案替换 · 操作手册</title>
+<title>PRCP 账户册重构替换 · 操作手册</title>
 <style>
 :root{
   --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
@@ -98,14 +98,14 @@ tbody tr:hover{background:#fafbfc}
 <div class="wrap">
 <div class="nav">
   <div class="nav-t">目录</div>
-  <a href="#s0" class="on">0 适用范围与现状</a>
+  <a href="#s0" class="on">0 场景定义与现状基线</a>
   <a href="#rm">总览 · 六阶段路线图</a>
   <a href="#s1">1 基础准备</a>
-  <a href="#s1-1" class="l2">1.1 账户册梳理</a>
-  <a href="#s1-2" class="l2">1.2 指标逻辑梳理</a>
+  <a href="#s1-1" class="l2">1.1 账户册重构与节点映射</a>
+  <a href="#s1-2" class="l2">1.2 指标口径与取数节点</a>
   <a href="#s1-3" class="l2">1.3 指标计量参数梳理</a>
   <a href="#s1-4" class="l2">1.4 底层数据准备</a>
-  <a href="#s1-5" class="l2">1.5 新银行准入清单</a>
+  <a href="#s1-5" class="l2">1.5 切换准入清单</a>
   <a href="#s2">2 重新运行项目</a>
   <a href="#s2-1" class="l2">2.1 ESG 情景生成</a>
   <a href="#s2-2" class="l2">2.2 新业务模型重训</a>
@@ -122,10 +122,11 @@ tbody tr:hover{background:#fafbfc}
 <div class="main">
 
 <div class="hd">
-  <h1>PRCP 业务方案替换 · 操作手册</h1>
-  <div class="sub">年底更换业务方案（换行 / 换银行主体 / 换一套资产负债口径）时的全量替换步骤</div>
+  <h1>PRCP 账户册重构替换 · 操作手册</h1>
+  <div class="sub">同一家银行 · 账户册重构 + 新基准日 + 指标计量口径联动的全量替换步骤</div>
   <div style="margin-bottom:12px">
     <span class="tag tag-b">6 阶段</span>
+    <span class="tag tag-c">含账户册变更传导链</span>
     <span class="tag tag-g">28 项检查点</span>
     <span class="tag tag-o">含回退方案</span>
     <span class="tag tag-p">基于生产库实测</span>
@@ -133,6 +134,7 @@ tbody tr:hover{background:#fafbfc}
   <div class="meta">
     <div>产品 <b>PRCP 组合反算平台</b></div>
     <div>当前基线 <b>ZX_COA · 57 节点 · 2025-12-31</b></div>
+    <div>目标 <b>ZX_COA_2026 · 新基准日</b></div>
     <div>版本 <b>v1.0</b></div>
     <div>日期 <b>2026-11-23</b></div>
   </div>
@@ -142,21 +144,59 @@ tbody tr:hover{background:#fafbfc}
 <div class="sec ph0" id="s0">
   <div class="sec-h"><div class="sec-n">0</div><h2>适用范围与现状基线</h2></div>
   <div class="sec-b">
-    <h3>0.1 三种替换场景</h3>
+    <h3>0.1 本次场景定义：同一家银行 · 账户册重构 + 新基准日 + 口径联动</h3>
+    <div class="note note-b" style="margin-top:0">
+      <b>场景</b>：同一家银行，但 ① <b>账户册要变</b>（科目/层级/编码可能调整）、
+      ② <b>基准日要变</b>（如 2025-12-31 → 2026-12-31）、
+      ③ <b>因账户册变了，指标计量口径也要变</b>。
+    </div>
+    <p><b>这个场景的特殊性</b>：不是"换个日期"那么简单。账户册一变，
+    节点集、末级集、大类归属、决策变量、指标取数科目全部变，
+    而指标口径是"公式不变、实现变"—— 监管公式（LCR/NSFR/CET1 的定义）同一家银行通常不变，
+    但<b>公式落到哪些科目上</b>必须重做。这是本手册的核心难点。</p>
+
+    <h4>0.1.1 三要素变化矩阵</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:140px">变化要素</th><th style="width:230px">变的是什么</th><th style="width:150px">是否一定变</th><th>连带影响</th></tr></thead>
+      <tbody>
+        <tr><td><b>基准日</b></td><td>数据时点</td><td><span class="tag tag-g">一定变</span></td>
+            <td>基础数据、KPI 基期值、ESG 初始曲线、模型训练区间、目标值基准</td></tr>
+        <tr><td><b>账户册结构</b></td><td>节点集 / 层级 / 编码 / 末级</td><td><span class="tag tag-o">视调整幅度</span></td>
+            <td>决策变量、五大引擎系数、指标取数科目、驾驶舱汇总口径</td></tr>
+        <tr><td><b>指标计量口径</b></td><td>指标「取哪些科目」</td><td><span class="tag tag-r">随账户册变</span></td>
+            <td>六张参数表、评分回验、目标达成判定、导出结果</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>0.1.2 其他场景（供对照，本文按上述主场景编写）</h4>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:150px">场景</th><th style="width:300px">含义</th><th style="width:110px">工作量</th><th>说明</th></tr></thead>
       <tbody>
-        <tr><td><b>A. 换数据日期</b></td><td>同一家银行，基准日从 2025-12-31 换到新年度（如 2026-12-31）</td><td><span class="tag tag-g">小</span></td>
-            <td>账户册结构不变，主要是重灌基础数据 + 重跑模型；本文 §1.4/§2 为主</td></tr>
-        <tr><td><b>B. 换银行主体</b></td><td>从中信银行换成另一家银行的账户册与数据</td><td><span class="tag tag-o">中</span></td>
-            <td>账户册重梳、编码体系可能变（S01× 前缀约定）、五大引擎系数全部重算；本文全流程适用</td></tr>
-        <tr><td><b>C. 换口径/方法</b></td><td>同一家银行，但指标口径或计量方法调整（如 EVE 改现值法）</td><td><span class="tag tag-r">大</span></td>
-            <td>涉及代码改造（§3）为主，数据层可复用</td></tr>
+        <tr><td><b>B. 换银行主体</b></td><td>换成另一家银行的账户册与数据</td><td><span class="tag tag-r">大</span></td>
+            <td>编码体系、监管环境、指标定义全变；本文主场景之外最大的变体</td></tr>
+        <tr><td><b>C. 换口径/方法</b></td><td>指标口径或计量方法调整（如 EVE 改现值法）</td><td><span class="tag tag-r">大</span></td>
+            <td>代码改造为主，数据层可复用</td></tr>
+        <tr><td><b>D. 仅换日期</b></td><td>账户册不变，只换基准日</td><td><span class="tag tag-g">小</span></td>
+            <td>本文主场景去掉 §1.1 / §1.3 即可</td></tr>
       </tbody>
     </table>
     </div>
-    <div class="note note-b"><b>本文按场景 B（最全）编写</b>，A / C 场景按章节标注裁剪即可。</div>
+
+    <h4>0.1.3 最重要的一条纪律：<b>公式不变 ≠ 口径不变</b></h4>
+    <div class="note warn">
+      同一家银行的 <b>LCR 公式</b>（HQLA / 净现金流出）不会变，但<b>账户册重构后，
+      分子分母对应哪些节点</b>一定会变。例如：
+      <ul style="margin:8px 0 0">
+        <li>「同业活期存款」被拆成「同业活期存款-一般户」+「同业活期存款-专用户」
+          → LCR 流出端的取数要改成<b>两项合计</b></li>
+        <li>「其他资产」被并入「其他资产（含应收）」→ NSFR 的 RSF 系数需要重新标定</li>
+        <li>「国债」重分类为「交易性金融资产」→ EVE 的 is_asset 标记要跟着改</li>
+      </ul>
+      <b>所以 §1.2 的产出必须是一张「指标 → 取数节点清单」表，而不是一句口径描述。</b>
+    </div>
 
     <h3>0.2 生产库现状基线（2026-11-23 实测）</h3>
     <div class="tbl">
@@ -174,7 +214,58 @@ tbody tr:hover{background:#fafbfc}
     </table>
     </div>
 
-    <h3>0.3 关键代码位置速查</h3>
+    <h3>0.3 账户册变更 → 影响面传导链</h3>
+    <p>这是本次场景最核心的一张图：<b>账户册的任何一处改动，会沿链条向下传导到哪些模块</b>。
+    先做这张传导分析，再动手，避免漏改。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:150px">账户册改动</th><th style="width:170px">直接影响</th>
+        <th style="width:190px">向下传导到</th><th>动作</th>
+      </tr></thead>
+      <tbody>
+        <tr class="impact-high">
+          <td><b>节点集变化</b><br><span style="font-size:11px;color:#8f959e">增/删/拆/并科目</span></td>
+          <td>末级节点集合</td>
+          <td>驾驶舱「末级余额分布」「余额走势」「节点矩阵」；反算写回行数</td>
+          <td>重建 <code>prcp_data_basic</code>；<code>is_leaf</code> 重标</td></tr>
+        <tr class="impact-high">
+          <td><b>层级变化</b><br><span style="font-size:11px;color:#8f959e">层级数/父子关系</span></td>
+          <td>roll-up 路径</td>
+          <td>大类汇总（资产/负债/权益金额）；父节点余额</td>
+          <td>父节点值由子树末级汇总，<b>不要手填</b></td></tr>
+        <tr class="impact-high">
+          <td><b>编码变化</b><br><span style="font-size:11px;color:#8f959e">S01/S02 前缀或编码规则</span></td>
+          <td>大类判定</td>
+          <td>驾驶舱 KPI（资产/负债余额）、分类口径、导出结果</td>
+          <td>若前缀规则变了 → <b>必须改代码</b>（见 §3.1，两处口径同步）</td></tr>
+        <tr class="impact-mid">
+          <td><b>科目属性变化</b><br><span style="font-size:11px;color:#8f959e">科目被重分类</span></td>
+          <td>科目的资产/负债/表外归属</td>
+          <td>五大引擎参数（是否计入 HQLA / ASF / RWA）；指标分子分母</td>
+          <td>重标 is_asset/is_liability；重算系数</td></tr>
+        <tr class="impact-mid">
+          <td><b>决策变量集合变化</b><br><span style="font-size:11px;color:#8f959e">dynamic/fixed 调整</span></td>
+          <td>算法可优化范围</td>
+          <td>反算结果、经济价值、摆布方案</td>
+          <td>同步引擎决策变量清单 + 前端方案表单</td></tr>
+        <tr class="impact-high">
+          <td><b>指标取数科目变化</b><br><span style="font-size:11px;color:#8f959e">拆分/合并/改名</span></td>
+          <td>指标实现口径</td>
+          <td>六张参数表、评分回验、目标达成、驾驶舱 KPI 卡</td>
+          <td>见 §1.2 —— <b>产出「指标→取数节点」清单</b></td></tr>
+        <tr class="impact-mid">
+          <td><b>期限桶分布变化</b><br><span style="font-size:11px;color:#8f959e">orig/rem 64 桶</span></td>
+          <td>现金流时序</td>
+          <td>EVE 折现、NSFR 稳定性、LCR 优化期</td>
+          <td>随新基准日重新灌入</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><b>用法</b>：把新旧账户册的差异逐条填进这张表（§1.1 第 3 步产出），
+    每条差异自动带出要改的模块清单 —— 这张表就是替换工作的<b>任务工单</b>。</div>
+
+    <h3>0.4 关键代码位置速查</h3>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:250px">模块</th><th style="width:300px">文件</th><th>改动敏感度</th></tr></thead>
@@ -193,10 +284,10 @@ tbody tr:hover{background:#fafbfc}
 
 <!-- ============ 路线图 ============ -->
 <div class="roadmap" id="rm">
-  <div class="rm-t">🧭 总览 · 六阶段路线图（建议总工期 5~7 周，A 场景可压缩到 2 周）</div>
+  <div class="rm-t">🧭 总览 · 六阶段路线图（本次场景：账户册重构 + 新基准日 + 口径联动，建议总工期 6~8 周）</div>
   <div class="rm-row">
     <div class="rm-step c1"><div class="num">PHASE 1</div><div class="nm">基础准备</div>
-      <div class="ds">账户册 · 指标逻辑 · 计量参数 · 底层数据</div><div class="wk">≈ 2 周</div></div>
+      <div class="ds">账户册重构 · 节点映射 · 口径取数 · 参数 · 数据</div><div class="wk">≈ 3 周</div></div>
     <div class="rm-arrow">→</div>
     <div class="rm-step c2"><div class="num">PHASE 2</div><div class="nm">重新运行项目</div>
       <div class="ds">ESG 情景 → 模型重训 → 反算验证</div><div class="wk">≈ 1 周</div></div>
@@ -214,7 +305,7 @@ tbody tr:hover{background:#fafbfc}
     <div class="rm-step c1"><div class="num">PHASE 6</div><div class="nm">收尾归档</div>
       <div class="ds">旧数据归档 · 文档同步 · 复盘</div><div class="wk">≈ 1 天</div></div>
   </div>
-  <div class="note note-b" style="margin-bottom:0"><b>并行建议</b>：Phase 1 的账户册梳理是后续一切的前置；1.2/1.3 可与 1.4 并行；Phase 3 的代码改造可提前到 Phase 1 期间启动（先读后改）。</div>
+  <div class="note note-b" style="margin-bottom:0"><b>并行建议</b>：Phase 1 的<b>新旧节点映射表</b>是后续一切的前置，必须先出；1.2 指标口径与 1.4 数据准备可并行（都等映射表）；Phase 3 的代码改造可提前到 Phase 1 期间启动（先读后改）。<br><b>关键路径</b>：映射表 → 指标取数清单 → 参数迁移 → 数据灌入 → 反算验证 → 切默认。任一环延误，全链路顺延。</div>
 </div>
 
 <!-- ============ 1 ============ -->
@@ -222,27 +313,66 @@ tbody tr:hover{background:#fafbfc}
   <div class="sec-h"><div class="sec-n">1</div><h2>基础准备</h2><span class="tag tag-b">一切的前置</span></div>
   <div class="sec-b">
 
-    <h3 id="s1-1">1.1 账户册梳理</h3>
-    <p>账户册是全链路的骨架：五大引擎参数、基础数据、驾驶舱汇总、反算决策变量全部挂在节点上。先定结构，再灌数据。</p>
+    <h3 id="s1-1">1.1 账户册梳理与重构</h3>
+    <p>账户册是全链路的骨架：五大引擎参数、基础数据、驾驶舱汇总、反算决策变量全部挂在节点上。
+    本次是<b>同一家银行的账户册重构</b>，所以不是从零建，而是在旧册基础上做<b>差异映射</b>。</p>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:44px">步</th><th style="width:200px">动作</th><th style="width:280px">落点（表/页面）</th><th>要点</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>取得新银行科目体系</td><td>——</td>
-            <td>总账科目表 / 监管报表 G01/G32 / FTP 口径表，三选一作为权威源</td></tr>
-        <tr><td class="num">2</td><td>确定层级与末级</td><td>新 <code>prcp_coa_scheme</code> + <code>prcp_coa_node</code></td>
-            <td>ZX_COA 是 6 级 57 节点。新行可能 4~5 级，<b>末级必须承载余额</b>（父级余额灌 0，展示层靠 roll-up）</td></tr>
-        <tr><td class="num">3</td><td><b>确定编码前缀约定</b></td><td><code>node_code</code></td>
-            <td>当前代码按 <code>S01=资产 / S02=负债 / S03=权益 / S04=表外</code> 分类。新行若沿用此约定则免改代码；否则必须改 <code>_classify</code> 与 <code>_classify_node</code>（见 §3.3）</td></tr>
-        <tr><td class="num">4</td><td>标注决策变量</td><td>节点备注 / <code>prcp_sim_node_config</code></td>
-            <td>哪些末级科目参与算法优化（dynamic）、哪些固定（fixed）；ZX_COA 是 12 个决策变量 + 权益</td></tr>
-        <tr><td class="num">5</td><td>录入系统</td><td>前端「账户册维护」/prcp/coa</td>
-            <td>建<b>新方案</b>（如 <code>BANK2_COA_2026</code>），设置 ACTIVE；<b>不要在 ZX_COA 上原地改</b></td></tr>
-        <tr><td class="num">6</td><td>结构自检</td><td>SQL 校验</td>
+        <tr><td class="num">1</td><td>取得新年度科目体系</td><td>——</td>
+            <td>同一家银行的总账科目表 / 监管报表 / 内部管理口径表。重点问清：<b>相比旧册哪些科目增删拆并</b></td></tr>
+        <tr><td class="num">2</td><td>逐条做<b>新旧差异清单</b></td><td>Excel 差异表（见下方格式）</td>
+            <td>这是本次场景的<b>核心产出</b>。每条差异标注变更类型与影响模块（用 §0.3 传导链）</td></tr>
+        <tr><td class="num">3</td><td>确定层级与末级</td><td>新 <code>prcp_coa_scheme</code> + <code>prcp_coa_node</code></td>
+            <td>旧册是 6 级 57 节点。新册若层级变了（如新增 IFRS9 层），<b>末级必须承载余额</b>（父级余额灌 0，展示层靠 roll-up）</td></tr>
+        <tr><td class="num">4</td><td><b>确定编码前缀约定</b></td><td><code>node_code</code></td>
+            <td>当前代码按 <code>S01=资产 / S02=负债 / S03=权益 / S04=表外</code> 分类。
+            同一家银行通常沿用，但<b>新增科目若插在编码中间会打乱顺序</b>（如 S0101 与 S0102 之间插入新号），
+            必须确认前缀语义不变，否则要改 §3.1 的两处分类规则</td></tr>
+        <tr><td class="num">5</td><td>标注决策变量</td><td>节点备注 / <code>prcp_sim_node_config</code></td>
+            <td>哪些末级科目参与算法优化（dynamic）、哪些固定（fixed）。旧册是 12 个决策变量 + 权益，
+            账户册变了这个集合通常要重圈</td></tr>
+        <tr><td class="num">6</td><td>录入系统</td><td>前端「账户册维护」/prcp/coa</td>
+            <td>建<b>新方案</b>（如 <code>ZX_COA_2026</code>），设置 ACTIVE；<b>不要在 ZX_COA 上原地改</b></td></tr>
+        <tr><td class="num">7</td><td>结构自检</td><td>SQL 校验</td>
             <td>父子闭环（无孤儿）、每条路径到根、末级占比、大类划分 100% 覆盖</td></tr>
       </tbody>
     </table>
     </div>
+
+    <h4>1.1.1 新旧节点映射表（必须产出，是后续所有工作的桥梁）</h4>
+    <p>这张表把旧账户册和新账户册连起来。有了它，指标口径才能迁移、参数才能复用、结果才能对比。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:120px">旧 node_code</th><th style="width:130px">旧节点名</th>
+        <th style="width:120px">新 node_code</th><th style="width:130px">新节点名</th>
+        <th style="width:100px">变更类型</th><th>处理方式</th>
+      </tr></thead>
+      <tbody>
+        <tr><td>S010101010000</td><td>1.1.对公一般贷款</td><td>S010101010000</td><td>1.1.对公一般贷款</td>
+            <td><span class="tag tag-y">不变</span></td><td>映射 1:1，参数与口径直接沿用</td></tr>
+        <tr><td>S020101010100</td><td>1.1.1对公活期存款</td><td>S020101010100 / S020101010101</td>
+            <td>对公活期存款-一般户 / -专用户</td>
+            <td><span class="tag tag-o">拆分</span></td>
+            <td>指标取数改为<b>两项合计</b>；参数按新科目分别配置；末级判定重标</td></tr>
+        <tr><td>S010104000000</td><td>其他资产</td><td>S010104000000</td><td>其他资产（含应收）</td>
+            <td><span class="tag tag-o">合并</span></td><td>取数点不变，但 <b>RSF/权重系数要重新标定</b>（合并了不同风险特征）</td></tr>
+        <tr><td>S030100000000</td><td>交易性金融资产</td><td>S030101000000</td><td>（重分类至交易性）</td>
+            <td><span class="tag tag-r">重分类</span></td>
+            <td><b>大类归属变了</b> → 资产/权益口径、EVE is_asset 标记全部要重标</td></tr>
+        <tr><td>—</td><td>（无）</td><td>S010109000000</td><td>新科目（IFRS9 三阶段）</td>
+            <td><span class="tag tag-b">新增</span></td><td>补参数、决定是否进决策变量、补进指标取数</td></tr>
+        <tr><td>S020105000000</td><td>已核销贷款</td><td>—</td><td>（取消）</td>
+            <td><span class="tag tag-r">取消</span></td><td>从所有指标取数与参数中剔除，<b>检查是否影响历史指标口径</b></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><b>变更类型只有 6 种</b>：不变 / 拆分 / 合并 / 重分类 / 新增 / 取消。
+    每种对应固定的处理套路（见 §1.2.2），照着做就不会漏。</div>
+
+    <h4>1.1.2 结构自检 SQL</h4>
     <div class="sql"><span class="c">-- 账户册结构自检（新方案入库后执行，四项应分别为 0 / 总数 / ≥90% / 1.0）</span>
 <span class="k">SELECT</span>
   (SELECT COUNT(*) FROM prcp_coa_node c LEFT JOIN prcp_coa_node p ON p.id=c.parent_id
@@ -250,85 +380,188 @@ tbody tr:hover{background:#fafbfc}
   COUNT(*)                                                              <span class="k">AS</span> 总节点,
   SUM(c.is_leaf)/COUNT(*)                                               <span class="k">AS</span> 末级占比,
   SUM(c.node_code LIKE <span class="s">'S0%'</span> OR c.node_code LIKE <span class="s">'ZX_%'</span>)/COUNT(*) <span class="k">AS</span> 编码覆盖率
-FROM prcp_coa_node c WHERE c.scheme_id=:new AND c.is_deleted=0;</div>
+FROM prcp_coa_node c WHERE c.scheme_id=:new AND c.is_deleted=0;
 
-    <h3 id="s1-2">1.2 指标逻辑梳理</h3>
-    <p>明确"算什么、怎么算、目标是什么"。输出一张<b>指标映射总表</b>，它是后面参数配置与验收的唯一依据。</p>
+<span class="c">-- 新旧规模对比：节点数、末级数、层级分布差异是否在预期内</span>
+<span class="k">SELECT</span> c.node_level, COUNT(*) 节点数, SUM(c.is_leaf) 末级数
+FROM prcp_coa_node c WHERE c.scheme_id IN (:old, :new) AND c.is_deleted=0
+GROUP BY c.node_level ORDER BY c.node_level;</div>
+
+    <h3 id="s1-2">1.2 指标逻辑与计量口径梳理（随账户册联动）</h3>
+    <p>本次场景的关键：<b>指标定义（监管公式）不变，但指标实现的取数科目随账户册变</b>。
+    所以产出物不是一段口径描述，而是一张可执行的
+    <b>「指标 → 取数节点清单」</b>。</p>
+
+    <h4>1.2.1 产出物：指标取数节点清单</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:110px">kpi_code</th><th style="width:120px">指标</th>
+        <th style="width:130px">口径角色</th><th style="width:200px">旧取数节点</th>
+        <th style="width:200px">新取数节点</th><th>变更类型</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>REG_LCR</code></td><td>流动性覆盖率</td><td>分子 HQLA</td>
+            <td>S010103000000 国债 + S010101000000 贷款</td>
+            <td>S010103000000 + S010103001000(新增交易性)</td><td><span class="tag tag-o">改</span></td></tr>
+        <tr><td><code>REG_LCR</code></td><td>流动性覆盖率</td><td>分母 净流出</td>
+            <td>S020101010100 对公活期存款</td>
+            <td>S020101010100 + S020101010101（拆分后合计）</td><td><span class="tag tag-o">拆分</span></td></tr>
+        <tr><td><code>REG_NSFR</code></td><td>净稳定资金比例</td><td>ASF 系数表</td>
+            <td>S020101010200 对公定期存款</td>
+            <td>同左 + 新的长期稳定来源科目</td><td><span class="tag tag-g">扩</span></td></tr>
+        <tr><td><code>REG_CET1</code></td><td>核心一级资本充足率</td><td>RWA 权重</td>
+            <td>S010101010000 对公一般贷款</td>
+            <td>同左，但 <b>风险权重档位重标</b>（新口径调整了部分行业权重）</td><td><span class="tag tag-o">改</span></td></tr>
+        <tr><td><code>REG_ROE</code></td><td>净资产收益率</td><td>净利润 / 权益</td>
+            <td>S030100000000 权益</td>
+            <td>权益科目重分类后 <b>取数点要跟着改</b></td><td><span class="tag tag-r">重分类</span></td></tr>
+        <tr><td><code>REG_EVE</code></td><td>经济价值变动</td><td>is_asset/is_liability</td>
+            <td>逐节点资产/负债标记</td>
+            <td>重分类科目的标记全部重标</td><td><span class="tag tag-r">重分类</span></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok"><b>这张表怎么用</b>：一行 = 一个取数点。右列的每个节点都必须能在新账户册里找到；
+    找不到的，说明该指标在新体系下<b>取不到数</b> → 要么改口径，要么标 missing（不参与评分）。</div>
+
+    <h4>1.2.2 六种账户册变更 → 指标口径处理套路</h4>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:100px">变更类型</th><th style="width:230px">对指标的影响</th><th>处理套路</th></tr></thead>
+      <tbody>
+        <tr><td><b>不变</b></td><td>无</td><td>映射 1:1，参数与口径直接沿用</td></tr>
+        <tr><td><b>拆分</b> 1→N</td><td>原取数点变多个</td>
+            <td>指标改为<b>多项合计</b>；N 项各自配参数；
+            <b>合计口径与旧口径可比</b>（否则目标值要重定）</td></tr>
+        <tr><td><b>合并</b> N→1</td><td>多个取数点变一个</td>
+            <td>取数点收敛；但<b>合并的科目风险特征不同，系数要重新标定</b>（不能直接沿用旧系数）</td></tr>
+        <tr><td><b>重分类</b></td><td>大类归属变</td>
+            <td><b>最危险的一类</b>：影响资产/负债/权益总额、所有比率的分子分母、EVE 标记。
+            必须全量复核该科目在所有指标中的角色</td></tr>
+        <tr><td><b>新增</b></td><td>可能补齐原缺口</td>
+            <td>补参数；判断是否纳入指标（纳入则目标值口径也要相应调整）</td></tr>
+        <tr><td><b>取消</b></td><td>取数点消失</td>
+            <td>从指标取数中剔除；<b>检查该指标在新口径下是否仍可算</b>；
+            若成为关键缺口 → 该指标本期标 missing，不参与评分</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h4>1.2.3 其余指标要素（口径卡其余部分）</h4>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:44px">步</th><th style="width:200px">动作</th><th style="width:260px">落点</th><th>要点</th></tr></thead>
       <tbody>
         <tr><td class="num">1</td><td>盘点指标清单</td><td><code>prcp_kpi_definition</code></td>
-            <td>当前 8 指标制：LCR / NSFR / CET1 / CAR / ROE / EVE / IBL / LR。新银行增删指标在此定义（kpi_code 建议 <code>REG_</code> 前缀保持一致）</td></tr>
-        <tr><td class="num">2</td><td>逐指标写口径卡</td><td>文档（附录模板）</td>
-            <td>分子/分母取哪些科目、时点值还是均值、单位（小数 or 百分数）——<b>单位口径必须全表统一</b>，当前体系是百分数（ROE 12.72、LCR 148.92）</td></tr>
+            <td>当前 8 指标制：LCR / NSFR / CET1 / CAR / ROE / EVE / IBL / LR（<code>REG_</code> 前缀）。新年度增删在此定义</td></tr>
+        <tr><td class="num">2</td><td>统一<b>单位口径</b></td><td>口径卡</td>
+            <td><b>全表统一用百分数</b>（ROE 12.72 / LCR 148.92）。拆分合并时最容易出现"一个用小数一个用百分数"</td></tr>
         <tr><td class="num">3</td><td>对齐目标值</td><td><code>prcp_reverse_target</code></td>
-            <td>每指标目标 + 约束方向（GE/LE）+ 权重 + 生效期；注意与评分分段表的量纲一致</td></tr>
+            <td>目标 + 约束方向（GE/LE）+ 权重 + 生效期。
+            <b>账户册重构后若指标口径实质变化，目标值要重新与业务方确认</b>（不是照抄旧目标）</td></tr>
         <tr><td class="num">4</td><td>确认红线/段位</td><td><code>prcp_kpi_score_rule/_segment</code></td>
-            <td>23 段制是监管红线 → 危险 → 预警 → 安全 → 过优。新银行的监管环境不同，段位边界要重定</td></tr>
-        <tr><td class="num">5</td><td>明确不可推导项</td><td>口径表"缺口"列</td>
-            <td>列出缺数据列的指标（如 IBL/LR 当前就是占位 0），要么补数据源、要么明确标记 missing</td></tr>
+            <td>23 段制（红线→危险→预警→安全→过优）。同一家银行监管环境不变时可沿用；
+            若内部考核标准调整则重定</td></tr>
+        <tr><td class="num">5</td><td>标注缺口</td><td>口径表"缺口"列</td>
+            <td>取不到数的指标明确标 missing（如 IBL/LR 当前是占位 0），不参与评分</td></tr>
+        <tr><td class="num">6</td><td><b>新旧口径可比性判断</b></td><td>专项说明</td>
+            <td>逐指标回答：<b>新口径下算出的值与旧口径是否可直接比较？</b>
+            若不可比（如 LCR 分子纳入了新的高流动性资产），就要在对比报告里标注断点，
+            否则双跑期会误判为"结果劣化"</td></tr>
       </tbody>
     </table>
     </div>
 
     <h3 id="s1-3">1.3 指标计量参数梳理（五大引擎系数）</h3>
-    <p>五大引擎（LCR/NSFR/CET1/EVE/NIM/ROE）的系数是<b>按科目</b>配置的，换账户册 = 全部重配。</p>
+    <p>五大引擎（LCR/NSFR/CET1/EVE/NIM/ROE）的系数是<b>按科目节点</b>配置的 ——
+    账户册一变，参数表的行集合就变；口径一变，同一科目的系数也要重标。</p>
     <div class="tbl">
     <table>
-      <thead><tr><th style="width:180px">参数表</th><th style="width:240px">关键字段</th><th>换行时来源</th></tr></thead>
+      <thead><tr><th style="width:180px">参数表</th><th style="width:230px">关键字段</th><th style="width:180px">换册时的处理</th><th>说明</th></tr></thead>
       <tbody>
-        <tr><td><code>prcp_lcr_param</code></td><td>scheme_code + node_code + 折算率（流入/流出）</td><td>新行流动性报表逐科目折算系数</td></tr>
-        <tr><td><code>prcp_nsfr_param</code></td><td>ASF/RSF 系数</td><td>NSFR 报表口径</td></tr>
-        <tr><td><code>prcp_cet1_param</code></td><td>风险权重 / 资本扣减项</td><td>资本管理办法权重表</td></tr>
-        <tr><td><code>prcp_eve_param</code></td><td>is_asset / is_liability / duration</td><td>利率风险计量口径（重定价期限）</td></tr>
-        <tr><td><code>prcp_nim_param</code> / <code>prcp_roe_param</code></td><td>利率 / 收益率参数</td><td>FTP 定价与新行财务计划</td></tr>
+        <tr><td><code>prcp_lcr_param</code></td><td>scheme_code + node_code + 折算率（流入/流出）</td>
+            <td>按新册<b>重灌</b></td><td>拆分后每个新科目都要有折算率；合并的要重新标定</td></tr>
+        <tr><td><code>prcp_nsfr_param</code></td><td>ASF / RSF 系数</td>
+            <td>按新册重灌 + 系数复核</td><td>合并科目风险特征变化，RSF 不可直接沿用旧值</td></tr>
+        <tr><td><code>prcp_cet1_param</code></td><td>风险权重 / 资本扣减项</td>
+            <td>按新册重灌 + 权重档位复核</td><td>关注新年度监管权重调整</td></tr>
+        <tr><td><code>prcp_eve_param</code></td><td>is_asset / is_liability / duration</td>
+            <td><b>逐节点重标</b></td><td><b>重分类科目必改</b>；duration 随期限桶分布变化</td></tr>
+        <tr><td><code>prcp_nim_param</code> / <code>prcp_roe_param</code></td><td>利率 / 收益率参数</td>
+            <td>按新册重灌</td><td>FTP 定价随年度调整</td></tr>
       </tbody>
     </table>
     </div>
-    <div class="note"><b>顺序提醒</b>：参数表的 <code>scheme_code</code> 指向<b>账户册方案</b>（ZX_COA），不是组合方案。新账户册建好后先灌参数、再做系数回验（用基准日数据跑一遍引擎，比对行方真实报表误差 ≤ 容差）。</div>
+    <div class="note"><b>顺序提醒</b>：参数表的 <code>scheme_code</code> 指向<b>账户册方案</b>（ZX_COA），
+    不是组合方案。新账户册建好后<b>先灌参数、再做系数回验</b>（用新基准日数据跑一遍引擎，
+    比对行方真实报表误差 ≤ 容差）。</div>
+    <div class="note note-b"><b>参数复用策略（省时但不省心）</b>：
+    用 §1.1.1 的新旧映射表做<b>自动化迁移</b> —— 不变/改名的科目直接带过旧参数，
+    拆分的按比例或按新标定，合并的重标，新增的补，删除的丢弃。
+    <b>但「不变」只指科目映射，参数值仍需抽样复核</b>（至少覆盖每个指标的关键取数点）。</div>
     <div class="sql"><span class="c">-- 系数覆盖率校验：应返回 0 行（每个有余额的末级科目在六张参数表都有系数）</span>
 <span class="k">SELECT</span> n.node_code, n.node_name
 FROM prcp_coa_node n
 JOIN prcp_data_basic b ON b.coa_node_id=n.id AND b.data_date=:d AND b.is_deleted=0
 LEFT JOIN prcp_lcr_param p ON p.node_code=n.node_code AND p.scheme_code=:coa AND p.is_deleted=0
 WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
-  AND b.current_balance&lt;&gt;0 AND p.id IS NULL;</div>
+  AND b.current_balance&lt;&gt;0 AND p.id IS NULL;
 
-    <h3 id="s1-4">1.4 底层数据准备</h3>
+<span class="c">-- 参数表 scheme_code 指向账户册方案，新旧册各一套，切换后需确认指向</span>
+<span class="k">SELECT</span> scheme_code, COUNT(*) 参数行数 FROM prcp_lcr_param <span class="k">WHERE</span> is_deleted=0 <span class="k">GROUP BY</span> scheme_code;</div>
+
+    <h3 id="s1-4">1.4 底层数据准备（新基准日 + 新账户册）</h3>
+    <p>本次是<b>新基准日 + 新账户册</b>双变：数据要按新节点集、在新日期上重灌。
+    旧日期数据保留（可回溯、可对比）。</p>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:230px">数据表</th><th style="width:150px">粒度</th><th>准备内容与要点</th></tr></thead>
       <tbody>
-        <tr><td><code>prcp_data_basic</code> <span class="tag tag-r">核心</span></td><td>账户册 × 基准日</td>
-            <td>每末级科目一行：<code>current_balance</code>（余额，父级留 0）+ <code>orig_m1..m60 / rem_m1..m60</code>（<b>64 期限桶</b>：剩余现金流分布）。注意 <b>is_leaf 标记必须正确</b>，驾驶舱末级判定依赖它</td></tr>
+        <tr><td><code>prcp_data_basic</code> <span class="tag tag-r">核心</span></td><td>新账户册 × 新基准日</td>
+            <td>每个末级科目一行：<code>current_balance</code>（余额，父级留 0）+ <code>orig_m1..m60 / rem_m1..m60</code>（<b>64 期限桶</b>：剩余现金流分布）。
+            注意 <b>is_leaf 标记必须正确</b>，驾驶舱末级判定依赖它；
+            <b>节点集按新册</b>，不是把旧册的行改个日期</td></tr>
         <tr><td><code>prcp_rate_curv / prcp_rate_point</code></td><td>曲线 × 期限点</td>
-            <td>国债/ Shibor 曲线（EVE 折现用）。若沿用 CN_SOV_CNY 只需追加新日期点位；换币种则新建曲线方案</td></tr>
-        <tr><td><code>prcp_kpi_value</code></td><td>KPI × 日期</td><td>新银行基准日真实指标值（用于 T0 基线与评分回验）</td></tr>
-        <tr><td><code>prcp_metric_coefficient</code></td><td>账户册方案 × 节点 × 月份</td><td>5 指标逐月系数（反算结果的对比基线）。由引擎跑出或从历史导入</td></tr>
-        <tr><td>报表项映射</td><td><code>prcp_rpt_*</code></td><td>若新行有专属报表（G01 等），表项与节点映射重配</td></tr>
+            <td>国债/Shibor 曲线（EVE 折现用）。同一家银行沿用 CN_SOV_CNY，只需<b>追加新日期点位</b>；
+            若年度间收益率中枢变化大，新日期必须真实取数</td></tr>
+        <tr><td><code>prcp_kpi_value</code></td><td>KPI × 新日期</td>
+            <td>新基准日的真实指标值（用于 T0 基线与评分回验）。<b>必须按新口径重算</b>，不能沿用旧值</td></tr>
+        <tr><td><code>prcp_metric_coefficient</code></td><td>账户册方案 × 节点 × 月份</td>
+            <td>5 指标逐月系数（反算结果的对比基线）。由引擎跑出或从历史导入；节点集变化后要重新生成</td></tr>
+        <tr><td>报表项映射</td><td><code>prcp_rpt_*</code></td>
+            <td>表项与节点的映射随新册重配</td></tr>
+        <tr><td><b>新基准日的 ESG 初始曲线</b></td><td><code>prcp_esg_scheme.initial_yields_json</code></td>
+            <td>见 §2.1，与数据准备同批完成</td></tr>
       </tbody>
     </table>
     </div>
-    <div class="note warn"><b>灌数纪律（上次事故的教训）</b>：
+    <div class="note warn"><b>灌数纪律（两次事故换来的）</b>：
       <ul style="margin:8px 0 0">
         <li><b>不要灌 <code>prcp_data_balance</code></b> —— 引擎已改读 <code>prcp_data_basic</code>，这张空表保留只为兼容</li>
         <li>灌数前 <b>备份</b>：<code>CREATE TABLE prcp_data_basic_bak_YYYYMMDD AS SELECT * FROM prcp_data_basic;</code></li>
-        <li>灌完跑<b>总量对平</b>：Σ(末级余额) 对比新行总资产/总负债报表，误差 ≤ 0.5% 才放行</li>
-        <li>新增数据一律 <b>新 data_date</b>，不覆盖旧日期（历史可回溯）</li>
+        <li>灌完跑<b>总量对平</b>：Σ(末级余额) 对比新行新基准日总资产/总负债报表，误差 ≤ 0.5% 才放行</li>
+        <li><b>按新 data_date 新增，不覆盖旧日期</b>（历史可回溯）</li>
+        <li>节点集变了 → <b>不能只换日期</b>：旧册的节点行在新册可能已不存在，需按新册重新组织</li>
       </ul>
     </div>
 
-    <h3 id="s1-5">1.5 新银行准入清单（换主体场景专用）</h3>
+    <h3 id="s1-5">1.5 切换准入清单（勾完才能进入 Phase 2）</h3>
     <div class="chk">
-      <label><input type="checkbox"> 科目体系与编码前缀约定已确认（沿用 S01~S04 或提交代码改造单）</label>
-      <label><input type="checkbox"> 账户册新方案已建（非原地改），节点数 / 末级数 / 孤儿检查通过</label>
-      <label><input type="checkbox"> 六张引擎参数表按新账户册灌齐，覆盖率校验 0 缺口</label>
-      <label><input type="checkbox"> 基准日基础数据灌入（余额 + 64 桶），总量与行方报表对平</label>
-      <label><input type="checkbox"> 利率曲线就位（币种 / 期限点 / 日期）</label>
-      <label><input type="checkbox"> 指标口径卡完成，单位口径统一（建议百分数）</label>
-      <label><input type="checkbox"> 目标值 + 约束 + 权重配置完成（prcp_reverse_target）</label>
-      <label><input type="checkbox"> 评分红线/段位按新监管环境重定并入库</label>
+      <label><input type="checkbox"> <b>新旧账户册差异清单</b>完成（每条差异标注变更类型 + 影响模块）</label>
+      <label><input type="checkbox"> <b>新旧节点映射表</b>完成（1:1 / 拆分 / 合并 / 重分类 / 新增 / 取消 六类全覆盖）</label>
+      <label><input type="checkbox"> 编码前缀语义确认（S01~S04 是否仍成立；新科目插入是否打乱顺序）</label>
+      <label><input type="checkbox"> 新账户册方案已建（非原地改），节点数 / 末级数 / 孤儿检查通过</label>
+      <label><input type="checkbox"> 决策变量集合已重圈（dynamic / fixed）</label>
+      <label><input type="checkbox"> <b>指标取数节点清单</b>完成（每指标 → 新取数节点，无悬空引用）</label>
+      <label><input type="checkbox"> 六张引擎参数表按新册灌齐，覆盖率校验 0 缺口</label>
+      <label><input type="checkbox"> 合并/重分类科目的系数已<b>重新标定</b>（非沿用旧值）</label>
+      <label><input type="checkbox"> 新基准日基础数据灌入（余额 + 64 桶），is_leaf 标记正确</label>
+      <label><input type="checkbox"> 总量与行方新基准日报表对平（误差 ≤ 0.5%）</label>
+      <label><input type="checkbox"> 利率曲线已追加新日期点位</label>
+      <label><input type="checkbox"> 新基准日 KPI 实际值已按<b>新口径</b>重算入库</label>
+      <label><input type="checkbox"> 目标值 + 约束 + 权重已与业务方确认（口径变了目标要重定）</label>
+      <label><input type="checkbox"> <b>新旧口径可比性说明</b>完成（哪些指标不可直接比较、双跑期如何标注断点）</label>
       <label><input type="checkbox"> 五大引擎基准日回验：计算值 vs 行方真实报表 ≤ 容差</label>
     </div>
   </div>
@@ -340,33 +573,41 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
   <div class="sec-b">
 
     <h3 id="s2-1">2.1 ESG 情景生成</h3>
-    <p>利率情景是 EVE 与新业务模拟的输入。换方案后初始收益率曲线变了，情景必须重新生成，<b>不能复用旧情景</b>。</p>
+    <p>利率情景是 EVE 与新业务模拟的输入。<b>新基准日 + 新账户册</b>后，
+    初始收益率曲线变了，情景必须重新生成，<b>不能复用旧情景</b>。</p>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:44px">步</th><th style="width:210px">动作</th><th style="width:250px">落点</th><th>要点</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>配置 ESG 方案</td><td>前端 ESG 场景工厂 / <code>prcp_esg_scheme</code></td>
+        <tr><td class="num">1</td><td>取新基准日初始曲线</td><td><code>prcp_rate_curv/point</code></td>
+            <td>新日期的国债收益率曲线；同一家银行沿用 CN_SOV_CNY 体系，只加点位</td></tr>
+        <tr><td class="num">2</td><td>配置 ESG 方案</td><td>前端 ESG 场景工厂 / <code>prcp_esg_scheme</code></td>
             <td>关键参数：<code>initial_yields_json</code>（新曲线初始值）、<code>n_factors</code>（HJM 因子数，当前 5）、<code>n_scenarios</code>（当前 50）、<code>n_steps</code>、<code>seed</code>（可复现）</td></tr>
-        <tr><td class="num">2</td><td>生成情景</td><td><code>prcp_esg_run</code> → <code>prcp_esg_scenario</code> → <code>prcp_esg_curve_point</code></td>
+        <tr><td class="num">3</td><td>生成情景</td><td><code>prcp_esg_run</code> → <code>prcp_esg_scenario</code> → <code>prcp_esg_curve_point</code></td>
             <td>跑完抽查：情景均值曲线应贴合初始曲线，无明显漂移</td></tr>
-        <tr><td class="num">3</td><td>曲线还原校验</td><td>ESG 曲线还原页</td>
+        <tr><td class="num">4</td><td>曲线还原校验</td><td>ESG 曲线还原页</td>
             <td>挑 3 个情景做反推校验，期限点插值无断点</td></tr>
+        <tr><td class="num">5</td><td><b>与旧情景对比</b></td><td>差异说明</td>
+            <td>新基准日利率中枢若明显变化，旧情景不可直接沿用；
+            记录新旧情景在关键期限点（如 1Y/5Y/10Y）的差异，供业务解读</td></tr>
       </tbody>
     </table>
     </div>
-    <div class="note"><b>已知缺口</b>：接口文档里 ESG 经济情景生成属 P2-4 未完成项（25 端点）。当前库内 5 套方案/15 情景是既有数据 —— 换行前先确认生成链路可用性，不可用则走脚本离线生成后导入。</div>
+    <div class="note"><b>已知缺口</b>：接口文档里 ESG 经济情景生成属 P2-4 未完成项（25 端点）。当前库内 5 套方案/15 情景是既有数据 —— 换册前先确认生成链路可用性，不可用则走脚本离线生成后导入。</div>
 
     <h3 id="s2-2">2.2 新业务模型重新生成（重训）</h3>
+    <p>模型是<b>基于账户册 + 训练区间数据</b>拟合的，账户册和日期都变了 → <b>必须重训</b>，
+    旧模型权重对不上新节点。</p>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:44px">步</th><th style="width:210px">动作</th><th style="width:250px">落点</th><th>要点</th></tr></thead>
       <tbody>
         <tr><td class="num">1</td><td>发起训练任务</td><td>模型管理 / <code>prcp_model_train</code></td>
-            <td>指定：model_id（DNN_REG 等）+ <b>coa_scheme_id（新账户册）</b> + 训练区间 balance_date_from/to</td></tr>
+            <td>指定：model_id（DNN_REG 等）+ <b>coa_scheme_id（新账户册）</b> + 训练区间 balance_date_from/to（覆盖新基准日）</td></tr>
         <tr><td class="num">2</td><td>跟踪训练</td><td><code>prcp_model_train_log</code></td>
             <td>复用运行日志的轮次/进度/ETA 观测；失败看 error_message</td></tr>
         <tr><td class="num">3</td><td>评估与定版</td><td><code>prcp_model_train_result</code> → <code>prcp_model_version</code></td>
-            <td>比对 metrics（拟合优度/误差）；通过后设新版本为 ACTIVE，<b>旧版本保留不删</b></td></tr>
+            <td>比对 metrics（拟合优度/误差）；<b>与旧版本 metrics 对比</b>，劣化超阈值要查是数据问题还是模型问题</td></tr>
         <tr><td class="num">4</td><td>模型参数迁移</td><td><code>prcp_model_param</code></td>
             <td>n_candidates / acor_* / de_* / slsqp_* 等超参按新数据特性调整（建议先沿用默认跑基线）</td></tr>
       </tbody>
@@ -374,7 +615,12 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
     </div>
     <div class="sql"><span class="c">-- 模型版本切换：新版本 ACTIVE、旧版本归档（不删）</span>
 <span class="k">UPDATE</span> prcp_model_version <span class="k">SET</span> status=<span class="s">'ARCHIVED'</span> WHERE model_id=:mid AND status=<span class="s">'ACTIVE'</span>;
-<span class="k">UPDATE</span> prcp_model_version <span class="k">SET</span> status=<span class="s">'ACTIVE'</span>  WHERE id=:new_version_id;</div>
+<span class="k">UPDATE</span> prcp_model_version <span class="k">SET</span> status=<span class="s">'ACTIVE'</span>  WHERE id=:new_version_id;
+
+<span class="c">-- 训练样本是否覆盖新基准日（应返回 0 行）</span>
+<span class="k">SELECT</span> t.id, t.train_code, t.balance_date_to FROM prcp_model_train t
+<span class="k">WHERE</span> t.coa_scheme_id=:new_coa AND t.status=<span class="s">'SUCCESS'</span>
+  AND t.balance_date_to &lt; :new_base_date AND t.is_deleted=0;</div>
 
     <h3 id="s2-3">2.3 组合反算验证（先跑通再改造）</h3>
     <div class="tbl">
@@ -393,17 +639,18 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
     </table>
     </div>
     <div class="chk">
-      <label><input type="checkbox"> ESG 情景用新曲线重新生成并抽查通过</label>
-      <label><input type="checkbox"> 三个模型完成重训，新版本 ACTIVE，旧版本已归档</label>
-      <label><input type="checkbox"> 新组合方案首轮反算跑通，写回数据三项检查全过</label>
+      <label><input type="checkbox"> ESG 情景用新曲线重新生成并抽查通过（新旧情景差异已记录）</label>
+      <label><input type="checkbox"> 三个模型完成重训，新版本 ACTIVE，旧版本已归档，metrics 已对比</label>
+      <label><input type="checkbox"> 新组合方案首轮反算跑通，写回数据三项检查全过（末级行数 / is_leaf&category / 总量对平）</label>
       <label><input type="checkbox"> 驾驶舱冒烟：KPI / 分布 / 走势 / 导出全部有值</label>
+      <label><input type="checkbox"> <b>新旧口径可比性</b>已标注（双跑期不误判为结果劣化）</label>
     </div>
   </div>
 </div>
 
 <!-- ============ 3 ============ -->
 <div class="sec ph3" id="s3">
-  <div class="sec-h"><div class="sec-n">3</div><h2>代码改造</h2><span class="tag tag-o">换行必做 · 换数据日可跳过</span></div>
+  <div class="sec-h"><div class="sec-n">3</div><h2>代码改造</h2><span class="tag tag-o">账户册重构必做 · 仅换日期可跳过</span></div>
   <div class="sec-b">
 
     <h3 id="s3-1">3.1 引擎算法调整</h3>
@@ -423,7 +670,7 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
       </tbody>
     </table>
     </div>
-    <h4>3.1.2 强烈建议项（技术债清理，趁换行一起做）</h4>
+    <h4>3.1.2 强烈建议项（技术债清理，趁重构一起做）</h4>
     <ul>
       <li><b>废弃 <code>prcp_data_balance</code></b>：从代码与文档中移除引用，或直接 DROP（留备份表）</li>
       <li><b>科目匹配去硬编码</b>：<code>kpi_functions/*.py</code> 里按节点名匹配的逻辑改为 node_code 驱动</li>
@@ -432,7 +679,7 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
     </ul>
 
     <h3 id="s3-2">3.2 蚁群算法落地（当前最大的功能缺口）</h3>
-    <p>现状：<code>ANT_COLONY</code> 标称方案实际跑的是 QP 兜底（引擎未实现）。换行是补齐它的最佳时机——新数据、新期望，一次到位。</p>
+    <p>现状：<code>ANT_COLONY</code> 标称方案实际跑的是 QP 兜底（引擎未实现）。<b>本次账户册重构是补齐它的最佳时机</b> —— 新节点集、新期望，一次到位。否则新册上跑的仍是 QP。</p>
     <div class="tbl">
     <table>
       <thead><tr><th style="width:44px">步</th><th style="width:190px">动作</th><th>要点</th></tr></thead>
@@ -445,7 +692,7 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
       </tbody>
     </table>
     </div>
-    <div class="note note-b"><b>同样欠账的还有</b>：DNN_NEURAL_NETWORK（真神经网络）与 NONLINEAR_SOLVER（真非线性求解）。建议按 ACOR → DNN → NLS 顺序排期，或先在方案表单把未实现项标注「演示算法」，管理预期。</div>
+    <div class="note note-b"><b>同样欠账的还有</b>：DNN_NEURAL_NETWORK（真神经网络）与 NONLINEAR_SOLVER（真非线性求解）。建议按 ACOR → DNN → NLS 顺序排期，或先在方案表单把未实现项标注「演示算法」，管理预期。<br><b>注意</b>：账户册重构后若仍用兜底 QP，新旧两册的算法行为差异会混入结果对比 —— 双跑期务必记录「本次实际使用的求解器」。</div>
 
     <h3 id="s3-3">3.3 代码级检查点（改造完成后逐项过）</h3>
     <div class="chk">
@@ -469,7 +716,7 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
       <thead><tr><th style="width:44px">步</th><th style="width:210px">调整项</th><th style="width:250px">位置</th><th>要点</th></tr></thead>
       <tbody>
         <tr><td class="num">1</td><td>方案默认项</td><td>options 接口硬编码优先 <code>2026</code></td>
-            <td>改为取「最新 ACTIVE 方案」或配置项 —— 否则换行后默认还指旧方案</td></tr>
+            <td>改为取「最新 ACTIVE 方案」或配置项 —— 否则重构后默认还指旧方案</td></tr>
         <tr><td class="num">2</td><td>KPI 卡片</td><td><code>ReverseDashboard.tsx</code></td>
             <td>增删指标后同步卡片清单与图标；基期对比的方向（越高越好/越低越好）按新指标重配</td></tr>
         <tr><td class="num">3</td><td>评分标签</td><td>0~500 分制 + 段位</td>
@@ -570,16 +817,18 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
     <table>
       <thead><tr><th style="width:60px">#</th><th style="width:260px">交付物</th><th>产出阶段</th></tr></thead>
       <tbody>
-        <tr><td class="num">1</td><td>指标口径映射总表（含缺口清单）</td><td>§1.2</td></tr>
-        <tr><td class="num">2</td><td>新旧账户册对照表（科目映射 + 层级 + 决策变量标注）</td><td>§1.1</td></tr>
-        <tr><td class="num">3</td><td>五大引擎系数配置表 + 基准日回验报告（计算值 vs 行方报表）</td><td>§1.3</td></tr>
-        <tr><td class="num">4</td><td>数据灌入对平报告（总量误差 ≤0.5%）</td><td>§1.4</td></tr>
-        <tr><td class="num">5</td><td>ESG 情景生成记录 + 抽查报告</td><td>§2.1</td></tr>
-        <tr><td class="num">6</td><td>模型重训报告（三模型 metrics + 版本号）</td><td>§2.2</td></tr>
-        <tr><td class="num">7</td><td>双跑差异报告（新旧方案 KPI/余额对比截图）</td><td>§5.2</td></tr>
-        <tr><td class="num">8</td><td>代码改造清单（分类规则/去硬编码/蚁群落地）</td><td>§3</td></tr>
-        <tr><td class="num">9</td><td>验收基线截图包 + 验收单（签收口径成文）</td><td>§4 / §5.10</td></tr>
-        <tr><td class="num">10</td><td>备份与回退预案（含执行脚本）</td><td>§6</td></tr>
+        <tr><td class="num">1</td><td><b>新旧账户册差异清单</b>（每条差异：变更类型 + 影响模块）</td><td>§1.1</td></tr>
+        <tr><td class="num">2</td><td><b>新旧节点映射表</b>（六类变更全覆盖）</td><td>§1.1.1</td></tr>
+        <tr><td class="num">3</td><td><b>指标取数节点清单</b>（指标 → 新取数节点 + 口径角色）</td><td>§1.2.1</td></tr>
+        <tr><td class="num">4</td><td>新旧口径可比性说明（不可直接比较的指标清单 + 断点标注规则）</td><td>§1.2.3</td></tr>
+        <tr><td class="num">5</td><td>五大引擎系数配置表 + 基准日回验报告（计算值 vs 行方报表）</td><td>§1.3</td></tr>
+        <tr><td class="num">6</td><td>数据灌入对平报告（总量误差 ≤0.5%）</td><td>§1.4</td></tr>
+        <tr><td class="num">7</td><td>ESG 情景生成记录 + 新旧情景差异说明</td><td>§2.1</td></tr>
+        <tr><td class="num">8</td><td>模型重训报告（三模型 metrics 新旧对比 + 版本号）</td><td>§2.2</td></tr>
+        <tr><td class="num">9</td><td>双跑差异报告（新旧方案 KPI/余额对比截图，含口径断点标注）</td><td>§5.2</td></tr>
+        <tr><td class="num">10</td><td>代码改造清单（分类规则/去硬编码/蚁群落地）</td><td>§3</td></tr>
+        <tr><td class="num">11</td><td>验收基线截图包 + 验收单（签收口径成文）</td><td>§4 / §5.10</td></tr>
+        <tr><td class="num">12</td><td>备份与回退预案（含执行脚本）</td><td>§6</td></tr>
       </tbody>
     </table>
     </div>
@@ -592,8 +841,9 @@ WHERE n.scheme_id=:coa AND n.is_leaf=1 AND n.is_deleted=0
 </div>
 
 <div class="foot">
-  PRCP 业务方案替换 · 操作手册 v1.0<br>
-  6 阶段 · 28 检查点 · 10 项补充 · 含回退预案<br>
+  PRCP 账户册重构替换 · 操作手册 v1.1<br>
+  6 阶段 · 38 检查点 · 10 项补充 · 含影响面传导链与回退预案<br>
+  场景：同一家银行 · 账户册重构 + 新基准日 + 指标计量口径联动<br>
   基线数据取自生产库 2026-11-23 实测 · 生成 2026-11-23
 </div>
 
