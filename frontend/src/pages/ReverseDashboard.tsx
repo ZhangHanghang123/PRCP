@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
   Card, Row, Col, Select, Tag, Empty, Spin, Table, Progress, Statistic, Divider, Tooltip, Badge, message, Button,
+  Popover, Checkbox,
 } from 'antd'
 import {
   DashboardOutlined, ReloadOutlined, ArrowUpOutlined, ArrowDownOutlined,
   BankOutlined, RiseOutlined, FallOutlined, FundProjectionScreenOutlined,
-  RadarChartOutlined, DownloadOutlined,
+  RadarChartOutlined, DownloadOutlined, SettingOutlined,
 } from '@ant-design/icons'
 import ReactECharts from 'echarts-for-react'
 import dayjs from 'dayjs'
@@ -120,6 +121,159 @@ const CompareTag: React.FC<{
   )
 }
 
+// ============================================================================
+// 指标卡片与指标选择器（指标统一治理 · P3）
+//   数据来源：snapshot 的 available_metrics（由 prcp_kpi_definition 驱动）
+//   前端不再硬编码指标名/单位/口径 —— 全部由后端下发
+// ============================================================================
+
+/** 按 value_kind 格式化指标值
+ *   AMOUNT  → 金额（元），自动进位到 万/亿
+ *   PERCENT → 已是百分数（如 ROE 12.72）
+ *   RATE    → 小数比率（如贷款利率 0.0389）
+ */
+const formatMetricValue = (m: any): { text: string; suffix: string } => {
+  const v = m?.value
+  if (v == null) return { text: '-', suffix: '' }
+  const kind = (m?.value_kind || '').toUpperCase()
+  if (kind === 'AMOUNT') return { text: fmtMoney(Number(v)), suffix: '' }
+  if (kind === 'RATE') return { text: (Number(v) * 100).toFixed(2), suffix: '%' }
+  if (kind === 'PERCENT') return { text: Number(v).toFixed(2), suffix: '%' }
+  return { text: String(Number(v).toFixed(2)), suffix: m?.unit || '' }
+}
+
+/** 指标卡 —— 统一渲染一个 available_metrics 条目 */
+const MetricCard: React.FC<{ m: any }> = ({ m }) => {
+  const { text, suffix } = formatMetricValue(m)
+  const color = m?.color || '#1890ff'
+  const isAmount = (m?.value_kind || '').toUpperCase() === 'AMOUNT'
+  const isRate = (m?.value_kind || '').toUpperCase() === 'RATE'
+  // 对比口径：金额类给 % 差，其余给 pp 差
+  const cmpKind = isAmount ? 'amount' : 'ratio'
+  // 方向：higher_is_better 为 true → 越高越好；false → 越低越好；null → 无好坏
+  const direction: 'higher' | 'lower' | 'none' =
+    m?.higher_is_better === true ? 'higher' : m?.higher_is_better === false ? 'lower' : 'none'
+
+  // 达标箭头：仅对有阈值且有方向的指标显示
+  let arrow: React.ReactNode = null
+  const v = m?.value
+  if (v != null && direction !== 'none') {
+    const thr = isRate ? (m?.threshold_min ?? 0) * 100 : m?.threshold_min
+    const thrMax = isRate ? (m?.threshold_max ?? 0) * 100 : m?.threshold_max
+    if (direction === 'higher' && thr != null && v < thr) {
+      arrow = <ArrowDownOutlined style={{ color: '#f5222d' }} />
+    } else if (direction === 'higher' && v >= thr) {
+      arrow = <ArrowUpOutlined style={{ color: '#52c41a' }} />
+    } else if (direction === 'lower' && thrMax != null && v > thrMax) {
+      arrow = <ArrowUpOutlined style={{ color: '#f5222d' }} />
+    } else if (direction === 'lower') {
+      arrow = <ArrowDownOutlined style={{ color: '#52c41a' }} />
+    }
+  }
+
+  // 评分标签：仅 is_scored 且有评分记录时显示；非评分指标不显示任何标签
+  const hasScore = m?.is_scored && m?.score != null
+  let scoreTag: React.ReactNode = null
+  if (hasScore) {
+    const sc = Number(m.score)
+    let scColor = 'red'
+    if (sc >= 480) scColor = 'green'
+    else if (sc >= 300) scColor = 'cyan'
+    else if (sc >= 150) scColor = 'gold'
+    else if (sc > 0) scColor = 'orange'
+    scoreTag = (
+      <Tooltip title={m.segment_desc || ''}>
+        <Tag color={scColor} style={{ marginLeft: 4, fontWeight: 600, fontSize: 12 }}>
+          {sc}/500
+        </Tag>
+      </Tooltip>
+    )
+  }
+
+  return (
+    <Card className="kpi-card" size="small">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <Statistic
+          title={<Tooltip title={m.desc || m.kpi_name}>{m.label}</Tooltip>}
+          value={text}
+          suffix={suffix}
+          valueStyle={{ color, fontSize: isAmount ? undefined : 22 }}
+          prefix={arrow}
+        />
+        {scoreTag}
+      </div>
+      <CompareTag current={m.value} base={m.base_value}
+        basePeriod={m.base_period} kind={cmpKind} direction={direction} />
+    </Card>
+  )
+}
+
+/** 齿轮面板 —— 列出方案全部可展示指标，支持多选 */
+const MetricPicker: React.FC<{
+  metrics: any[]
+  selected: string[]
+  onChange: (next: string[]) => void
+  defaultSelected: string[]
+}> = ({ metrics, selected, onChange, defaultSelected }) => {
+  const groups: Record<string, any[]> = {}
+  for (const m of metrics) {
+    const g = m.display_group || 'REG'
+    ;(groups[g] = groups[g] || []).push(m)
+  }
+  const groupLabel: Record<string, string> = { BS: '资产负债类', REG: '监管指标' }
+  const groupOrder = ['BS', 'REG']
+
+  const toggle = (code: string) => {
+    const next = selected.includes(code)
+      ? selected.filter((c) => c !== code)
+      : [...selected, code]
+    onChange(next)
+  }
+
+  const content = (
+    <div style={{ width: 320, maxHeight: 420, overflow: 'auto' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid #f0f1f3' }}>
+        <Button size="small" type="link" style={{ padding: 0 }}
+          onClick={() => onChange(metrics.map((m) => m.kpi_code))}>全选</Button>
+        <Button size="small" type="link" style={{ padding: 0 }}
+          onClick={() => onChange(metrics.map((m) => m.kpi_code).filter((c) => !selected.includes(c)))}>反选</Button>
+        <Button size="small" type="link" style={{ padding: 0 }}
+          onClick={() => onChange(defaultSelected)}>恢复默认</Button>
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#8f959e', alignSelf: 'center' }}>
+          已选 {selected.length} / {metrics.length}
+        </span>
+      </div>
+      {groupOrder.filter((g) => groups[g]?.length).map((g) => (
+        <div key={g} style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 11, color: '#8f959e', marginBottom: 4 }}>{groupLabel[g] || g}</div>
+          {groups[g].map((m) => {
+            const { text, suffix } = formatMetricValue(m)
+            return (
+              <label key={m.kpi_code}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 12.5 }}>
+                <Checkbox checked={selected.includes(m.kpi_code)} onChange={() => toggle(m.kpi_code)} />
+                <span style={{ flex: 1, color: '#1f2329' }}>{m.label}</span>
+                {!m.is_scored && <Tag color="default" style={{ fontSize: 10, lineHeight: '14px' }}>不评分</Tag>}
+                <span style={{ color: '#8f959e', fontSize: 11, fontFamily: 'monospace', minWidth: 62, textAlign: 'right' }}>
+                  {text}{suffix}
+                </span>
+              </label>
+            )
+          })}
+        </div>
+      ))}
+    </div>
+  )
+
+  return (
+    <Popover content={content} trigger="click" placement="bottomRight">
+      <Tooltip title="选择展示指标">
+        <Button size="small" type="text" icon={<SettingOutlined />} />
+      </Tooltip>
+    </Popover>
+  )
+}
+
 // 目标达成行 —— 展示 目标 / 真实指标 / 当前完成率 / M12 完成率
 const TargetRow: React.FC<{ t: any; m12Date?: string | null }> = ({ t, m12Date }) => {
   const meta = t.metric_type ? META[t.metric_type] : null
@@ -178,6 +332,8 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  // 首页展示指标的多选结果（按方案持久化）
+  const [selectedMetrics, setSelectedMetrics] = useState<string[]>([])
   const [filterCat, setFilterCat] = useState<string | undefined>(undefined)
   // 余额口径：base = 基准日当前余额（prcp_data_basic，静态）
   //           forecast = 当月预测余额（prcp_data_reverse，随预测月份变化）
@@ -214,7 +370,28 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
     (async () => {
       const r = await reverseDashboardApi.runs(schemeCode)
       setRuns(r.items || [])
-      // 当前 runId 不在新列表里时，重置为「结果数据最完整」的 SUCCESS run
+      // 指标选择初始化：优先读 localStorage（按方案独立），否则用后端默认（前 8 个）
+  useEffect(() => {
+    const allMetrics: any[] = data?.available_metrics || []
+    if (allMetrics.length === 0) return
+    const def: string[] = data?.default_selected || allMetrics.slice(0, 8).map((m: any) => m.kpi_code)
+    const key = 'prcp_kpi_selected_' + schemeCode
+    let next: string[] | null = null
+    try {
+      const saved = localStorage.getItem(key)
+      if (saved) {
+        const arr = JSON.parse(saved)
+        if (Array.isArray(arr)) {
+          // 过滤掉已不存在的指标（指标定义被删除的情况）
+          const valid = arr.filter((c) => allMetrics.some((m: any) => m.kpi_code === c))
+          next = valid.length ? valid : def
+        }
+      }
+    } catch (e) { /* localStorage 不可用时退回默认 */ }
+    setSelectedMetrics(next || def)
+  }, [data?.available_metrics, data?.default_selected, schemeCode])
+
+  // 当前 runId 不在新列表里时，重置为「结果数据最完整」的 SUCCESS run
       //   （按 result_rows 降序，同等则取更新的），避免异常 run 导致页面空白
       const success = (r.items || []).filter((x: any) => x.status === 'SUCCESS')
       const best = success.slice().sort((a: any, b: any) =>
@@ -740,93 +917,46 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
         </Card>
       ) : null}
 
-      {/* KPI 区 — 2 行 × 4 列 8 卡，每卡右下角带基期对比项 */}
-      <Row gutter={[12, 12]}>
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <Card className="kpi-card" size="small">
-            <Statistic title="资产余额" value={fmtMoney(k.asset_total)}
-              valueStyle={{ color: '#1890ff' }}
-              prefix={<RiseOutlined />} />
-            <CompareTag current={k.asset_total} base={kb?.asset_total}
-              basePeriod={kb?.period} kind="amount" direction="none" />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <Card className="kpi-card" size="small">
-            <Statistic title="负债余额" value={fmtMoney(k.liability_total)}
-              valueStyle={{ color: '#fa8c16' }}
-              prefix={<FallOutlined />} />
-            <CompareTag current={k.liability_total} base={kb?.liability_total}
-              basePeriod={kb?.period} kind="amount" direction="none" />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={8} lg={6}>
-          <Card className="kpi-card" size="small">
-            <Statistic title="贷款加权平均利率"
-              value={k.loan_weighted_rate == null ? '-' : (k.loan_weighted_rate * 100).toFixed(2)}
-              suffix="%"
-              valueStyle={{ color: '#fa541c', fontSize: 22 }}
-              prefix={<Tooltip title="境内各项人民币贷款（S010101*）下属节点按当前余额加权"><FundProjectionScreenOutlined /></Tooltip>}
-            />
-            <CompareTag current={k.loan_weighted_rate == null ? null : k.loan_weighted_rate * 100}
-              base={kb?.loan_weighted_rate == null ? null : kb.loan_weighted_rate * 100}
-              basePeriod={kb?.period} kind="ratio" direction="none" />
-          </Card>
-        </Col>
-        {/* ROE 净资产收益率 — 行 1 第 4 个卡位 */}
-        <Col xs={24} sm={12} md={8} lg={6} key="ROE">
-          <Card className="kpi-card" size="small">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-              <Statistic title="ROE 净资产收益率"
-                value={k.metric_avg['ROE'] == null ? '-' : k.metric_avg['ROE']}
-                suffix="%" precision={2}
-                valueStyle={{ color: META['ROE'].color, fontSize: 22 }}
-                prefix={
-                  k.metric_avg['ROE'] != null
-                    ? (k.metric_avg['ROE'] < 6
-                        ? <ArrowDownOutlined style={{ color: '#f5222d' }} />  // 不达标 (< 6% 红线下)
-                        : <ArrowUpOutlined style={{ color: '#52c41a' }} />)         // 安全及以上 (>= 6% 绿上)
-                    : null
-                }
-              />
-              <ScoreTag metricKey="ROE" kpiScores={data.kpi_scores} />
-            </div>
-            <CompareTag current={k.metric_avg['ROE']} base={kb?.metric_avg?.['ROE']}
-              basePeriod={kb?.period} kind="ratio" direction="higher" />
-          </Card>
-        </Col>
-        {/* 行 2：4 指标（CET1/LCR/NSFR/DELTA_EVE） */}
-        {METRIC_KEYS.filter((mk) => mk !== 'ROE').map((mk) => {
-          const v = k.metric_avg[mk]
-          const meta = META[mk]
+      {/* KPI 区 — 按指标定义动态渲染，可通过齿轮面板多选 */}
+      {(() => {
+        const allMetrics: any[] = data?.available_metrics || []
+        const def: string[] = data?.default_selected || allMetrics.slice(0, 8).map((m: any) => m.kpi_code)
+        const shown = allMetrics.filter((m: any) => selectedMetrics.includes(m.kpi_code))
+        if (allMetrics.length === 0) {
           return (
-            <Col xs={24} sm={12} md={8} lg={6} key={mk}>
-              <Card className="kpi-card" size="small">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                  <Statistic
-                    title={<Tooltip title={meta.desc}>{meta.label}</Tooltip>}
-                    value={v == null ? '-' : v}
-                    suffix={meta.unit}
-                    precision={2}
-                    valueStyle={{ color: meta.color, fontSize: 22 }}
-                    prefix={
-                      v != null && mk !== 'DELTA_EVE' && v < (data.thresholds?.[mk]?.min || 0)
-                        ? <ArrowDownOutlined style={{ color: '#f5222d' }} />
-                        : (mk === 'DELTA_EVE' && v != null && v > (data.thresholds?.DELTA_EVE?.max_abs || 0)
-                            ? <ArrowUpOutlined style={{ color: '#f5222d' }} />
-                            : null)
-                    }
-                  />
-                  <ScoreTag metricKey={mk} kpiScores={data.kpi_scores} />
-                </div>
-                <CompareTag current={v} base={kb?.metric_avg?.[mk]}
-                  basePeriod={kb?.period} kind="ratio"
-                  direction={mk === 'DELTA_EVE' ? 'lower' : 'higher'} />
-              </Card>
-            </Col>
+            <Card size="small"><Empty description="暂无可展示指标（请检查指标方案配置）" /></Card>
           )
-        })}
-      </Row>
+        }
+        return (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', marginBottom: 8, gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#1f2329' }}>指标概览</span>
+              <span style={{ fontSize: 11, color: '#8f959e' }}>
+                已选 {selectedMetrics.length} / 共 {allMetrics.length}
+              </span>
+              <span style={{ marginLeft: 'auto' }}>
+                <MetricPicker metrics={allMetrics} selected={selectedMetrics}
+                  defaultSelected={def}
+                  onChange={(next) => {
+                    setSelectedMetrics(next)
+                    try { localStorage.setItem('prcp_kpi_selected_' + schemeCode, JSON.stringify(next)) } catch (e) {}
+                  }} />
+              </span>
+            </div>
+            {shown.length === 0 ? (
+              <Card size="small"><Empty description="请通过右上角齿轮选择要展示的指标" /></Card>
+            ) : (
+              <Row gutter={[12, 12]}>
+                {shown.map((m: any) => (
+                  <Col xs={24} sm={12} md={8} lg={6} key={m.kpi_code}>
+                    <MetricCard m={m} />
+                  </Col>
+                ))}
+              </Row>
+            )}
+          </>
+        )
+      })()}
 
       {/* 趋势 + 指标评分雷达图（雷达图从 Row 1 移到这里） */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
