@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRCP 指标统一治理与首页动态展示 · 设计文档</title>
+<style>
+:root{
+  --bg:#f5f6f8; --card:#fff; --line:#e3e6ec;
+  --txt:#1f2329; --txt2:#646a73; --txt3:#8f959e;
+  --blue:#165dff; --blue-bg:#e8f3ff;
+  --green:#00a870; --green-bg:#e8fff8;
+  --orange:#ff8f1f; --orange-bg:#fff3e8;
+  --purple:#7d3ff5; --purple-bg:#f5ecff;
+  --red:#f53f3f; --red-bg:#ffece8;
+  --cyan:#0fc6c2; --cyan-bg:#e8fffb;
+  --gray-bg:#f2f3f5;
+  --mono:'SF Mono',Menlo,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+  background:var(--bg);color:var(--txt);line-height:1.68;font-size:14px;padding:0 0 60px}
+.wrap{display:flex;max-width:1500px;margin:0 auto}
+.nav{width:258px;flex:none;padding:20px 12px;position:sticky;top:0;height:100vh;overflow-y:auto}
+.nav-t{font-size:13px;font-weight:600;color:var(--txt3);padding:0 12px 10px;letter-spacing:.5px}
+.nav a{display:block;padding:6px 12px;border-radius:7px;color:var(--txt2);text-decoration:none;font-size:12.5px;margin-bottom:1px;transition:.15s}
+.nav a:hover{background:var(--gray-bg);color:var(--txt)}
+.nav a.on{background:var(--blue-bg);color:var(--blue);font-weight:600}
+.nav a.l2{padding-left:26px;font-size:12px}
+.main{flex:1;min-width:0;padding:20px 24px 60px 8px}
+.hd{background:var(--card);border-radius:12px;padding:26px 32px;margin-bottom:18px;border:1px solid var(--line)}
+.hd h1{font-size:22px;font-weight:600;margin-bottom:8px}
+.hd .sub{font-size:13px;color:var(--txt2);margin-bottom:12px}
+.hd .meta{display:flex;gap:24px;flex-wrap:wrap;font-size:12.5px;color:var(--txt2);padding-top:13px;border-top:1px solid var(--line)}
+.hd .meta b{color:var(--txt);font-weight:600}
+.tag{display:inline-block;padding:2px 9px;border-radius:5px;font-size:11px;font-weight:500;font-family:var(--mono);vertical-align:middle;white-space:nowrap}
+.tag-b{background:var(--blue-bg);color:var(--blue)}.tag-g{background:var(--green-bg);color:var(--green)}
+.tag-o{background:var(--orange-bg);color:var(--orange)}.tag-p{background:var(--purple-bg);color:var(--purple)}
+.tag-r{background:var(--red-bg);color:var(--red)}.tag-c{background:var(--cyan-bg);color:#0aa39e}
+.tag-y{background:var(--gray-bg);color:var(--txt2)}
+.sec{background:var(--card);border-radius:12px;border:1px solid var(--line);margin-bottom:18px;overflow:hidden;scroll-margin-top:20px}
+.sec-h{padding:15px 26px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px}
+.sec-n{width:26px;height:26px;border-radius:7px;color:#fff;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600}
+.sec-b{padding:22px 26px}
+.sec-b h3{font-size:14px;font-weight:600;margin:26px 0 10px;padding-left:9px;border-left:3px solid var(--blue)}
+.sec-b h3:first-child{margin-top:0}
+.sec-b h4{font-size:13px;font-weight:600;margin:18px 0 8px}
+.sec-b p{margin-bottom:11px;color:var(--txt2)}
+.sec-b ul,.sec-b ol{margin:0 0 12px 22px;color:var(--txt2)}
+.sec-b li{margin-bottom:4px}
+code{background:var(--gray-bg);padding:1px 5px;border-radius:4px;font-family:var(--mono);font-size:12.5px;color:var(--purple)}
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+th{background:#f7f8fa;text-align:left;padding:9px 12px;font-weight:500;color:var(--txt2);border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}
+td{padding:8px 12px;border-bottom:1px solid #f0f1f3;vertical-align:top}
+tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafbfc}
+.tbl{overflow-x:auto}
+.sql{background:#fbfcfd;border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:0 8px 8px 0;padding:12px 16px;margin:10px 0;font-family:var(--mono);font-size:12px;line-height:1.85;overflow-x:auto;white-space:pre}
+.sql .c{color:#8f959e}.sql .k{color:var(--blue);font-weight:600}.sql .s{color:var(--green)}.sql .n{color:var(--orange)}
+.note{background:var(--orange-bg);border-left:3px solid var(--orange);border-radius:0 8px 8px 0;padding:12px 16px;margin:14px 0;font-size:12.5px;color:#7a4a00}
+.note b{color:#5c3600}
+.note-b{background:var(--blue-bg);border-left-color:var(--blue);color:#0b3f99}
+.note-b b{color:#062a6b}
+.ok{background:var(--green-bg);border-left-color:var(--green);color:#065f46}
+.ok b{color:#044734}
+.warn{background:var(--red-bg);border-left-color:var(--red);color:#a8071a}
+.warn b{color:#820014}
+/* 链路图 */
+.chain{background:#fbfcfd;border:1px solid var(--line);border-radius:10px;padding:18px;margin:14px 0}
+.chain-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cnode{flex:1;min-width:120px;border:1.5px solid #d0d4da;border-radius:9px;padding:10px 12px;background:#fff;text-align:center}
+.cnode .nt{font-size:12.5px;font-weight:600;margin-bottom:3px}
+.cnode .ns{font-size:10px;color:var(--txt3);font-family:var(--mono);line-height:1.6}
+.cnode.b{border-color:var(--blue);background:var(--blue-bg)}.cnode.b .nt{color:var(--blue)}
+.cnode.g{border-color:var(--green);background:var(--green-bg)}.cnode.g .nt{color:var(--green)}
+.cnode.o{border-color:var(--orange);background:var(--orange-bg)}.cnode.o .nt{color:#d97706}
+.cnode.p{border-color:var(--purple);background:var(--purple-bg)}.cnode.p .nt{color:var(--purple)}
+.cnode.r{border-color:var(--red);background:var(--red-bg)}.cnode.r .nt{color:var(--red)}
+.carrow{display:flex;align-items:center;color:#c9cdd4;font-size:15px;flex:none;padding:0 2px}
+/* UI 草图 */
+.ui{border:1px solid var(--line);border-radius:10px;padding:16px;margin:14px 0;background:#fbfcfc}
+.ui-row{display:flex;gap:10px;margin-bottom:8px;align-items:center;font-size:12.5px}
+.ui-lab{width:96px;flex:none;font-size:11px;font-family:var(--mono);color:var(--txt3)}
+.ui-box{flex:1;border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;background:#fff}
+.ui-box.blue{border-color:var(--blue);background:var(--blue-bg)}
+.ui-box.green{border-color:var(--green);background:var(--green-bg)}
+.ui-box.gray{border-color:#d0d4da;background:#f7f8fa;color:var(--txt2)}
+.kpirow{display:flex;gap:8px;flex-wrap:wrap}
+.kpicard{flex:1;min-width:118px;border:1px solid var(--line);border-radius:9px;padding:9px 11px;background:#fff}
+.kpicard .kt{font-size:10.5px;color:var(--txt3);margin-bottom:3px}
+.kpicard .kv{font-size:17px;font-weight:600}
+.kpicard .ks{font-size:10px;color:var(--txt3);margin-top:2px}
+.gear{border:1.5px solid var(--blue);background:var(--blue-bg);color:var(--blue);border-radius:7px;
+  width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer}
+/* 检查清单 */
+.chk{border:1px solid var(--line);border-radius:9px;padding:5px 14px;margin:8px 0;background:#fbfcfd}
+.chk label{display:flex;gap:9px;padding:6px 0;font-size:12.5px;color:var(--txt2);border-bottom:1px dashed #eef0f3}
+.chk label:last-child{border-bottom:none}
+.foot{text-align:center;color:var(--txt3);font-size:11.5px;padding:24px 0 0;line-height:2}
+@media(max-width:1000px){.nav{display:none}.main{padding:20px 16px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<div class="nav">
+  <div class="nav-t">目录</div>
+  <a href="#s1" class="on">1 需求与现状诊断</a>
+  <a href="#s2">2 设计目标与原则</a>
+  <a href="#s3">3 数据模型设计</a>
+  <a href="#s3-1" class="l2">3.1 kpi_definition 扩展</a>
+  <a href="#s3-2" class="l2">3.2 三个非监管指标定义</a>
+  <a href="#s3-3" class="l2">3.3 scheme_id 语义隐患</a>
+  <a href="#s4">4 取数方式与计算链路</a>
+  <a href="#s5">5 接口契约设计</a>
+  <a href="#s6">6 前端交互设计</a>
+  <a href="#s7">7 实施计划</a>
+  <a href="#s8">8 风险与边界</a>
+</div>
+<div class="main">
+
+<div class="hd">
+  <h1>PRCP 指标统一治理与首页动态展示 · 设计文档</h1>
+  <div class="sub">指标定义唯一来源 · 计算与评分解耦 · 首页指标动态多选</div>
+  <div style="margin-bottom:12px">
+    <span class="tag tag-b">含数据模型</span>
+    <span class="tag tag-c">含取数契约</span>
+    <span class="tag tag-p">含前端交互</span>
+    <span class="tag tag-o">含实施计划</span>
+  </div>
+  <div class="meta">
+    <div>模块 <b>PRCP · 结果驾驶舱</b></div>
+    <div>当前基线 <b>8 卡（3 硬编码 + 5 监管）</b></div>
+    <div>版本 <b>v1.0 设计稿</b></div>
+    <div>日期 <b>2026-11-25</b></div>
+  </div>
+</div>
+
+<!-- 1 -->
+<div class="sec" id="s1">
+  <div class="sec-h"><div class="sec-n">1</div><h2>需求与现状诊断</h2></div>
+  <div class="sec-b">
+    <h3>1.1 需求原文拆解</h3>
+    <div class="note note-b">
+      <b>① 展示动态化</b>：首页 KPI 区从固定 8 个 → 支持动态多选；
+      右上角齿轮按钮 → 列出方案对应全部指标 → 多选 → 选中才展示。<br>
+      <b>② 指标定义统一</b>：资产余额、负债余额、贷款加权平均利率<b>也纳入指标方案定义</b>；
+      指标加"是否评分"标识 —— 不选则<b>只计算不评分</b>；
+      首页展示指标值时<b>来源与定义统一</b>。
+    </div>
+
+    <h3>1.2 现状：8 处硬编码</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:40px">#</th><th style="width:210px">位置</th><th style="width:280px">硬编码内容</th><th>后果</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>后端 <code>reverse_dashboard.py</code></td><td><code>DEFAULT_METRIC_TYPES = ["ROE","CET1","LCR","NSFR","DELTA_EVE"]</code></td>
+            <td>引擎算出更多指标也不展示；加指标必须改代码</td></tr>
+        <tr><td class="num">2</td><td>后端 snapshot</td><td>资产/负债/权益/表外余额：按 <code>_classify</code>+<code>_is_leaf</code> 写死汇总</td>
+            <td>资产负债类指标不在指标体系内</td></tr>
+        <tr><td class="num">3</td><td>后端 snapshot</td><td>贷款利率：写死 <code>S01010101~05</code> 前缀 + 余额加权</td>
+            <td>账户册编码一变就失效</td></tr>
+        <tr><td class="num">4</td><td>前端 <code>ReverseDashboard.tsx</code></td><td><code>META</code> 常量（label/color/unit/desc）5 条</td>
+            <td>指标元数据在前端，加指标要改前端</td></tr>
+        <tr><td class="num">5</td><td>前端</td><td><code>METRIC_KEYS = ['ROE','CET1','LCR','NSFR','DELTA_EVE']</code></td>
+            <td>同上</td></tr>
+        <tr><td class="num">6</td><td>前端</td><td><code>METRIC_TO_REG_CODE</code> 映射（ROE→REG_ROE…）</td>
+            <td>前后端命名不一致，映射靠前端兜</td></tr>
+        <tr><td class="num">7</td><td>前端 KPI 区 JSX</td><td>资产/负债/贷款利率 3 张卡 + ROE 1 张卡硬编码</td>
+            <td>无法参与动态选择</td></tr>
+        <tr><td class="num">8</td><td>前端 KPI 区 JSX</td><td>其余 4 张卡按 <code>METRIC_KEYS</code> map</td>
+            <td>同上</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>1.3 现状：模型侧 4 个缺口</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:40px">#</th><th style="width:230px">缺口</th><th>现状与影响</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><b>没有"是否评分"标识</b></td>
+            <td>现在<b>靠"配没配 score_rule"隐式决定</b>：REG_CAR / REG_IBL / REG_LR 有定义但没规则 → 实际不参与评分，
+                但列表里看不出意图，换个人接手就不知道是"还没配"还是"故意不评"</td></tr>
+        <tr><td class="num">2</td><td><b>指标定义与引擎指标命名不一致</b></td>
+            <td><code>prcp_kpi_definition.kpi_code</code> = <code>REG_ROE</code>；
+                <code>prcp_metric_coefficient.metric_code</code> = <code>ROE</code>；
+                <code>DELTA_EVE</code> ↔ <code>REG_EVE</code> —— 靠前端硬编码映射</td></tr>
+        <tr><td class="num">3</td><td><b>指标方案没被组合方案引用</b></td>
+            <td><code>prcp_kpi_scheme</code> 有 2 条（kpi_count 都是 0，未维护），
+                但 <code>prcp_reverse_scheme</code> <b>没有 kpi_scheme_id</b> → "方案对应的所有指标"目前无来源</td></tr>
+        <tr><td class="num">4</td><td><b>scheme_id 同名不同义（隐患）</b></td>
+            <td><code>prcp_kpi_definition.scheme_id</code> 指<b>指标方案</b>；
+                <code>prcp_metric_coefficient.scheme_id</code> 指<b>账户册方案</b> —— 同名不同义，极易写错</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note warn"><b>缺口 4 建议在本期一并处理</b>：这是"来源统一"的隐性前提 —— 后面要做指标动态取数，
+    一旦按 scheme_id 关联，混用会导致取到空数据且难以排查。</div>
+  </div>
+</div>
+
+<!-- 2 -->
+<div class="sec" id="s2">
+  <div class="sec-h"><div class="sec-n">2</div><h2>设计目标与原则</h2></div>
+  <div class="sec-b">
+    <h3>2.1 三个目标</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">目标</th><th style="width:220px">说明</th><th>验收</th></tr></thead>
+      <tbody>
+        <tr><td><b>G1</b></td><td><b>指标定义唯一来源</b></td>
+            <td>首页展示的每一个指标卡，都能在 <code>prcp_kpi_definition</code> 里找到对应一行；
+                前端不再有指标名/单位/口径的硬编码</td></tr>
+        <tr><td><b>G2</b></td><td><b>计算与评分解耦</b></td>
+            <td>每个指标显式声明 <code>is_scored</code>；为 0 时<b>照常计算并展示</b>，但不进总分、不出评分标签</td></tr>
+        <tr><td><b>G3</b></td><td><b>首页动态多选</b></td>
+            <td>齿轮面板列出方案全部可选指标，多选控制展示；默认选中前 8 个；用户选择可持久化</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>2.2 设计原则</h3>
+    <ul>
+      <li><b>配置驱动，不改代码</b>：新增/下线一个展示指标 = 改一条 <code>kpi_definition</code> 记录，不动前后端代码</li>
+      <li><b>向后兼容</b>：现有 5 个监管指标的展示与评分结果<b>必须完全不变</b>（回归硬约束）</li>
+      <li><b>评分规则独立</b>：<code>is_scored=0</code> 的指标不要求配 <code>score_rule</code>，也不出现在评分明细里</li>
+      <li><b>口径可追溯</b>：每个指标的口径描述（<code>formula_desc</code>）随卡片一起下发给前端（Tooltip 展示）</li>
+    </ul>
+
+    <h3>2.3 目标链路（改造后）</h3>
+    <div class="chain">
+      <div class="chain-row">
+        <div class="cnode b"><div class="nt">组合反算方案</div><div class="ns">prcp_reverse_scheme<br>+ kpi_scheme_id</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode p"><div class="nt">指标方案</div><div class="ns">prcp_kpi_scheme<br>SCH_REG_2026</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode g"><div class="nt">指标定义</div><div class="ns">prcp_kpi_definition<br>is_scored / value_source</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode o"><div class="nt">取数 + 评分</div><div class="ns">value_source 分派<br>score_rule / segment</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode b"><div class="nt">首页动态卡片</div><div class="ns">available_metrics<br>齿轮多选</div></div>
+      </div>
+    </div>
+    <div class="note"><b>关键设计点</b>：指标定义承载<b>「是什么 / 从哪算 / 是否评分 / 怎么展示」</b>四件事，
+    首页只做「按用户选择渲染」，不再关心口径。</div>
+  </div>
+</div>
+
+<!-- 3 -->
+<div class="sec" id="s3">
+  <div class="sec-h"><div class="sec-n">3</div><h2>数据模型设计</h2></div>
+  <div class="sec-b">
+
+    <h3 id="s3-1">3.1 prcp_kpi_definition 字段扩展</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:160px">新增字段</th><th style="width:150px">类型</th><th style="width:120px">默认</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>is_scored</code></td><td>tinyint(1) NOT NULL</td><td>1</td>
+            <td><b>是否参与评分</b>：1=参与（须配 score_rule + segment，进总分）；0=只计算不评分（可展示，不进总分）</td></tr>
+        <tr><td><code>value_source</code></td><td>varchar(24) NOT NULL</td><td>'ENGINE_METRIC'</td>
+            <td><b>取数方式</b>，决定值从哪来（详见 §4）</td></tr>
+        <tr><td><code>source_params</code></td><td>JSON NULL</td><td>NULL</td>
+            <td>取数参数（如 <code>{"category":"ASSET"}</code>、<code>{"node_pattern":"S010101%"}</code>）</td></tr>
+        <tr><td><code>metric_code</code></td><td>varchar(32) NULL</td><td>NULL</td>
+            <td>与 <code>prcp_metric_coefficient.metric_code</code> 对齐的引擎指标码（ROE / DELTA_EVE…），
+                <b>消除前后端硬编码映射</b></td></tr>
+        <tr><td><code>display_order</code></td><td>int NOT NULL</td><td>999</td>
+            <td>展示顺序；<b>决定默认前 8 个选谁</b></td></tr>
+        <tr><td><code>is_displayable</code></td><td>tinyint(1) NOT NULL</td><td>1</td>
+            <td>是否可在首页卡片区展示（0 = 只参与计算与评分，不上卡片，如内部中间量）</td></tr>
+        <tr><td><code>display_group</code></td><td>varchar(16) NULL</td><td>'REG'</td>
+            <td>展示分组：<code>BS</code>=资产负债类 / <code>REG</code>=监管类（前端分组展示与排序）</td></tr>
+        <tr><td><code>color</code></td><td>varchar(16) NULL</td><td>NULL</td>
+            <td>卡片配色（替代前端 META 硬编码；为空则前端按 display_group 给默认色）</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="sql"><span class="c">-- 迁移脚本（幂等）</span>
+<span class="k">ALTER TABLE</span> prcp_kpi_definition
+  <span class="k">ADD COLUMN</span> is_scored     TINYINT(1)   <span class="k">NOT NULL DEFAULT</span> <span class="n">1</span> COMMENT <span class="s">'是否参与评分：1=参与 0=只计算不评分'</span>,
+  <span class="k">ADD COLUMN</span> value_source  VARCHAR(24)  <span class="k">NOT NULL DEFAULT</span> <span class="s">'ENGINE_METRIC'</span> COMMENT <span class="s">'取数方式：ENGINE_METRIC/BS_CATEGORY_SUM/NODE_WEIGHTED_RATE/KPI_VALUE'</span>,
+  <span class="k">ADD COLUMN</span> source_params JSON         <span class="k">NULL</span> COMMENT <span class="s">'取数参数'</span>,
+  <span class="k">ADD COLUMN</span> metric_code   VARCHAR(32)  <span class="k">NULL</span> COMMENT <span class="s">'引擎指标码，对齐 prcp_metric_coefficient.metric_code'</span>,
+  <span class="k">ADD COLUMN</span> display_order INT          <span class="k">NOT NULL DEFAULT</span> <span class="n">999</span> COMMENT <span class="s">'展示顺序，决定默认前 8 个'</span>,
+  <span class="k">ADD COLUMN</span> is_displayable TINYINT(1)  <span class="k">NOT NULL DEFAULT</span> <span class="n">1</span> COMMENT <span class="s">'是否可上首页卡片'</span>,
+  <span class="k">ADD COLUMN</span> display_group VARCHAR(16)  <span class="k">NULL DEFAULT</span> <span class="s">'REG'</span> COMMENT <span class="s">'BS=资产负债类 REG=监管类'</span>,
+  <span class="k">ADD COLUMN</span> color         VARCHAR(16)  <span class="k">NULL</span> COMMENT <span class="s">'卡片配色'</span>;
+
+<span class="c">-- 组合反算方案关联指标方案</span>
+<span class="k">ALTER TABLE</span> prcp_reverse_scheme
+  <span class="k">ADD COLUMN</span> kpi_scheme_id BIGINT <span class="k">NULL</span> COMMENT <span class="s">'关联指标方案 id（prcp_kpi_scheme.id）'</span>;</div>
+
+    <h3 id="s3-2">3.2 三个非监管指标的正式定义</h3>
+    <p>资产余额、负债余额、贷款加权平均利率<b>纳入指标定义</b>，统一管理。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:160px">kpi_code</th><th style="width:130px">kpi_name</th>
+        <th style="width:110px">indicator_type</th><th style="width:150px">value_source</th>
+        <th style="width:190px">source_params</th><th style="width:80px">is_scored</th><th style="width:80px">display_order</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>BS_ASSET_TOTAL</code></td><td>资产余额</td><td>1 非监管</td>
+            <td><code>BS_CATEGORY_SUM</code></td><td><code>{"category":"ASSET"}</code></td>
+            <td><span class="tag tag-o">0</span></td><td>1</td></tr>
+        <tr><td><code>BS_LIAB_TOTAL</code></td><td>负债余额</td><td>1 非监管</td>
+            <td><code>BS_CATEGORY_SUM</code></td><td><code>{"category":"LIABILITY"}</code></td>
+            <td><span class="tag tag-o">0</span></td><td>2</td></tr>
+        <tr><td><code>BS_LOAN_RATE</code></td><td>贷款加权平均利率</td><td>1 非监管</td>
+            <td><code>NODE_WEIGHTED_RATE</code></td><td><code>{"node_pattern":"S010101%"}</code></td>
+            <td><span class="tag tag-o">0</span></td><td>3</td></tr>
+        <tr><td><code>BS_EQUITY_TOTAL</code></td><td>所有者权益</td><td>1 非监管</td>
+            <td><code>BS_CATEGORY_SUM</code></td><td><code>{"category":"EQUITY"}</code></td>
+            <td><span class="tag tag-o">0</span></td><td>4</td></tr>
+        <tr><td><code>BS_OFFBAL_TOTAL</code></td><td>表外余额</td><td>1 非监管</td>
+            <td><code>BS_CATEGORY_SUM</code></td><td><code>{"category":"OFF_BALANCE"}</code></td>
+            <td><span class="tag tag-o">0</span></td><td>5</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b">
+      <b>我把"所有者权益"和"表外余额"也一并纳入了</b>（原需求只提 3 个）——
+      因为这 5 个资产负债类指标<b>本来就是同一套「按大类汇总末级余额」的算法</b>，
+      只定义 3 个会让权益/表外继续留在代码里硬编码，等于没解耦。纳入后这 5 个走完全相同的取数路径。
+    </div>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:170px">指标</th><th style="width:120px">is_scored</th><th style="width:130px">卡片显示</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td>5 个资产负债类</td><td><span class="tag tag-o">0</span></td><td><span class="tag tag-g">显示</span></td>
+            <td>展示值 + 基期对比；<b>不显示评分标签</b>（没有 score_rule）</td></tr>
+        <tr><td>REG_ROE / CET1 / LCR / NSFR / EVE</td><td><span class="tag tag-g">1</span></td><td><span class="tag tag-g">显示</span></td>
+            <td>展示值 + 评分标签 + 基期对比；进总分</td></tr>
+        <tr><td>REG_CAR / REG_IBL / REG_LR</td><td><span class="tag tag-o">0</span></td><td><span class="tag tag-b">可显示</span></td>
+            <td>当前无 score_rule（IBL/LR 还是占位 0）→ <b>显式设为 0</b>，用户想看可勾选，不参与评分</td></tr>
+        <tr><td>仅计算不展示的中间量</td><td><span class="tag tag-y">0</span></td><td><span class="tag tag-y">不显示</span></td>
+            <td><code>is_displayable=0</code>，只参与计算</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3 id="s3-3">3.3 scheme_id 语义隐患的处理</h3>
+    <p><code>prcp_kpi_definition.scheme_id</code>（指标方案）与
+    <code>prcp_metric_coefficient.scheme_id</code>（<b>账户册方案</b>）同名不同义。</p>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">方案</th><th style="width:110px">改动量</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>A. 改名（推荐）</b></td><td><span class="tag tag-o">中</span></td>
+            <td><code>prcp_metric_coefficient.scheme_id</code> → <code>coa_scheme_id</code>，
+                <code>scheme_code</code> → <code>coa_scheme_code</code>。语义自解释，<b>从此不可能写错</b>。
+                需同步改引擎写入与后端读取（约 4 处）</td></tr>
+        <tr><td>B. 只加注释</td><td><span class="tag tag-g">小</span></td>
+            <td>表/字段 COMMENT 说明"此处为账户册方案"。零代码风险，但靠人记</td></tr>
+        <tr><td>C. 保持现状</td><td><span class="tag tag-r">无</span></td>
+            <td>不推荐 —— 本期要做的正是"按指标定义取数"，混用会取到空数据且难排查</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><b>建议</b>：本期做 A（改名 + 迁移脚本），同时在
+    <code>prcp_kpi_definition</code> 上把字段保留为 <code>scheme_id</code> 并在 COMMENT 标注
+    "指标方案 id"；两者靠<b>字段名本身</b>区分（<code>scheme_id</code> vs <code>coa_scheme_id</code>），
+    比 A/B 混用更安全。</div>
+  </div>
+</div>
+
+<!-- 4 -->
+<div class="sec" id="s4">
+  <div class="sec-h"><div class="sec-n">4</div><h2>取数方式与计算链路</h2></div>
+  <div class="sec-b">
+    <h3>4.1 四种 value_source</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:170px">value_source</th><th style="width:150px">适用指标</th>
+        <th style="width:230px">取数逻辑</th><th>数据表</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><code>ENGINE_METRIC</code></td><td>ROE / CET1 / LCR / NSFR / EVE</td>
+            <td>按 <code>metric_code</code> 从系数表取该节点的值，再按指标口径聚合
+                （现为节点算术平均；ROE/NIM 等有特殊口径的走既有实现）</td>
+            <td><code>prcp_metric_coefficient</code></td></tr>
+        <tr><td><code>BS_CATEGORY_SUM</code></td><td>资产/负债/权益/表外余额</td>
+            <td>按 <code>source_params.category</code> 取末级节点余额求和（<b>复用现有 roll-up 口径</b>）</td>
+            <td><code>prcp_data_reverse</code></td></tr>
+        <tr><td><code>NODE_WEIGHTED_RATE</code></td><td>贷款加权平均利率</td>
+            <td>按 <code>source_params.node_pattern</code> 匹配节点（默认 L4 以下），
+                以 <code>current_balance</code> 为权重的 <code>weighted_rate</code> 加权平均</td>
+            <td><code>prcp_data_reverse</code></td></tr>
+        <tr><td><code>KPI_VALUE</code></td><td>基期对比兜底</td>
+            <td>直接取指标值表（当前 <code>prcp_kpi_value</code>），用于无反算结果时的回退展示</td>
+            <td><code>prcp_kpi_value</code></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note warn"><b>口径一致性硬约束</b>：
+    <code>BS_CATEGORY_SUM</code> 与 <code>NODE_WEIGHTED_RATE</code> <b>必须复用现有 snapshot 的同一套计算代码</b>
+    （<code>_classify</code> + <code>_is_leaf</code> + 同样的节点过滤），只是把"写死"改成"由配置指定"。
+    <b>不允许重写一套</b> —— 否则改造前后数值会对不上，回归无法通过。</div>
+
+    <h3>4.2 计算链路</h3>
+    <div class="chain">
+      <div class="chain-row">
+        <div class="cnode b"><div class="nt">snapshot 请求</div><div class="ns">scheme_code<br>run_id / date_offset</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode p"><div class="nt">解析指标集合</div><div class="ns">reverse_scheme.kpi_scheme_id<br>→ kpi_definition</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode g"><div class="nt">按 value_source 分派</div><div class="ns">ENGINE_METRIC / BS_*</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode o"><div class="nt">组装 available_metrics</div><div class="ns">值 + 单位 + 口径 + 评分</div></div>
+        <div class="carrow">→</div>
+        <div class="cnode b"><div class="nt">前端渲染</div><div class="ns">按用户勾选过滤</div></div>
+      </div>
+    </div>
+
+    <h3>4.3 评分侧解耦</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">环节</th><th>改造点</th></tr></thead>
+      <tbody>
+        <tr><td>评分明细接口</td><td>只返回 <code>is_scored=1</code> 的指标（<code>kpi_scores[]</code>）</td></tr>
+        <tr><td>总分计算</td><td>只对 <code>is_scored=1</code> 且有 segment 的指标加权累加</td></tr>
+        <tr><td>目标达成</td><td><code>prcp_reverse_target</code> 仍可给非评分指标设目标（如资产余额 ≥ 某值），
+            达成度照常算，<b>但不进总分</b></td></tr>
+        <tr><td>前端 ScoreTag</td><td>只在 <code>is_scored=1</code> 且有评分记录时渲染</td></tr>
+        <tr><td>评分规则维护页</td><td>勾选"参与评分"的指标才允许配 <code>score_rule</code>；未勾选的隐藏该配置入口</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note ok"><b>兼容保证</b>：现有 5 个监管指标 <code>is_scored</code> 置 1，
+    评分规则、分段、总分口径<b>一字不改</b> → 现有评分结果与反算结果保持一致（回归硬约束）。</div>
+  </div>
+</div>
+
+<!-- 5 -->
+<div class="sec" id="s5">
+  <div class="sec-h"><div class="sec-n">5</div><h2>接口契约设计</h2></div>
+  <div class="sec-b">
+    <h3>5.1 snapshot 新增 available_metrics</h3>
+    <div class="sql"><span class="c">GET /prcp/api/reverse-dashboard/snapshot?scheme_code=2026&amp;run_id=31&amp;date_offset=24</span>
+
+{
+  <span class="k">"kpi"</span>: { ... },                <span class="c">// 保留：资产/负债/权益等汇总（兼容旧前端）</span>
+  <span class="k">"metric_avg"</span>: { ... },            <span class="c">// 保留：旧字段不动</span>
+  <span class="k">"kpi_scores"</span>: [ ... ],            <span class="c">// 保留：仅 is_scored=1</span>
+
+  <span class="c">// ★ 新增：方案对应的全部可展示指标</span>
+  <span class="k">"available_metrics"</span>: [
+    {
+      <span class="k">"kpi_code"</span>: <span class="s">"BS_ASSET_TOTAL"</span>,
+      <span class="k">"label"</span>: <span class="s">"资产余额"</span>,
+      <span class="k">"value"</span>: 111096.85,
+      <span class="k">"unit"</span>: <span class="s">"亿"</span>,
+      <span class="k">"value_kind"</span>: <span class="s">"AMOUNT"</span>,          <span class="c">// AMOUNT=金额 / RATIO=比率 / RATE=利率</span>
+      <span class="k">"color"</span>: <span class="s">"#1890ff"</span>,
+      <span class="k">"is_scored"</span>: false,
+      <span class="k">"display_group"</span>: <span class="s">"BS"</span>,
+      <span class="k">"display_order"</span>: 1,
+      <span class="k">"desc"</span>: <span class="s">"按末级节点汇总的资产余额（基准日口径）"</span>,
+      <span class="k">"base_value"</span>: 94786.42,          <span class="c">// 基期对比值</span>
+      <span class="k">"base_period"</span>: <span class="s">"2025-12-01"</span>,
+      <span class="k">"score"</span>: null,                   <span class="c">// 非评分指标为 null</span>
+      <span class="k">"threshold_min"</span>: null,
+      <span class="k">"threshold_max"</span>: null,
+      <span class="k">"higher_is_better"</span>: null
+    },
+    {
+      <span class="k">"kpi_code"</span>: <span class="s">"REG_ROE"</span>,
+      <span class="k">"label"</span>: <span class="s">"ROE 净资产收益率"</span>,
+      <span class="k">"value"</span>: 12.72, <span class="k">"unit"</span>: <span class="s">"%"</span>, <span class="k">"value_kind"</span>: <span class="s">"RATIO"</span>,
+      <span class="k">"color"</span>: <span class="s">"#722ed1"</span>,
+      <span class="k">"is_scored"</span>: true, <span class="k">"display_group"</span>: <span class="s">"REG"</span>, <span class="k">"display_order"</span>: 6,
+      <span class="k">"desc"</span>: <span class="s">"净资产收益率，≥ 11%（行业参考）"</span>,
+      <span class="k">"base_value"</span>: 12.72, <span class="k">"base_period"</span>: <span class="s">"2025-12-01"</span>,
+      <span class="k">"score"</span>: 420, <span class="k">"segment_desc"</span>: <span class="s">"🟢 安全 300-500"</span>,
+      <span class="k">"threshold_min"</span>: 11.0, <span class="k">"higher_is_better"</span>: true
+    }
+  ],
+  <span class="k">"default_selected"</span>: [<span class="s">"BS_ASSET_TOTAL"</span>, <span class="s">"BS_LIAB_TOTAL"</span>, <span class="s">"BS_LOAN_RATE"</span>,
+                          <span class="s">"REG_ROE"</span>, <span class="s">"REG_CET1"</span>, <span class="s">"REG_LCR"</span>,
+                          <span class="s">"REG_NSFR"</span>, <span class="s">"REG_EVE"</span>],   <span class="c">// 前 8 个（按 display_order）</span>
+  <span class="k">"kpi_scheme_code"</span>: <span class="s">"SCH_REG_2026"</span>
+}</div>
+    <div class="note"><b>为什么保留旧字段</b>：<code>kpi</code> / <code>metric_avg</code> 不删 ——
+    Java 版（prcp-java / prcp-vue）与旧前端可能仍在用，删了会连带出事。
+    新前端改用 <code>available_metrics</code>，旧字段标记为「兼容期保留」，下个大版本再清。</div>
+
+    <h3>5.2 指标定义管理接口</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">接口</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><code>GET /kpi/definitions?scheme_id=&scored=&displayable=</code></td><td>指标定义列表（支持按是否评分/可展示过滤）</td></tr>
+        <tr><td><code>POST /kpi/definitions</code></td><td>新建指标（含 is_scored / value_source / source_params / display_order）</td></tr>
+        <tr><td><code>PUT /kpi/definitions/{id}</code></td><td>修改（含 <b>is_scored 开关的快捷操作</b>）</td></tr>
+        <tr><td><code>GET /kpi/definitions/{id}/preview?scheme_code=&date_offset=</code></td>
+            <td><b>试算预览</b>：按当前定义算出该指标值 —— 配置人员改完立刻看到数，不用等跑反算</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b"><b>试算预览是这套设计的关键配套</b>：指标定义驱动取数后，
+    配置人员必须有"改一条定义 → 立刻看到值对不对"的闭环，否则不敢自己动。</div>
+  </div>
+</div>
+
+<!-- 6 -->
+<div class="sec" id="s6">
+  <div class="sec-h"><div class="sec-n">6</div><h2>前端交互设计</h2></div>
+  <div class="sec-b">
+    <h3>6.1 KPI 区布局</h3>
+    <div class="ui">
+      <div class="ui-row"><div class="ui-lab">标题行</div><div class="ui-box blue">
+        指标概览<span class="gear" style="margin-left:10px">⚙</span>
+        <span style="font-size:11px;color:#8f959e;margin-left:8px">已选 8 / 共 10</span>
+      </div></div>
+      <div class="ui-row"><div class="ui-lab">卡片区</div><div class="ui-box gray">
+        <div class="kpirow">
+          <div class="kpicard"><div class="kt">资产余额</div><div class="kv" style="color:#1890ff">11.11 万亿</div><div class="ks">基期 9.48 万亿</div></div>
+          <div class="kpicard"><div class="kt">负债余额</div><div class="kv" style="color:#fa8c16">10.18 万亿</div><div class="ks">基期 9.16 万亿</div></div>
+          <div class="kpicard"><div class="kt">贷款加权平均利率</div><div class="kv" style="color:#fa541c">3.89%</div><div class="ks">基期 3.85%</div></div>
+          <div class="kpicard"><div class="kt">ROE 净资产收益率</div><div class="kv" style="color:#722ed1">12.72%</div><div class="ks">420 分 · 🟢 安全</div></div>
+          <div class="kpicard"><div class="kt">CET1 核心一级</div><div class="kv" style="color:#1890ff">10.72%</div><div class="ks">380 分</div></div>
+          <div class="kpicard"><div class="kt">LCR 流动性覆盖</div><div class="kv" style="color:#52c41a">148.92%</div><div class="ks">评分 460</div></div>
+          <div class="kpicard"><div class="kt">NSFR 净稳定资金</div><div class="kv" style="color:#13c2c2">107.75%</div><div class="ks">评分 300</div></div>
+          <div class="kpicard"><div class="kt">ΔEVE 利率风险</div><div class="kv" style="color:#eb2f96">8.06%</div><div class="ks">评分 320</div></div>
+        </div>
+      </div></div>
+    </div>
+    <div class="note"><b>齿轮按钮</b>：放在 KPI 区标题行右侧（不占卡片位置），hover 提示「选择展示指标」；
+    旁边显示「已选 8 / 共 10」让用户知道还有指标没展示。</div>
+
+    <h3>6.2 齿轮面板交互</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:180px">元素</th><th>行为</th></tr></thead>
+      <tbody>
+        <tr><td>触发</td><td>点击齿轮 → 弹出 <code>Popover</code>（面板宽 ~320px）；再次点击或点外部关闭</td></tr>
+        <tr><td>分组</td><td>按 <code>display_group</code> 分两组：<b>资产负债类</b> / <b>监管指标</b>，组内按 display_order 排</td></tr>
+        <tr><td>勾选</td><td>Checkbox 多选；每个项右侧显示当前值预览（如「12.72%」）与是否参与评分标识</td></tr>
+        <tr><td>快捷</td><td>顶部「全选 / 反选 / 重置为默认」三个快捷操作</td></tr>
+        <tr><td>默认</td><td>首次进入取后端 <code>default_selected</code>（前 8 个）；用户勾选后写入 localStorage</td></tr>
+        <tr><td>持久化</td><td>key = <code>prcp_kpi_selected_{scheme_code}</code>；<b>换方案即换选择</b>，各方案独立</td></tr>
+        <tr><td>非评分标识</td><td>非评分指标项加灰色标签「不评分」；选中后卡片<b>不显示评分标签</b></td></tr>
+        <tr><td>至少保留</td><td>允许全部取消（此时 KPI 区显示空态提示"请选择要展示的指标"）</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>6.3 卡片渲染规则</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:130px">指标类型</th><th style="width:140px">值格式</th><th style="width:130px">评分标签</th><th>基期对比</th></tr></thead>
+      <tbody>
+        <tr><td><code>value_kind=AMOUNT</code></td><td>金额（万亿/亿 自动进位）</td><td>无</td><td>显示差额</td></tr>
+        <tr><td><code>value_kind=RATIO</code></td><td>百分比，2 位小数</td><td>有（is_scored 且有分）</td><td>显示 pp 差值</td></tr>
+        <tr><td><code>value_kind=RATE</code></td><td>百分比，2 位小数</td><td>无</td><td>显示 pp 差值</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note"><b>值格式由 <code>value_kind</code> 决定，不再按指标名判断</b> ——
+    现有 <code>CompareTag</code> 的 <code>kind="amount"|"ratio"</code> 改为后端下发。</div>
+
+    <h3>6.4 硬编码清理清单</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:230px">位置</th><th style="width:250px">当前</th><th>改为</th></tr></thead>
+      <tbody>
+        <tr><td>前端 <code>META</code></td><td>5 条 label/color/unit/desc</td><td>由 <code>available_metrics</code> 下发</td></tr>
+        <tr><td>前端 <code>METRIC_KEYS</code></td><td>写死 5 个</td><td>删除</td></tr>
+        <tr><td>前端 <code>METRIC_TO_REG_CODE</code></td><td>ROE→REG_ROE 等映射</td><td>删除（后端已按 metric_code 对齐）</td></tr>
+        <tr><td>前端 KPI 区 JSX</td><td>3 张硬编码卡 + ROE 卡 + map</td><td>统一 map 渲染 <code>available_metrics</code></td></tr>
+        <tr><td>后端 <code>DEFAULT_METRIC_TYPES</code></td><td>写死 5 个</td><td>改为从指标定义读取</td></tr>
+        <tr><td>后端 snapshot 余额汇总</td><td>4 个写死变量</td><td>改为按 BS_CATEGORY_SUM 指标循环</td></tr>
+        <tr><td>后端贷款利率</td><td>写死节点前缀</td><td>改为按 source_params.node_pattern</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<!-- 7 -->
+<div class="sec" id="s7">
+  <div class="sec-h"><div class="sec-n">7</div><h2>实施计划</h2></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr>
+        <th style="width:60px">阶段</th><th style="width:180px">内容</th>
+        <th style="width:230px">改动范围</th><th style="width:90px">工作量</th><th>验收</th>
+      </tr></thead>
+      <tbody>
+        <tr><td><b>P1</b></td><td>数据模型与基础数据</td>
+            <td>① kpi_definition 加 8 字段<br>② reverse_scheme 加 kpi_scheme_id<br>③ metric_coefficient 字段改名<br>④ 迁移脚本 + 5 个资产负债指标定义 + 5 个监管指标 is_scored 初始化</td>
+            <td><span class="tag tag-g">1~2 天</span></td>
+            <td>迁移幂等可重复执行；现有 9 条定义补全新字段</td></tr>
+        <tr><td><b>P2</b></td><td>后端取数改造</td>
+            <td>① snapshot 新增 available_metrics<br>② 抽 <code>_calc_metric_by_source()</code> 统一分派<br>③ 评分只取 is_scored=1<br>④ 指标定义 CRUD + 试算预览接口</td>
+            <td><span class="tag tag-g">2~3 天</span></td>
+            <td>available_metrics 值与改造前 snapshot 完全一致（逐指标对拍）</td></tr>
+        <tr><td><b>P3</b></td><td>前端动态展示</td>
+            <td>① KPI 区改统一 map 渲染<br>② 齿轮面板 + 多选<br>③ localStorage 持久化<br>④ 清理 4 处硬编码</td>
+            <td><span class="tag tag-g">2 天</span></td>
+            <td>勾选/取消即时生效；刷新后保持；切方案独立</td></tr>
+        <tr><td><b>P4</b></td><td>指标管理页配套</td>
+            <td>① 指标定义列表加"参与评分"开关<br>② 只评分指标才显示评分规则配置<br>③ 试算预览按钮</td>
+            <td><span class="tag tag-o">2~3 天</span></td>
+            <td>业务方可自助新增展示指标，无需改代码</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="note note-b"><b>P1→P3 是本次需求主线</b>（动态展示 + 三个指标纳入定义）；
+    <b>P4 是让设计真正"活起来"的后续</b> —— 有了指标定义表，配置人员才能自己加指标。
+    若时间紧，P4 可延后，但 P1~P3 完成后前端已具备动态能力。</div>
+
+    <h3>7.1 回归验证清单</h3>
+    <div class="chk">
+      <label><input type="checkbox"> <b>改造前后数值对拍</b>：8 个指标的当前值与基期值逐一比对（误差 = 0）</label>
+      <label><input type="checkbox"> 评分结果不变：总分、5 个监管指标得分、段位描述完全一致</label>
+      <label><input type="checkbox"> 反算结果不变：最优值、指标实测值、目标达成率一致</label>
+      <label><input type="checkbox"> 导出 xlsx 内容与结构不变（4 个 Sheet）</label>
+      <label><input type="checkbox"> 非评分指标（资产/负债/贷款利率）<b>不出现在评分明细、不影响总分</b></label>
+      <label><input type="checkbox"> 勾选/取消即时生效；刷新后保持选择；切换方案后选择独立</label>
+      <label><input type="checkbox"> 默认选中前 8 个（按 display_order）</label>
+      <label><input type="checkbox"> Java 版（prcp-java / prcp-vue）不受影响（保留旧字段兜底）</label>
+    </div>
+  </div>
+</div>
+
+<!-- 8 -->
+<div class="sec" id="s8">
+  <div class="sec-h"><div class="sec-n">8</div><h2>风险与边界</h2></div>
+  <div class="sec-b">
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">#</th><th style="width:220px">风险</th><th style="width:90px">等级</th><th>应对</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td><b>口径漂移</b>：新写的取数逻辑与现有 snapshot 算法不一致</td><td><span class="tag tag-r">高</span></td>
+            <td>不重写算法，<b>抽取现有代码复用</b>；P2 验收做逐指标对拍，误差必须为 0</td></tr>
+        <tr><td class="num">2</td><td><b>评分口径被误改</b>：is_scored 引入后有人改了规则参与范围</td><td><span class="tag tag-r">高</span></td>
+            <td>现有 5 个监管指标 is_scored 固定为 1；回归清单要求总分与得分完全一致</td></tr>
+        <tr><td class="num">3</td><td><b>scheme_id 混用</b>取到空数据</td><td><span class="tag tag-o">中</span></td>
+            <td>P1 一并做字段改名（<code>scheme_id</code> → <code>coa_scheme_id</code>）</td></tr>
+        <tr><td class="num">4</td><td>非评分指标被误配 score_rule 造成双算</td><td><span class="tag tag-g">低</span></td>
+            <td>保存时校验：<code>is_scored=0</code> 则清空 score_rule 并拒绝配置</td></tr>
+        <tr><td class="num">5</td><td>Java 版受连带影响</td><td><span class="tag tag-o">中</span></td>
+            <td>保留 <code>kpi</code>/<code>metric_avg</code>/<code>kpi_scores</code> 旧字段不动；
+                Java 版冒烟纳入回归清单</td></tr>
+        <tr><td class="num">6</td><td>指标定义配错导致看板显示异常值</td><td><span class="tag tag-g">低</span></td>
+            <td>试算预览接口 + 试算值合理性校验（量级/符号/空值告警）</td></tr>
+        <tr><td class="num">7</td><td>用户清空所有选择后 KPI 区空白</td><td><span class="tag tag-g">低</span></td>
+            <td>空态提示 + 「恢复默认」按钮；不允许保存空选择</td></tr>
+      </tbody>
+    </table>
+    </div>
+
+    <h3>8.1 本期不做（明确边界）</h3>
+    <ul>
+      <li><b>不引入真正的多轮/多引擎算法</b>（蚁群落地属《账户册重构替换操作手册》§3.2，与本期独立）</li>
+      <li><b>不做指标的血缘/版本管理</b>（口径变更历史），本期只在定义表记录当前口径</li>
+      <li><b>不做用户级的选择共享</b>（本期是 localStorage 本地；如需团队共享再引入配置表）</li>
+      <li><b>不改评分规则本身</b>：23 段制与权重（v14.3 六指标）保持不变</li>
+    </ul>
+
+    <h3>8.2 待确认事项</h3>
+    <div class="tbl">
+    <table>
+      <thead><tr><th style="width:60px">#</th><th style="width:230px">问题</th><th>影响与建议</th></tr></thead>
+      <tbody>
+        <tr><td class="num">1</td><td>指标方案是否需要多套（如"监管口径"与"管理口径"两套）？</td>
+            <td>建议先做一套（<code>SCH_REG_2026</code>），组合方案关联它即可；
+                未来要多套时数据模型已支持（<code>kpi_scheme_id</code>），只是配置工作</td></tr>
+        <tr><td class="num">2</td><td>默认前 8 个是否要固定某几个必选（如资产/负债余额）？</td>
+            <td>建议做成配置：<code>display_order</code> 排前 8 + <code>is_displayable</code> 控制；
+                若需"必选"语义，可再加 <code>is_required</code>（本期不做）</td></tr>
+        <tr><td class="num">3</td><td>REG_CAR / REG_IBL / REG_LR 要不要真正接上计算？</td>
+            <td>IBL/LR 当前是占位 0。若要上卡片需先补计算口径；
+                本期先置 <code>is_scored=0</code> 且可选中展示（值为 0 时前端显示 '-'）</td></tr>
+        <tr><td class="num">4</td><td>指标定义是否纳入 Java 版共用？</td>
+            <td>建议<b>不纳入</b>：Java 版保持现状，本次只治理 Python 版；
+                若后续要统一，作为独立议题</td></tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+
+<div class="foot">
+  PRCP 指标统一治理与首页动态展示 · 设计文档 v1.0<br>
+  8 章 · 含数据模型 / 取数契约 / 接口 / 前端交互 / 实施计划 / 风险<br>
+  基线数据取自生产库 2026-11-25 实测 · 生成 2026-11-25
+</div>
+
+</div>
+</div>
+<script>
+const secs=[...document.querySelectorAll('.sec')];
+const links=[...document.querySelectorAll('.nav a')];
+const io=new IntersectionObserver(es=>{
+  es.forEach(e=>{ if(e.isIntersecting){
+    links.forEach(l=>l.classList.remove('on'));
+    const a=links.find(l=>l.getAttribute('href')==='#'+e.target.id); if(a)a.classList.add('on');
+  }});
+},{rootMargin:'-15% 0px -75% 0px'});
+secs.forEach(s=>io.observe(s));
+</script>
+</body>
+</html>
