@@ -370,7 +370,18 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
     (async () => {
       const r = await reverseDashboardApi.runs(schemeCode)
       setRuns(r.items || [])
-      // 指标选择初始化：优先读 localStorage（按方案独立），否则用后端默认（前 8 个）
+  // 当前 runId 不在新列表里时，重置为「结果数据最完整」的 SUCCESS run
+      //   （按 result_rows 降序，同等则取更新的），避免异常 run 导致页面空白
+      const success = (r.items || []).filter((x: any) => x.status === 'SUCCESS')
+      const best = success.slice().sort((a: any, b: any) =>
+        (b.result_rows || 0) - (a.result_rows || 0) || b.run_id - a.run_id)[0]
+      if (!runId || !(r.items || []).some((x: any) => x.run_id === runId)) {
+        setRunId(best?.run_id)
+      }
+    })()
+  }, [schemeCode])
+
+  // 指标选择初始化：优先读 localStorage（按方案独立），否则用后端默认（前 8 个）
   useEffect(() => {
     const allMetrics: any[] = data?.available_metrics || []
     if (allMetrics.length === 0) return
@@ -383,7 +394,7 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
         const arr = JSON.parse(saved)
         if (Array.isArray(arr)) {
           // 过滤掉已不存在的指标（指标定义被删除的情况）
-          const valid = arr.filter((c) => allMetrics.some((m: any) => m.kpi_code === c))
+          const valid = arr.filter((c: string) => allMetrics.some((m: any) => m.kpi_code === c))
           next = valid.length ? valid : def
         }
       }
@@ -391,17 +402,7 @@ const ReverseDashboard: React.FC<{ initialSchemeCode?: string }> = ({ initialSch
     setSelectedMetrics(next || def)
   }, [data?.available_metrics, data?.default_selected, schemeCode])
 
-  // 当前 runId 不在新列表里时，重置为「结果数据最完整」的 SUCCESS run
-      //   （按 result_rows 降序，同等则取更新的），避免异常 run 导致页面空白
-      const success = (r.items || []).filter((x: any) => x.status === 'SUCCESS')
-      const best = success.slice().sort((a: any, b: any) =>
-        (b.result_rows || 0) - (a.result_rows || 0) || b.run_id - a.run_id)[0]
-      if (!runId || !(r.items || []).some((x: any) => x.run_id === runId)) {
-        setRunId(best?.run_id)
-      }
-    })()
-  }, [schemeCode])
-
+  // 方案变化 → 加载快照
   // run 变化 → 加载 dates
   useEffect(() => {
     if (!schemeCode || !runId) return
