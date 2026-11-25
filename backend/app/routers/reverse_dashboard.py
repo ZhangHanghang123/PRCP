@@ -14,6 +14,7 @@
 - GET /reverse-dashboard/options                  方案/Run/月份下拉
 - GET /reverse-dashboard/snapshot                 驾驶舱快照（一次拉全）
 """
+import json
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
