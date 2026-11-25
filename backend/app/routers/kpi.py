@@ -443,7 +443,20 @@ async def preview_def(
     """), {"sc": scheme_code}).first()
     if not rev:
         raise HTTPException(404, "组合方案不存在")
-    run_id, coa_scheme_id, data_date = rev[0], rev[2], rev[3]
+    run_id, coa_scheme_id, scheme_base_date = rev[0], rev[2], rev[3]
+
+    # ★ 取数日期必须用「所选预测月份对应的反算日期」，
+    #   而不是方案基准日 —— 系数表 prcp_metric_coefficient 的 data_date
+    #   是逐月序列（2025-12-01 ~ 2027-11-01），与 snapshot 的口径保持一致。
+    data_date = scheme_base_date
+    dr = db.execute(text("""
+        SELECT data_date FROM prcp_data_reverse
+        WHERE scheme_code=:sc AND run_id=:rid AND is_deleted=0
+          AND offset_unit='M' AND date_offset=:do
+        ORDER BY data_date DESC LIMIT 1
+    """), {"sc": scheme_code, "rid": run_id, "do": date_offset}).first()
+    if dr:
+        data_date = dr[0]
 
     # 节点集合
     nodes = db.execute(text("""
