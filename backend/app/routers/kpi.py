@@ -1,4 +1,5 @@
 """指标管理 API（v2）— 方案 + 定义（含报表项引用）+ 维护（指标值多版本）"""
+import json
 from typing import Optional, List
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -170,11 +171,23 @@ async def list_rpt_items(
 
 
 # ============== 指标定义 ==============
+def _safe_json(v):
+    """source_params 可能是 JSON 字符串或 dict，统一解析"""
+    if isinstance(v, str):
+        try:
+            return json.loads(v)
+        except Exception:
+            return None
+    return v
+
+
 @router.get("/definitions")
 async def list_defs(
     scheme_id: Optional[int] = None,
     rpt_id: Optional[int] = None,
     keyword: Optional[str] = None,
+    scored: Optional[bool] = None,
+    displayable: Optional[bool] = None,
     db: Session = Depends(get_db),
     user=Depends(get_current_user),
 ):
@@ -189,18 +202,26 @@ async def list_defs(
     if keyword:
         where.append("(d.kpi_code LIKE :kw OR d.kpi_name LIKE :kw)")
         params["kw"] = f"%{keyword}%"
+    if scored is not None:
+        where.append("d.is_scored=:scored")
+        params["scored"] = 1 if scored else 0
+    if displayable is not None:
+        where.append("d.is_displayable=:disp")
+        params["disp"] = 1 if displayable else 0
     rows = db.execute(
         text(f"""SELECT d.id, d.scheme_id, s.scheme_code, s.scheme_name,
                        d.kpi_code, d.kpi_name, d.rpt_id, r.report_code, r.report_name,
                        d.indicator_type, d.formula, d.script_path, d.script_name,
                        d.calc_unit, d.formula_desc,
                        d.threshold_min, d.threshold_max, d.status,
-                       d.created_at, d.updated_at
+                       d.created_at, d.updated_at,
+                       d.is_scored, d.value_source, d.source_params, d.metric_code,
+                       d.display_order, d.is_displayable, d.display_group, d.color
                 FROM prcp_kpi_definition d
                 LEFT JOIN prcp_kpi_scheme s ON s.id=d.scheme_id
                 LEFT JOIN prcp_rpt_report r ON r.id=d.rpt_id
                 WHERE {' AND '.join(where)}
-                ORDER BY d.scheme_id, d.id DESC"""),
+                ORDER BY d.scheme_id, d.display_order ASC, d.id DESC"""),
         params,
     ).fetchall()
     return {"items": [
@@ -217,6 +238,14 @@ async def list_defs(
             "status": r[17],
             "created_at": r[18].isoformat() if r[18] else None,
             "updated_at": r[19].isoformat() if r[19] else None,
+            "is_scored": bool(r[20]),
+            "value_source": r[21],
+            "source_params": _safe_json(r[22]),
+            "metric_code": r[23],
+            "display_order": int(r[24] or 999),
+            "is_displayable": bool(r[25]),
+            "display_group": r[26] or "REG",
+            "color": r[27],
         } for r in rows
     ]}
 
@@ -289,12 +318,30 @@ async def update_def(kid: int, p: KpiDefIn, db: Session = Depends(get_db), user=
         if not (p.script_name and p.script_name.strip()):
             raise HTTPException(400, "函数指标必须填写 script_name")
         formula_to_save = None
+    # 新字段：is_scored / value_source / source_params / metric_code /
+    #          display_order / is_displayable / display_group / color
+    is_scored = 1 if getattr(p, "is_scored", True) else 0
+    value_source = (getattr(p, "value_source", None) or "ENGINE_METRIC").strip()
+    if value_source not in ("ENGINE_METRIC", "BS_CATEGORY_SUM",
+                            "NODE_WEIGHTED_RATE", "KPI_VALUE"):
+        raise HTTPException(400, f"value_source 不合法: {value_source}")
+    source_params = getattr(p, "source_params", None)
+    if isinstance(source_params, dict):
+        source_params = json.dumps(source_params, ensure_ascii=False)
+    metric_code = (getattr(p, "metric_code", None) or None)
+    display_order = int(getattr(p, "display_order", 999) or 999)
+    is_displayable = 1 if getattr(p, "is_displayable", True) else 0
+    display_group = (getattr(p, "display_group", None) or "REG").strip()
+    color = (getattr(p, "color", None) or None)
+
     r = db.execute(
         text("""UPDATE prcp_kpi_definition SET
             scheme_id=:s, kpi_code=:c, kpi_name=:n, rpt_id=:r, indicator_type=:it,
             formula=:f, script_path=:sp, script_name=:sn,
             calc_unit=:u, formula_desc=:d, threshold_min=:min, threshold_max=:max,
-            status=:st, updated_by=:by
+            status=:st, updated_by=:by,
+            is_scored=:scored, value_source=:vs, source_params=:spm, metric_code=:mc,
+            display_order=:do, is_displayable=:disp, display_group=:dg, color=:clr
             WHERE id=:id AND is_deleted=0"""),
         {
             "s": p.scheme_id, "c": p.kpi_code, "n": p.kpi_name, "r": p.rpt_id,
@@ -303,11 +350,163 @@ async def update_def(kid: int, p: KpiDefIn, db: Session = Depends(get_db), user=
             "u": p.calc_unit, "d": p.formula_desc,
             "min": p.threshold_min, "max": p.threshold_max,
             "st": p.status, "by": uid, "id": kid,
+            "scored": is_scored, "vs": value_source, "spm": source_params,
+            "mc": metric_code, "do": display_order, "disp": is_displayable,
+            "dg": display_group, "clr": color,
         },
     ).rowcount
     if r == 0:
         raise HTTPException(404, "指标不存在")
+
+    # is_scored 关闭时清理该指标的评分规则（避免"只计算却仍有规则"的歧义）
+    if not is_scored:
+        db.execute(text("""
+            UPDATE prcp_kpi_score_rule SET is_deleted=1
+            WHERE kpi_id=:kid AND is_deleted=0
+        """), {"kid": kid})
+    # 同步指标方案的 kpi_count
+    db.execute(text("""
+        UPDATE prcp_kpi_scheme k SET k.kpi_count = (
+            SELECT COUNT(*) FROM prcp_kpi_definition d
+            WHERE d.scheme_id=k.id AND d.is_deleted=0 AND d.is_displayable=1
+        ) WHERE k.id=:sid
+    """), {"sid": p.scheme_id})
+    db.commit()
     return {"ok": True}
+
+
+# ============== 指标试算预览 ==============
+@router.get("/definitions/{kid}/preview")
+async def preview_def(
+    kid: int,
+    scheme_code: str = Query("2026", description="组合反算方案编码"),
+    date_offset: int = Query(1, description="预测月份 M1..M24"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user),
+):
+    """按当前指标定义试算该指标值
+
+    供配置人员「改一条定义 → 立刻看到值对不对」的闭环使用。
+    口径与驾驶舱 snapshot 完全一致（复用同一批取数函数）。
+    """
+    from app.routers.reverse_dashboard import (
+        _load_kpi_definitions, _calc_metric_by_source,
+        _load_metric_map,
+    )
+
+    row = db.execute(text("""
+        SELECT d.id, d.kpi_code, d.kpi_name, d.is_scored, d.value_source,
+               d.source_params, d.metric_code, d.calc_unit, d.display_order,
+               d.is_displayable, d.display_group, d.color, d.formula_desc,
+               d.threshold_min, d.threshold_max, d.status, d.scheme_id
+        FROM prcp_kpi_definition d
+        WHERE d.id=:kid AND d.is_deleted=0
+    """), {"kid": kid}).first()
+    if not row:
+        raise HTTPException(404, "指标不存在")
+
+    sp = row[5]
+    if isinstance(sp, str):
+        try:
+            sp = json.loads(sp)
+        except Exception:
+            sp = {}
+    defn = {
+        "id": row[0], "kpi_code": row[1], "kpi_name": row[2],
+        "is_scored": bool(row[3]), "value_source": row[4],
+        "source_params": sp or {}, "metric_code": row[6],
+        "calc_unit": row[7], "display_order": row[8],
+        "is_displayable": bool(row[9]), "display_group": row[10], "color": row[11],
+        "formula_desc": row[12],
+        "threshold_min": float(row[13]) if row[13] is not None else None,
+        "threshold_max": float(row[14]) if row[14] is not None else None,
+        "status": row[15],
+    }
+
+    # 定位组合方案 → run → 数据
+    rev = db.execute(text("""
+        SELECT r.id, r.kpi_scheme_id, s.coa_scheme_id, s.data_date
+        FROM prcp_reverse_scheme s
+        LEFT JOIN prcp_reverse_run r ON r.scheme_id=s.id AND r.status='SUCCESS'
+                                   AND r.is_deleted=0
+        WHERE s.scheme_code=:sc AND s.is_deleted=0
+        ORDER BY r.id DESC LIMIT 1
+    """), {"sc": scheme_code}).first()
+    if not rev:
+        raise HTTPException(404, "组合方案不存在")
+    run_id, coa_scheme_id, data_date = rev[0], rev[2], rev[3]
+
+    # 节点集合
+    nodes = db.execute(text("""
+        SELECT id, node_code, node_name, node_level, path
+        FROM prcp_coa_node
+        WHERE scheme_id=:sid AND is_deleted=0
+        ORDER BY node_level, sort_order, path
+    """), {"sid": coa_scheme_id}).fetchall()
+    nodes = [{"id": r[0], "node_code": r[1], "name": r[2], "level": r[3], "path": r[4]}
+             for r in nodes]
+
+    # 末级判定（与 snapshot 一致：按 path 前缀判断父子）
+    node_paths = {n["node_code"]: n["path"] for n in nodes}
+    parent_set = set()
+    for nc_a, p_a in node_paths.items():
+        if not p_a:
+            continue
+        for nc_b, p_b in node_paths.items():
+            if nc_a == nc_b or not p_b:
+                continue
+            if p_b.startswith(p_a.rstrip("/") + "/") and p_b != p_a:
+                parent_set.add(nc_a)
+                break
+
+    def _is_leaf(nc: str) -> bool:
+        return nc not in parent_set
+
+    # 反算结果
+    rev_rows = db.execute(text("""
+        SELECT node_code, current_balance, weighted_rate
+        FROM prcp_data_reverse
+        WHERE scheme_code=:sc AND run_id=:rid AND is_deleted=0
+          AND offset_unit='M' AND date_offset=:do
+    """), {"sc": scheme_code, "rid": run_id, "do": date_offset}).fetchall()
+    rev_map = {r[0]: {"current_balance": float(r[1] or 0),
+                      "weighted_rate": float(r[2] or 0)} for r in rev_rows}
+
+    # 指标系数
+    coa_code = db.execute(text("""
+        SELECT scheme_code FROM prcp_coa_scheme WHERE id=:id
+    """), {"id": coa_scheme_id}).scalar()
+    types = [defn["metric_code"]] if defn.get("metric_code") else []
+    metric_map = _load_metric_map(db, nodes, data_date, coa_code, types) if types else {}
+
+    def _avg_metric_fn(mm, mtype):
+        vals = [mm[n["node_code"]].get(mtype) for n in nodes
+                if mm.get(n["node_code"], {}).get(mtype) is not None]
+        return round(sum(vals) / len(vals), 4) if vals else None
+
+    ctx = {"nodes": nodes, "rev_map": rev_map, "is_leaf_fn": _is_leaf,
+           "metric_map": metric_map, "avg_metric_fn": _avg_metric_fn}
+    value = _calc_metric_by_source(defn, ctx)
+
+    # 合理性提示
+    warnings = []
+    if value is None:
+        warnings.append("取数为空：检查 metric_code / source_params 与当前数据是否匹配")
+    elif defn["value_source"] == "BS_CATEGORY_SUM" and abs(value) < 1:
+        warnings.append("余额类指标取数接近 0，请检查大类参数与末级判定")
+    elif defn["value_source"] == "ENGINE_METRIC" and abs(value) > 1e6:
+        warnings.append("指标值量级异常（> 1e6），请检查单位口径（百分数 vs 小数）")
+
+    return {
+        "kpi_code": defn["kpi_code"], "kpi_name": defn["kpi_name"],
+        "value": value, "unit": defn["calc_unit"],
+        "value_source": defn["value_source"], "source_params": defn["source_params"],
+        "is_scored": defn["is_scored"],
+        "desc": defn["formula_desc"],
+        "threshold_min": defn["threshold_min"], "threshold_max": defn["threshold_max"],
+        "run_id": run_id, "date_offset": date_offset, "data_date": str(data_date),
+        "warnings": warnings,
+    }
 
 
 # ============== 函数指标脚本浏览 ==============

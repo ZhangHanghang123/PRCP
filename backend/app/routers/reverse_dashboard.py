@@ -550,21 +550,143 @@ async def balance_export(
     )
 
 
-def _load_metric_map(db, nodes, data_date, coa_code) -> Dict[str, Dict[str, float]]:
-    """加载某数据日期的 5 指标值 → {node_code: {metric_type: value}}
+def _sum_by_category(nodes, rev_map: Dict[str, Dict], category: str, is_leaf_fn) -> float:
+    """按大类汇总末级节点余额（仅末级，避免父节点重复计算）
+
+    ★ 与原 snapshot 内联写法完全等价 —— 抽出为函数是为了让
+      BS_CATEGORY_SUM 类指标与原有 kpi 字段共用同一套口径。
+    """
+    return sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
+               if _classify(n["node_code"], n["path"]) == category
+               and is_leaf_fn(n["node_code"])
+               and n["node_code"] in rev_map)
+
+
+def _weighted_rate_by_prefix(nodes, rev_map: Dict[str, Dict],
+                             prefixes: List[str], min_balance: float = 0.01) -> Optional[float]:
+    """按节点前缀集合取余额加权的加权平均利率
+
+    ★ 与原 snapshot 内联写法完全等价 —— 抽出为函数是为了让
+      NODE_WEIGHTED_RATE 类指标与原有 kpi 字段共用同一套口径。
+    """
+    num = 0.0
+    den = 0.0
+    for n in nodes:
+        nc = n["node_code"]
+        if not any(nc.startswith(p) for p in prefixes):
+            continue
+        r = rev_map.get(nc)
+        if not r:
+            continue
+        bal = r["current_balance"]
+        rate = r["weighted_rate"]
+        if abs(bal) < min_balance:
+            continue
+        num += bal * rate
+        den += bal
+    return round(num / den, 6) if den > 0 else None
+
+
+def _load_kpi_definitions(db, kpi_scheme_id: Optional[int] = None) -> List[Dict]:
+    """读取指标定义（含新字段），按 display_order 升序
+
+    kpi_scheme_id 为空时取 scheme_id=1 的「2026 监管指标方案」。
+    """
+    params: Dict[str, Any] = {}
+    where = "d.is_deleted = 0"
+    if kpi_scheme_id:
+        where += " AND d.scheme_id = :sid"
+        params["sid"] = kpi_scheme_id
+    else:
+        where += " AND d.scheme_id = (SELECT id FROM prcp_kpi_scheme WHERE scheme_code='SCH_REG_2026' AND is_deleted=0 LIMIT 1)"
+    rows = db.execute(text(f"""
+        SELECT d.id, d.kpi_code, d.kpi_name, d.calc_unit, d.formula_desc,
+               d.is_scored, d.value_source, d.source_params, d.metric_code,
+               d.display_order, d.is_displayable, d.display_group, d.color,
+               d.threshold_min, d.threshold_max, d.status
+        FROM prcp_kpi_definition d
+        WHERE {where}
+        ORDER BY d.display_order ASC, d.id ASC
+    """), params).fetchall()
+    out = []
+    for r in rows:
+        sp = r[7]
+        if isinstance(sp, str):
+            try:
+                sp = json.loads(sp)
+            except Exception:
+                sp = None
+        out.append({
+            "id": r[0], "kpi_code": r[1], "kpi_name": r[2], "calc_unit": r[3],
+            "formula_desc": r[4], "is_scored": bool(r[5]), "value_source": r[6],
+            "source_params": sp or {}, "metric_code": r[8],
+            "display_order": r[9], "is_displayable": bool(r[10]),
+            "display_group": r[11] or "REG", "color": r[12],
+            "threshold_min": float(r[13]) if r[13] is not None else None,
+            "threshold_max": float(r[14]) if r[14] is not None else None,
+            "status": r[15],
+        })
+    return out
+
+
+def _calc_metric_by_source(defn: Dict, ctx: Dict) -> Optional[float]:
+    """按指标定义的 value_source 计算指标值
+
+    ctx 需提供：nodes / rev_map / is_leaf_fn / metric_map / metric_map_base
+    ★ 口径与 snapshot 原内联写法一致（复用 _sum_by_category / _weighted_rate_by_prefix /
+      _avg_metric），确保改造前后数值完全相同。
+    """
+    src = defn.get("value_source") or "ENGINE_METRIC"
+    params = defn.get("source_params") or {}
+    nodes = ctx.get("nodes") or []
+    rev_map = ctx.get("rev_map") or {}
+
+    if src == "BS_CATEGORY_SUM":
+        cat = params.get("category")
+        if not cat:
+            return None
+        return _sum_by_category(nodes, rev_map, cat, ctx["is_leaf_fn"])
+
+    if src == "NODE_WEIGHTED_RATE":
+        prefixes = params.get("node_prefixes") or []
+        if isinstance(prefixes, str):
+            prefixes = [prefixes]
+        if not prefixes:
+            return None
+        return _weighted_rate_by_prefix(nodes, rev_map, prefixes)
+
+    if src == "ENGINE_METRIC":
+        mc = defn.get("metric_code")
+        if not mc:
+            return None
+        return ctx["avg_metric_fn"](ctx.get("metric_map") or {}, mc)
+
+    if src == "KPI_VALUE":
+        return ctx.get("kpi_value_map", {}).get(defn.get("kpi_code"))
+
+    return None
+
+
+def _load_metric_map(db, nodes, data_date, coa_code,
+                      metric_types: Optional[List[str]] = None) -> Dict[str, Dict[str, float]]:
+    """加载某数据日期的指标值 → {node_code: {metric_type: value}}
 
     当前期与基期对比共用此函数，保证口径完全一致。
     若该账户册方案无指标数据，回退到任意 scheme_code（兼容 ZXCOA_V1）。
+    metric_types 不传时使用 DEFAULT_METRIC_TYPES（向后兼容）。
     """
     out: Dict[str, Dict[str, float]] = {}
     if not nodes or not data_date:
         return out
+    types = list(metric_types or DEFAULT_METRIC_TYPES)
+    if not types:
+        return out
     ph = ",".join([f":n{i}" for i in range(len(nodes))])
-    ph2 = ",".join([f":m{i}" for i in range(len(DEFAULT_METRIC_TYPES))])
+    ph2 = ",".join([f":m{i}" for i in range(len(types))])
     base_params: Dict[str, Any] = {"dd": data_date}
     for i, n in enumerate(nodes):
         base_params[f"n{i}"] = n["node_code"]
-    for i, m in enumerate(DEFAULT_METRIC_TYPES):
+    for i, m in enumerate(types):
         base_params[f"m{i}"] = m
 
     rows = db.execute(text(f"""
@@ -789,22 +911,11 @@ async def snapshot(
     def _is_leaf(nc: str) -> bool:
         return nc not in parent_set
 
-    asset_total = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                      if _classify(n["node_code"], n["path"]) == "ASSET"
-                      and _is_leaf(n["node_code"])
-                      and n["node_code"] in rev_map)
-    liability_total = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                          if _classify(n["node_code"], n["path"]) == "LIABILITY"
-                          and _is_leaf(n["node_code"])
-                          and n["node_code"] in rev_map)
-    equity_total = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                       if _classify(n["node_code"], n["path"]) == "EQUITY"
-                       and _is_leaf(n["node_code"])
-                       and n["node_code"] in rev_map)
-    off_balance = sum(rev_map[n["node_code"]]["current_balance"] for n in nodes
-                      if _classify(n["node_code"], n["path"]) == "OFF_BALANCE"
-                      and _is_leaf(n["node_code"])
-                      and n["node_code"] in rev_map)
+    # ★ 余额汇总改为复用 _sum_by_category（与 BS_CATEGORY_SUM 类指标同一套口径）
+    asset_total = _sum_by_category(nodes, rev_map, "ASSET", _is_leaf)
+    liability_total = _sum_by_category(nodes, rev_map, "LIABILITY", _is_leaf)
+    equity_total = _sum_by_category(nodes, rev_map, "EQUITY", _is_leaf)
+    off_balance = _sum_by_category(nodes, rev_map, "OFF_BALANCE", _is_leaf)
 
     metric_avg: Dict[str, Optional[float]] = {}
     metric_max: Dict[str, Optional[float]] = {}
@@ -816,25 +927,10 @@ async def snapshot(
         metric_min[m] = round(min(vals), 4) if vals else None
 
     # 贷款的加权平均利率：境内各项人民币贷款（S010101*）下属 L4 节点按余额加权平均
-    loan_weighted_num = 0.0
-    loan_weighted_den = 0.0
-    for n in nodes:
-        nc = n["node_code"]
-        # 只取 L4 子节点（不含 L3 父节点 S010101000000）
-        if not (nc.startswith("S01010101") or nc.startswith("S01010102") or
-                nc.startswith("S01010103") or nc.startswith("S01010104") or
-                nc.startswith("S01010105")):
-            continue
-        r = rev_map.get(nc)
-        if not r:
-            continue
-        bal = r["current_balance"]
-        rate = r["weighted_rate"]
-        if abs(bal) < 0.01:
-            continue
-        loan_weighted_num += bal * rate
-        loan_weighted_den += bal
-    loan_weighted_rate = round(loan_weighted_num / loan_weighted_den, 6) if loan_weighted_den > 0 else None
+    # ★ 贷款利率改为复用 _weighted_rate_by_prefix（与 NODE_WEIGHTED_RATE 类指标同一套口径）
+    #   默认取 L4 子节点（不含 L3 父节点 S010101000000）
+    LOAN_RATE_PREFIXES = ["S01010101", "S01010102", "S01010103", "S01010104", "S01010105"]
+    loan_weighted_rate = _weighted_rate_by_prefix(nodes, rev_map, LOAN_RATE_PREFIXES)
 
     # ============ 目标达成（目标 vs 真实指标 vs 完成率）============
     # 目标来自 prcp_reverse_target（组合反算方案的目标约束）
@@ -943,9 +1039,8 @@ async def snapshot(
                     for r in base_rows}
 
         def _sum_cat(cat: str, src: Dict) -> float:
-            return sum(src[n["node_code"]]["current_balance"] for n in nodes
-                       if _classify(n["node_code"], n["path"]) == cat
-                       and _is_leaf(n["node_code"]) and n["node_code"] in src)
+            # ★ 复用当前期同一套算法（_sum_by_category），确保基期与当前期口径一致
+            return _sum_by_category(nodes, src, cat, _is_leaf)
 
         # 指标类：取基期月份的 prcp_metric_coefficient（与当前期同一函数，口径一致）
         base_metric = _load_metric_map(db, nodes, base_period_date, coa_code)
@@ -956,25 +1051,14 @@ async def snapshot(
                     if base_metric.get(n["node_code"], {}).get(m) is not None]
             base_metric_avg[m] = round(sum(vals) / len(vals), 4) if vals else None
 
-        # 基期贷款加权平均利率
-        lw_num = lw_den = 0.0
-        for n in nodes:
-            nc = n["node_code"]
-            if not (nc.startswith("S01010101") or nc.startswith("S01010102") or
-                    nc.startswith("S01010103") or nc.startswith("S01010104") or
-                    nc.startswith("S01010105")):
-                continue
-            r = base_rev.get(nc)
-            if not r or abs(r["current_balance"]) < 0.01:
-                continue
-            lw_num += r["current_balance"] * r["weighted_rate"]
-            lw_den += r["current_balance"]
+        # 基期贷款加权平均利率（★ 复用当前期同一函数）
+        lw_rate = _weighted_rate_by_prefix(nodes, base_rev, LOAN_RATE_PREFIXES)
 
         kpi_base.update({
             "asset_total": round(_sum_cat("ASSET", base_rev), 2),
             "liability_total": round(_sum_cat("LIABILITY", base_rev), 2),
             "equity_total": round(_sum_cat("EQUITY", base_rev), 2),
-            "loan_weighted_rate": round(lw_num / lw_den, 6) if lw_den > 0 else None,
+            "loan_weighted_rate": lw_rate,
             "metric_avg": base_metric_avg,
         })
 
@@ -1191,6 +1275,87 @@ async def snapshot(
             })
     alerts.sort(key=lambda a: (-a["alert_count"], -a["current_balance"]))
 
+    # ============ 可展示指标（按指标定义动态组装）============
+    # 指标来源：组合方案 → 指标方案 → 指标定义（prcp_kpi_definition）
+    # 取值口径：与原有 kpi / metric_avg 字段完全一致（复用同一批函数），确保数值不变。
+    kpi_scheme_row = db.execute(text("""
+        SELECT r.kpi_scheme_id, k.scheme_code
+        FROM prcp_reverse_scheme r
+        LEFT JOIN prcp_kpi_scheme k ON k.id = r.kpi_scheme_id
+        WHERE r.scheme_code = :sc AND r.is_deleted = 0 LIMIT 1
+    """), {"sc": scheme_code}).first()
+    kpi_scheme_id = kpi_scheme_row[0] if kpi_scheme_row else None
+    kpi_scheme_code = kpi_scheme_row[1] if kpi_scheme_row else None
+
+    kpi_defs = _load_kpi_definitions(db, kpi_scheme_id)
+    # ENGINE_METRIC 类指标可能用到 DEFAULT_METRIC_TYPES 之外的 metric_code，需补加载
+    extra_types = sorted({d["metric_code"] for d in kpi_defs
+                          if d.get("metric_code") and d.get("value_source") == "ENGINE_METRIC"
+                          and d["metric_code"] not in DEFAULT_METRIC_TYPES})
+    cur_metric_map = metric_map
+    base_metric_map = base_metric if base_period_date else {}
+    if extra_types:
+        cur_metric_map = _load_metric_map(db, nodes, data_date, coa_code,
+                                          list(DEFAULT_METRIC_TYPES) + extra_types)
+        if base_period_date:
+            base_metric_map = _load_metric_map(db, nodes, base_period_date, coa_code,
+                                               list(DEFAULT_METRIC_TYPES) + extra_types)
+
+    def _avg_metric_fn(mm: Dict[str, Dict[str, float]], mtype: str) -> Optional[float]:
+        vals = [mm[n["node_code"]].get(mtype) for n in nodes
+                if mm.get(n["node_code"], {}).get(mtype) is not None]
+        return round(sum(vals) / len(vals), 4) if vals else None
+
+    # 评分信息索引（kpi_code → score / segment_desc）
+    score_index = {sc["kpi_code"]: sc for sc in kpi_scores}
+
+    ctx_cur = {"nodes": nodes, "rev_map": rev_map, "is_leaf_fn": _is_leaf,
+               "metric_map": cur_metric_map, "avg_metric_fn": _avg_metric_fn}
+    ctx_base = {"nodes": nodes, "rev_map": base_rev if base_period_date else {},
+                "is_leaf_fn": _is_leaf, "metric_map": base_metric_map,
+                "avg_metric_fn": _avg_metric_fn}
+
+    _BS_BASE_FIELD = {"ASSET": "asset_total", "LIABILITY": "liability_total",
+                      "EQUITY": "equity_total", "OFF_BALANCE": "off_balance"}
+
+    available_metrics = []
+    for d in kpi_defs:
+        if not d.get("is_displayable"):
+            continue
+        cur_val = _calc_metric_by_source(d, ctx_cur)
+        base_val = _calc_metric_by_source(d, ctx_base) if base_period_date else None
+        # 资产负债类指标的基期值取 kpi_base 的精确值（与原字段完全一致）
+        if base_period_date:
+            if d.get("value_source") == "BS_CATEGORY_SUM":
+                fld = _BS_BASE_FIELD.get((d.get("source_params") or {}).get("category"))
+                if fld:
+                    base_val = kpi_base.get(fld)
+            elif d.get("value_source") == "NODE_WEIGHTED_RATE":
+                base_val = kpi_base.get("loan_weighted_rate")
+        sc = score_index.get(d["kpi_code"])
+        available_metrics.append({
+            "kpi_code": d["kpi_code"],
+            "label": d["kpi_name"],
+            "value": cur_val,
+            "unit": d.get("calc_unit") or "",
+            "value_kind": (d.get("calc_unit") or "").upper(),
+            "color": d.get("color"),
+            "is_scored": d.get("is_scored"),
+            "display_group": d.get("display_group"),
+            "display_order": d.get("display_order"),
+            "desc": d.get("formula_desc") or "",
+            "base_value": base_val,
+            "base_period": kpi_base.get("period"),
+            "score": (sc or {}).get("score"),
+            "segment_desc": (sc or {}).get("segment_desc"),
+            "threshold_min": d.get("threshold_min"),
+            "threshold_max": d.get("threshold_max"),
+            "higher_is_better": (sc or {}).get("higher_is_better"),
+        })
+
+    # 默认选中：按 display_order 取前 8 个可展示指标
+    default_selected = [m["kpi_code"] for m in available_metrics[:8]]
+
     return {
         "scheme_code": scheme_code,
         "scheme_name": scheme_name,
@@ -1203,6 +1368,9 @@ async def snapshot(
         "data_date": data_date.isoformat() if isinstance(data_date, date) else str(data_date),
         "kpi": kpi,
         "kpi_base": kpi_base,
+        "available_metrics": available_metrics,
+        "default_selected": default_selected,
+        "kpi_scheme_code": kpi_scheme_code,
         "targets": targets_out,
         "m12_date": m12_date,
         "kpi_scores": kpi_scores,
