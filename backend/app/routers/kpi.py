@@ -434,7 +434,7 @@ async def preview_def(
 
     # 定位组合方案 → run → 数据
     rev = db.execute(text("""
-        SELECT r.id, r.kpi_scheme_id, s.coa_scheme_id, s.data_date
+        SELECT r.id, s.kpi_scheme_id, s.coa_scheme_id, s.data_date
         FROM prcp_reverse_scheme s
         LEFT JOIN prcp_reverse_run r ON r.scheme_id=s.id AND r.status='SUCCESS'
                                    AND r.is_deleted=0
