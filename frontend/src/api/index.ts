@@ -129,6 +129,9 @@ export const kpiApi = {
   createDef: (data: any) => http.post('/kpi/definitions', data).then((r) => r.data),
   updateDef: (id: number, data: any) => http.put(`/kpi/definitions/${id}`, data).then((r) => r.data),
   deleteDef: (id: number) => http.delete(`/kpi/definitions/${id}`).then((r) => r.data),
+  // 指标试算预览（按当前定义算一次值）
+  previewDef: (id: number, params: any = {}) =>
+    http.get(`/kpi/definitions/${id}/preview`, { params }).then((r) => r.data),
   // 值
   listValues: (params: any = {}) => http.get('/kpi/values', { params }).then((r) => r.data),
   upsertValue: (data: any) => http.post('/kpi/values', data).then((r) => r.data),

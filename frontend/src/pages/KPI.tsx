@@ -3,11 +3,13 @@ import { useSearchParams } from 'react-router-dom'
 import {
   Card, Row, Col, Form, Input, Select, Button, Table, Space, Tag,
   Modal, message, Spin, Empty, Tabs, DatePicker, Popconfirm, Statistic, Alert, InputNumber, Tree, Divider, Radio,
+  Tooltip, Switch,
 } from 'antd'
 import {
   PlusOutlined, EditOutlined, DeleteOutlined, ReloadOutlined,
   PlayCircleOutlined, FunctionOutlined, AppstoreOutlined,
   InsertRowAboveOutlined, InsertRowBelowOutlined, ThunderboltOutlined,
+  EyeOutlined,
 } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import dayjs, { Dayjs } from 'dayjs'
@@ -494,6 +496,39 @@ const KPI: React.FC = () => {
     },
   ]
 
+  // 指标试算预览：按当前定义算一次值，便于配置人员即时校验口径
+  const onPreviewDef = async (r: any) => {
+    try {
+      const res = await kpiApi.previewDef(r.id, { scheme_code: '2026', date_offset: 1 })
+      const val = res.value == null ? '（取数为空）'
+        : (res.value_kind === 'AMOUNT' ? `${(res.value / 1e8).toFixed(2)} 亿` : `${Number(res.value).toFixed(4)}`)
+      Modal.info({
+        title: `试算预览 · ${res.kpi_name}`,
+        width: 520,
+        content: (
+          <div style={{ fontSize: 13, lineHeight: 1.9 }}>
+            <div><b>指标编码</b>：{res.kpi_code}</div>
+            <div><b>当前值</b>：<span style={{ color: '#165dff', fontWeight: 600 }}>{val}</span> {res.unit || ''}</div>
+            <div><b>取数方式</b>：{res.value_source}</div>
+            <div><b>是否评分</b>：{res.is_scored ? '是' : '否（只计算不评分）'}</div>
+            {res.source_params && Object.keys(res.source_params).length > 0 && (
+              <div><b>取数参数</b>：<code style={{ fontSize: 11 }}>{JSON.stringify(res.source_params)}</code></div>
+            )}
+            {res.desc && <div><b>口径</b>：{res.desc}</div>}
+            <div><b>数据来源</b>：run #{res.run_id} · M{res.date_offset} · {res.data_date}</div>
+            {res.warnings?.length > 0 && (
+              <div style={{ color: '#d25f00', marginTop: 6 }}>
+                ⚠️ {res.warnings.join('；')}
+              </div>
+            )}
+          </div>
+        ),
+      })
+    } catch (e: any) {
+      message.error(e?.response?.data?.detail || '试算失败')
+    }
+  }
+
   const defCols: ColumnsType<any> = [
     { title: '方案', dataIndex: 'scheme_name', width: 140, render: (s, r) => <Tag color="purple">{s}</Tag> },
     { title: '类型', dataIndex: 'indicator_type', width: 80,
@@ -508,12 +543,35 @@ const KPI: React.FC = () => {
         ? <code style={{ fontSize: 12, color: '#d46b08' }}>{r.script_path || '-'} :: {r.script_name || 'calc'}</code>
         : <code style={{ fontSize: 12 }}>{r.formula}</code> },
     { title: '单位', dataIndex: 'calc_unit', width: 80, render: (u) => <DictTag dictType="PRCP_CALC_UNIT" value={u} /> },
+    { title: '取数方式', dataIndex: 'value_source', width: 150,
+      render: (v, r) => (
+        <Tooltip title={r.source_params ? JSON.stringify(r.source_params) : ''}>
+          <Tag color={v === 'ENGINE_METRIC' ? 'blue' : 'cyan'}>{v || 'ENGINE_METRIC'}</Tag>
+        </Tooltip>
+      ) },
+    { title: '参与评分', dataIndex: 'is_scored', width: 96,
+      render: (v, r) => (
+        <Switch size="small" checked={!!v}
+          onChange={async (checked) => {
+            try {
+              await kpiApi.updateDef(r.id, { ...r, is_scored: checked })
+              message.success(checked ? '已开启评分（若未配规则需补配）' : '已关闭评分：只计算不评分')
+              loadDefs()
+            } catch (e: any) {
+              message.error(e?.response?.data?.detail || '切换失败')
+            }
+          }} />
+      ) },
+    { title: '可展示', dataIndex: 'is_displayable', width: 80,
+      render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? '可展示' : '仅计算'}</Tag> },
+    { title: '顺序', dataIndex: 'display_order', width: 70 },
     { title: '状态', dataIndex: 'status', width: 80, render: (s) => <Tag color={s === 'ACTIVE' ? 'green' : 'default'}>{s}</Tag> },
     {
-      title: '操作', width: 180, fixed: 'right' as const,
+      title: '操作', width: 230, fixed: 'right' as const,
       render: (_, r) => (
         <Space size="small">
           <Button size="small" icon={<EditOutlined />} onClick={() => onEditDef(r)}>编辑</Button>
+          <Button size="small" icon={<EyeOutlined />} onClick={() => onPreviewDef(r)}>试算</Button>
           <Button size="small" icon={<PlayCircleOutlined />} onClick={() => onRecalc(r.id)}>重算</Button>
           <Popconfirm title="删除指标及其所有版本结果？" onConfirm={async () => {
             await kpiApi.deleteDef(r.id); message.success('已删除')

@@ -1,6 +1,6 @@
 """指标管理 API（v2）— 方案 + 定义（含报表项引用）+ 维护（指标值多版本）"""
 import json
-from typing import Optional, List
+from typing import Any, Optional, List
 from datetime import date
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
@@ -39,6 +39,15 @@ class KpiDefIn(BaseModel):
     threshold_min: Optional[float] = None
     threshold_max: Optional[float] = None
     status: str = "ACTIVE"
+    # ── 指标统一治理新增字段 ──
+    is_scored: bool = True                   # 是否参与评分：True 参与，False 只计算不评分
+    value_source: str = "ENGINE_METRIC"      # 取数方式
+    source_params: Optional[Any] = None      # 取数参数（dict 或 JSON 字符串）
+    metric_code: Optional[str] = None        # 引擎指标码，对齐 prcp_metric_coefficient.metric_code
+    display_order: int = 999                 # 展示顺序（决定默认前 8 个）
+    is_displayable: bool = True              # 是否可上首页卡片区
+    display_group: str = "REG"               # BS=资产负债类 REG=监管类
+    color: Optional[str] = None              # 卡片配色
 
 
 class KpiValueIn(BaseModel):
